@@ -1,0 +1,46 @@
+@import "@fontsource/saira/400.css";
+@import "@fontsource/saira/500.css";
+@import "@fontsource/saira/600.css";
+@import "@fontsource/chakra-petch/500.css";
+@import "@fontsource/chakra-petch/600.css";
+@import "tailwindcss";
+@import "./animations.css";
+
+@theme {
+  --font-sans: "Saira", system-ui, sans-serif;
+  --font-mono: "Chakra Petch", ui-monospace, monospace;
+
+  /* Fond : noir/anthracite neutre, pas de dominante teal. */
+  --color-bg: #0a0b0a;
+  --color-bg-glow: #11140f;
+
+  /* Panneaux glassmorphism "bulle" (utilisés avec /opacité Tailwind, ex: bg-surface/60). */
+  --color-surface: #161815;
+  --color-surface-2: #1f221d;
+  --color-border: #2e312c;
+
+  /* Texte : contraste doux, jamais de blanc pur. */
+  --color-ink: #e2e4e0;
+  --color-ink-dim: #93968f;
+  --color-ink-faint: #57594f;
+
+  /* Accent principal : laiton, calé sur le matériau or réel de la fusée —
+     pas une teinte "outil IA" générique (vert citron, violet, bleu néon). */
+  --color-accent: #94866e;
+  --color-accent-dim: #6b6151;
+  --color-ok: #8fe28a;
+  --color-warning: #e0954a;
+  --color-alert: #e0584f;
+}
+
+html {
+  color-scheme: dark;
+}
+
+body {
+  margin: 0;
+  background: var(--color-bg);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
