@@ -3,6 +3,7 @@ import { createRoot, type Root } from 'react-dom/client'
 import maplibregl from 'maplibre-gl'
 import { launchSites } from '@/data/launchSites'
 import { SiteHoverCard } from '@/components/sections/Simulation/SiteHoverCard'
+import { computeSiteBounds, getResponsiveMapPadding } from '@/lib/mapViewport'
 import type { LaunchSite } from '@/types/simulation.types'
 import type { SiteWeather } from '@/types/weather.types'
 
@@ -18,8 +19,11 @@ const HIDE_DELAY_MS = 150
 // Doit correspondre à la durée de transition de `.maplibregl-popup` en CSS.
 const HIDE_TRANSITION_MS = 180
 
-// Cadrage initial — réutilisé pour le recentrage ("vue d'ensemble").
-const DEFAULT_VIEW = { center: [2.5, 46] as [number, number], zoom: 4.8, pitch: 45, bearing: 0 }
+const DEFAULT_PITCH = 45
+const DEFAULT_BEARING = 0
+// Recalculée à partir des coordonnées réelles des sites — un site ajouté ou
+// retiré de la base réajuste le cadrage tout seul, pas besoin de chiffres en dur.
+const SITE_BOUNDS = computeSiteBounds(launchSites)
 
 interface UseSimulationMapParams {
   onSiteSelect: (site: LaunchSite) => void
@@ -51,7 +55,12 @@ export function useSimulationMap({ onSiteSelect, weatherBySiteId }: UseSimulatio
     const map = new maplibregl.Map({
       container: containerRef.current,
       style: MAP_STYLE,
-      ...DEFAULT_VIEW,
+      bounds: SITE_BOUNDS,
+      fitBoundsOptions: {
+        padding: getResponsiveMapPadding(containerRef.current.clientWidth),
+        pitch: DEFAULT_PITCH,
+        bearing: DEFAULT_BEARING,
+      },
     })
     mapRef.current = map
 
@@ -135,7 +144,14 @@ export function useSimulationMap({ onSiteSelect, weatherBySiteId }: UseSimulatio
   }, [])
 
   const recenter = () => {
-    mapRef.current?.flyTo({ ...DEFAULT_VIEW, duration: 1500 })
+    const map = mapRef.current
+    if (!map) return
+    map.fitBounds(SITE_BOUNDS, {
+      padding: getResponsiveMapPadding(map.getContainer().clientWidth),
+      pitch: DEFAULT_PITCH,
+      bearing: DEFAULT_BEARING,
+      duration: 1500,
+    })
   }
 
   return { containerRef, recenter }
