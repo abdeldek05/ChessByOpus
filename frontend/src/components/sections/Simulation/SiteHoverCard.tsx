@@ -1,11 +1,11 @@
-import { Wind, Droplets } from "lucide-react";
-import { describeWeatherCode } from "@/lib/describeWeatherCode";
-import type { LaunchSite } from "@/types/simulation.types";
-import type { SiteWeather } from "@/types/weather.types";
+import { Wind, Droplets } from 'lucide-react'
+import { describeWeatherCode } from '@/lib/describeWeatherCode'
+import type { LaunchSite } from '@/types/simulation.types'
+import type { SiteWeather } from '@/types/weather.types'
 
 interface SiteHoverCardProps {
-  site: LaunchSite;
-  weather: SiteWeather | null | undefined;
+  site: LaunchSite
+  weather: SiteWeather | null | undefined
 }
 
 export function SiteHoverCard({ site, weather }: SiteHoverCardProps) {
@@ -37,5 +37,5 @@ export function SiteHoverCard({ site, weather }: SiteHoverCardProps) {
         </p>
       )}
     </div>
-  );
+  )
 }

@@ -1,14 +1,12 @@
 import { useRef, type RefObject } from 'react'
 import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
+import { MAX_FRAME_DELTA } from '@/three/constants/frameTiming'
 
 // Vitesses en "par seconde", indépendantes du taux de rafraîchissement de
 // l'écran (sinon le mouvement vibre davantage sur les écrans 120/144 Hz).
 const POINTER_SMOOTHING_PER_SEC = 9
 const TILT_SMOOTHING_PER_SEC = 7
-// On borne le delta : après un changement d'onglet ou une chute de frame, un
-// delta géant ferait sauter le lissage d'un coup (effet "à-coup").
-const MAX_DELTA = 1 / 30
 
 /**
  * Incline légèrement la cible vers la position du curseur au-dessus du
@@ -24,7 +22,7 @@ export function usePointerTilt(targetRef: RefObject<THREE.Object3D | null>, maxT
     const target = targetRef.current
     if (!target) return
 
-    const dt = Math.min(delta, MAX_DELTA)
+    const dt = Math.min(delta, MAX_FRAME_DELTA)
     const pointerAlpha = Math.min(1, dt * POINTER_SMOOTHING_PER_SEC)
     smoothedPointer.current.lerp(pointer, pointerAlpha)
 

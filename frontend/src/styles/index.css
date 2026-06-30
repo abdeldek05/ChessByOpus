@@ -12,11 +12,6 @@
 
   /* Fond : noir/anthracite neutre, pas de dominante teal. */
   --color-bg: #0a0b0a;
-  --color-bg-glow: #11140f;
-
-  /* Panneaux glassmorphism "bulle" (utilisés avec /opacité Tailwind, ex: bg-surface/60). */
-  --color-surface: #161815;
-  --color-surface-2: #1f221d;
   --color-border: #2e312c;
 
   /* Texte : contraste doux, jamais de blanc pur. */
@@ -27,9 +22,7 @@
   /* Accent principal : laiton, calé sur le matériau or réel de la fusée —
      pas une teinte "outil IA" générique (vert citron, violet, bleu néon). */
   --color-accent: #94866e;
-  --color-accent-dim: #6b6151;
   --color-ok: #8fe28a;
-  --color-warning: #e0954a;
   --color-alert: #e0584f;
 }
 
@@ -106,14 +99,15 @@ body {
     0 0 8px 2px var(--color-accent),
     0 0 16px 4px var(--color-accent);
 }
-/* Anneau pulsant. */
+/* Réticule de visée : anneau pointillé qui tourne lentement, sans
+   clignoter — façon verrouillage de cible plutôt qu'un ping radar. */
 .site-marker__pulse {
   position: absolute;
-  inset: -5px;
-  border: 1px solid currentColor;
+  inset: -8px;
+  border: 1px dashed currentColor;
   border-radius: 9999px;
-  opacity: 0.7;
-  animation: marker-ping 2.2s ease-out infinite;
+  opacity: 0.6;
+  animation: marker-rotate 8s linear infinite;
 }
 
 /* Popup MapLibre (carte météo) : on retire le chrome par défaut pour ne

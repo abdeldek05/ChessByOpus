@@ -7,10 +7,9 @@ import { StudioLighting } from './StudioLighting'
 
 interface MesangeCanvasProps {
   className?: string
-  verticalLookOffsetRatio?: number
 }
 
-export function MesangeCanvas({ className, verticalLookOffsetRatio = 0 }: MesangeCanvasProps) {
+export function MesangeCanvas({ className }: MesangeCanvasProps) {
   const modelRef = useRef<THREE.Group>(null)
 
   return (
@@ -28,7 +27,7 @@ export function MesangeCanvas({ className, verticalLookOffsetRatio = 0 }: Mesang
       <Suspense fallback={null}>
         <StudioLighting />
         <MesangeModel ref={modelRef} />
-        <CameraRig targetRef={modelRef} verticalLookOffsetRatio={verticalLookOffsetRatio} />
+        <CameraRig targetRef={modelRef} />
       </Suspense>
     </Canvas>
   )

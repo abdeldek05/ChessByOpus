@@ -18,25 +18,12 @@
   }
 }
 
-/* Clignotement doux d'un témoin d'état. */
-@keyframes hud-blink {
-  0%,
-  100% {
-    opacity: 1;
+/* Réticule de visée des marqueurs de site : rotation continue, sans clignoter. */
+@keyframes marker-rotate {
+  from {
+    transform: rotate(0deg);
   }
-  50% {
-    opacity: 0.3;
-  }
-}
-
-/* Anneau pulsant des marqueurs de site sur la carte. */
-@keyframes marker-ping {
-  0% {
-    transform: scale(0.6);
-    opacity: 0.7;
-  }
-  100% {
-    transform: scale(1.7);
-    opacity: 0;
+  to {
+    transform: rotate(360deg);
   }
 }

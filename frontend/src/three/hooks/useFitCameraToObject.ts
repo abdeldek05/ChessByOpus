@@ -13,10 +13,7 @@ const LERP_SPEED = 0.08
  * rayon mémorisé seulement si le ratio du canvas change (resize), sans
  * re-parcourir la scène.
  */
-export function useFitCameraToObject(
-  targetRef: RefObject<THREE.Object3D | null>,
-  verticalLookOffsetRatio = 0,
-) {
+export function useFitCameraToObject(targetRef: RefObject<THREE.Object3D | null>) {
   const radius = useRef(0)
   const center = useRef(new THREE.Vector3())
   const desiredDistance = useRef(16)
@@ -32,7 +29,6 @@ export function useFitCameraToObject(
       if (sphere.radius > 0) {
         radius.current = sphere.radius
         center.current.copy(sphere.center)
-        center.current.y += sphere.radius * verticalLookOffsetRatio
       }
     }
 

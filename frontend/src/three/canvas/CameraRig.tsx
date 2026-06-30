@@ -4,10 +4,9 @@ import { useFitCameraToObject } from '@/three/hooks/useFitCameraToObject'
 
 interface CameraRigProps {
   targetRef: RefObject<THREE.Object3D | null>
-  verticalLookOffsetRatio?: number
 }
 
-export function CameraRig({ targetRef, verticalLookOffsetRatio = 0 }: CameraRigProps) {
-  useFitCameraToObject(targetRef, verticalLookOffsetRatio)
+export function CameraRig({ targetRef }: CameraRigProps) {
+  useFitCameraToObject(targetRef)
   return null
 }

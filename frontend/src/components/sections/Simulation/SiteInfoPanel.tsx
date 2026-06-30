@@ -1,13 +1,13 @@
-import type { LaunchSite } from "@/types/simulation.types";
+import type { LaunchSite } from '@/types/simulation.types'
 
 interface SiteInfoPanelProps {
-  site: LaunchSite | null;
+  site: LaunchSite | null
 }
 
 export function SiteInfoPanel({ site }: SiteInfoPanelProps) {
-  if (!site) return null;
+  if (!site) return null
 
-  const coordinates = `${site.latitude.toFixed(4)}, ${site.longitude.toFixed(4)}`;
+  const coordinates = `${site.latitude.toFixed(4)}, ${site.longitude.toFixed(4)}`
 
   return (
     <div className="absolute bottom-6 left-6 w-72 border border-accent bg-bg/80 p-5 font-mono backdrop-blur">
@@ -36,5 +36,5 @@ export function SiteInfoPanel({ site }: SiteInfoPanelProps) {
         Confirmer →
       </button>
     </div>
-  );
+  )
 }

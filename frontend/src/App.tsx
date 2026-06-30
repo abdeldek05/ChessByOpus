@@ -1,8 +1,8 @@
-import { Routes, Route } from "react-router-dom";
-import { Home } from "@/pages/Home";
-import { Contact } from "@/pages/Contact";
-import { NotFound } from "@/pages/NotFound";
-import { Simulation } from "@/pages/Simulation";
+import { Routes, Route } from 'react-router-dom'
+import { Home } from '@/pages/Home'
+import { Contact } from '@/pages/Contact'
+import { NotFound } from '@/pages/NotFound'
+import { Simulation } from '@/pages/Simulation'
 
 export default function App() {
   return (
@@ -12,5 +12,5 @@ export default function App() {
       <Route path="/simulation" element={<Simulation />} />
       <Route path="*" element={<NotFound />} />
     </Routes>
-  );
+  )
 }

@@ -6,7 +6,6 @@ type CopyStatus = 'idle' | 'copied' | 'error'
 
 interface UseCopyToClipboardResult {
   status: CopyStatus
-  copied: boolean
   copy: (text: string) => void
 }
 
@@ -34,5 +33,5 @@ export function useCopyToClipboard(): UseCopyToClipboardResult {
       .catch(() => resetSoon('error'))
   }
 
-  return { status, copied: status === 'copied', copy }
+  return { status, copy }
 }
