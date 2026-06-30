@@ -22,33 +22,6 @@ qui fait "un peu de tout", **arrête-toi avant d'écrire**, découpe d'abord, co
 
 ## 1. Structure de dossiers (à respecter dès le premier commit)
 
-```
-src/
-├── pages/                    # Points d'entrée de route, si routing
-├── components/
-│   ├── layout/                # Header, Footer, Nav
-│   ├── sections/               # Blocs de page (Hero, About...)
-│   │   ├── Hero/
-│   │       ├── Hero.tsx             # Orchestration uniquement
-│   │       ├── Typewriter.tsx       # Sous-composant, fichier séparé
-│   │       ├── CountUp.tsx          # Sous-composant, fichier séparé
-│   ├── ui/                     # Composants génériques réutilisables (Button, Badge)
-├── three/                      # TOUT ce qui touche Three.js / R3F
-│   ├── canvas/                  # Le <Canvas>, lumières, caméra — rien d'autre
-│   ├── models/                  # Rendu des modèles 3D (JSX uniquement)
-│   ├── hooks/                   # useFrame / useAnimations / chargement
-│   ├── constants/                # Anchors, chemins de modèles, config statique
-├── hooks/                       # Hooks React réutilisables hors Three.js
-├── lib/                         # Fonctions pures, helpers
-├── types/                       # Types/interfaces partagés (*.types.ts)
-├── styles/
-│   ├── index.css                  # imports fonts + tailwind + @theme (tokens)
-│   ├── animations.css             # @keyframes custom uniquement
-├── assets/
-├── App.tsx                      # Compose les sections, AUCUNE logique métier
-├── main.tsx                      # Bootstrap React, rien d'autre
-```
-
 Avant de créer un fichier, demande-toi où il va selon cette arborescence. Pas de
 dossier "fourre-tout" (`misc/`, `helpers2/`, etc.).
 
@@ -59,7 +32,7 @@ dossier "fourre-tout" (`misc/`, `helpers2/`, etc.).
 - **Un composant exporté par fichier.** Si tu écris plusieurs `function X() {}` avec
   du JSX dans le même fichier "pour aller plus vite", chacun part dans son propre
   fichier, même s'il fait 10 lignes.
-- **Taille max ~150-200 lignes par composant.** Au-delà, tu fais sûrement plusieurs
+- **Taille max ~200-250 lignes par composant.** Au-delà, tu fais sûrement plusieurs
   choses : extrait un sous-composant, un hook, ou une fonction utilitaire.
 - **Props toujours typées** via une interface nommée `<NomComposant>Props`, jamais
   de props inline complexes, jamais de `any`.
@@ -71,8 +44,8 @@ dossier "fourre-tout" (`misc/`, `helpers2/`, etc.).
 ```tsx
 // ✅ Exemple de structure attendue pour Hero
 // components/sections/Hero/Hero.tsx
-import { Typewriter } from './Typewriter'
-import { CountUp } from './CountUp'
+import { Typewriter } from "./Typewriter";
+import { CountUp } from "./CountUp";
 
 export function Hero() {
   return (
@@ -80,7 +53,7 @@ export function Hero() {
       <Typewriter text="..." />
       <CountUp target={500} suffix="+" />
     </section>
-  )
+  );
 }
 ```
 
@@ -96,8 +69,9 @@ export function Hero() {
   Si le token n'existe pas encore dans `@theme`, on l'ajoute là, on ne le code pas
   en dur ailleurs.
 - ✅ Seule exception : une valeur **calculée dynamiquement à l'exécution** (ex:
-  position pilotée par un calcul Three.js synchronisé avec du DOM). Même dans ce
-  cas, isoler la valeur dans une variable nommée, jamais un objet de style complexe.
+  position pilotée par un calcul Three.js synchronisé avec du DOM, ou coordonnées
+  de HUD suivant une trajectoire en vol). Ces valeurs sont isolées dans une variable
+  nommée, jamais un objet de style complexe inline.
 - Les `@keyframes` custom qui ne rentrent pas dans Tailwind vont dans
   `src/styles/animations.css`, importé une seule fois.
 
@@ -108,22 +82,22 @@ export function Hero() {
 Ne jamais mélanger dans un seul composant : chargement, calculs géométriques,
 logique d'animation et rendu JSX.
 
-| Couche | Dossier | Contenu |
-|---|---|---|
-| Scène | `three/canvas/` | `<Canvas>`, lumières, caméra, contrôles |
-| Modèle | `three/models/` | Rendu JSX du modèle (`<primitive>`, `<mesh>`) uniquement |
-| Logique | `three/hooks/` | `useFrame`, `useAnimations`, chargement (`useGLTF`, `useLoader`), calculs mémoïsés |
-| Données | `three/constants/` | Noms d'anchors, chemins `/models/*.glb`, config statique |
+| Couche  | Dossier            | Contenu                                                                            |
+| ------- | ------------------ | ---------------------------------------------------------------------------------- |
+| Scène   | `three/canvas/`    | `<Canvas>`, lumières, caméra, contrôles                                            |
+| Modèle  | `three/models/`    | Rendu JSX du modèle (`<primitive>`, `<mesh>`) uniquement                           |
+| Logique | `three/hooks/`     | `useFrame`, `useAnimations`, chargement (`useGLTF`, `useLoader`), calculs mémoïsés |
+| Données | `three/constants/` | Noms d'anchors, chemins `/models/*.glb`, config statique                           |
 
 ```tsx
 // ✅ three/models/MesangeModel.tsx — rendu uniquement
-import { useGLTF } from '@react-three/drei'
-import { useMesangeAnimations } from '../hooks/useMesangeAnimations'
+import { useGLTF } from "@react-three/drei";
+import { useMesangeAnimations } from "../hooks/useMesangeAnimations";
 
 export function MesangeModel() {
-  const { scene } = useGLTF('/models/mesange_explode.glb')
-  useMesangeAnimations(scene)
-  return <primitive object={scene} />
+  const { scene } = useGLTF("/models/mesange_explode.glb");
+  useMesangeAnimations(scene);
+  return <primitive object={scene} />;
 }
 ```
 
@@ -146,14 +120,14 @@ export function MesangeModel() {
 
 ## 6. Conventions de nommage
 
-| Type | Convention | Exemple |
-|---|---|---|
-| Composant | `PascalCase.tsx` | `Hero.tsx` |
-| Hook | `useCamelCase.ts` | `useTypewriter.ts` |
-| Fonction utilitaire | `camelCase.ts` | `formatScore.ts` |
-| Constantes | `camelCase.ts` dans `constants/` | `mesangeAnchors.ts` |
-| Types | `camelCase.types.ts` | `hero.types.ts` |
-| Styles | `kebab-case.css` | `animations.css` |
+| Type                | Convention                       | Exemple             |
+| ------------------- | -------------------------------- | ------------------- |
+| Composant           | `PascalCase.tsx`                 | `Hero.tsx`          |
+| Hook                | `useCamelCase.ts`                | `useTypewriter.ts`  |
+| Fonction utilitaire | `camelCase.ts`                   | `formatScore.ts`    |
+| Constantes          | `camelCase.ts` dans `constants/` | `mesangeAnchors.ts` |
+| Types               | `camelCase.types.ts`             | `hero.types.ts`     |
+| Styles              | `kebab-case.css`                 | `animations.css`    |
 
 - Nom du fichier = nom du composant/hook exporté, toujours.
 - Imports relatifs courts seulement entre fichiers proches ; au-delà, utiliser un
@@ -165,9 +139,9 @@ export function MesangeModel() {
 ## Checklist avant de considérer un fichier terminé
 
 - [ ] Un seul composant exporté dans ce fichier
-- [ ] Moins de ~150-200 lignes
+- [ ] Moins de ~200-250 lignes
 - [ ] Props typées via interface nommée, aucun `any`
-- [ ] Zéro `style={{ }}` (sauf valeur calculée justifiée), zéro balise `<style>`
+- [ ] Zéro `style={{ }}` (sauf valeur calculée dynamiquement justifiée), zéro balise `<style>`
 - [ ] Zéro couleur/dimension en dur, tout passe par un token Tailwind
 - [ ] Logique de plus de 5-6 lignes extraite en hook
 - [ ] Code Three.js réparti dans `canvas/` / `models/` / `hooks/` / `constants/`, jamais mélangé
