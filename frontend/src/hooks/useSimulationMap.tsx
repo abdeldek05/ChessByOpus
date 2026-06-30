@@ -25,6 +25,12 @@ const DEFAULT_BEARING = 0
 // retiré de la base réajuste le cadrage tout seul, pas besoin de chiffres en dur.
 const SITE_BOUNDS = computeSiteBounds(launchSites)
 
+// Sur tactile, il n'y a pas de vrai survol : un pincement pour zoomer fait
+// bouger le doigt hors du marqueur et déclencherait une fermeture en plein
+// geste. On bascule donc en "toucher pour ouvrir/fermer" sur ces appareils.
+const IS_TOUCH_DEVICE =
+  typeof window !== 'undefined' && (navigator.maxTouchPoints > 0 || 'ontouchstart' in window)
+
 interface UseSimulationMapParams {
   onSiteSelect: (site: LaunchSite) => void
   weatherBySiteId: Record<string, SiteWeather | null>
@@ -38,8 +44,8 @@ interface UseSimulationMapResult {
 /**
  * Initialise une carte MapLibre plate (mercator, pas de globe), inclinée en 3D
  * avec relief, sur le théâtre européen. Chaque site de lancement a un
- * marqueur lumineux ; le survol affiche une carte météo (rendue en React),
- * le clic recentre la vue et notifie la sélection.
+ * marqueur lumineux ; le survol (ou le toucher sur mobile) affiche une carte
+ * météo, le clic recentre la vue et notifie la sélection.
  */
 export function useSimulationMap({ onSiteSelect, weatherBySiteId }: UseSimulationMapParams): UseSimulationMapResult {
   const containerRef = useRef<HTMLDivElement>(null)
@@ -48,6 +54,8 @@ export function useSimulationMap({ onSiteSelect, weatherBySiteId }: UseSimulatio
   selectRef.current = onSiteSelect
   const weatherRef = useRef(weatherBySiteId)
   weatherRef.current = weatherBySiteId
+  // Popup actuellement épinglée (mode tactile) — accessible depuis `recenter`.
+  const closeActivePopupRef = useRef<(() => void) | null>(null)
 
   useEffect(() => {
     if (!containerRef.current) return
@@ -75,6 +83,11 @@ export function useSimulationMap({ onSiteSelect, weatherBySiteId }: UseSimulatio
       map.setTerrain({ source: 'terrain', exaggeration: TERRAIN_EXAGGERATION })
     })
 
+    // Sur tactile, taper la carte en dehors d'un marqueur ferme la popup ouverte.
+    if (IS_TOUCH_DEVICE) {
+      map.on('click', () => closeActivePopupRef.current?.())
+    }
+
     const markers: maplibregl.Marker[] = []
     const popupRoots: Root[] = []
 
@@ -96,41 +109,62 @@ export function useSimulationMap({ onSiteSelect, weatherBySiteId }: UseSimulatio
         anchor: 'bottom',
       }).setDOMContent(popupContainer)
 
-      // Survol marqueur OU carte = ouvert ; un court délai à la sortie
-      // laisse le temps de glisser de l'un à l'autre sans coupure brutale.
-      let hideTimer: ReturnType<typeof setTimeout> | null = null
-
-      const cancelHide = () => {
-        if (hideTimer) {
-          clearTimeout(hideTimer)
-          hideTimer = null
-        }
-      }
-
-      const show = () => {
-        cancelHide()
+      const renderAndOpen = () => {
         popupRoot.render(<SiteHoverCard site={site} weather={weatherRef.current[site.id]} />)
         if (!popup.isOpen()) popup.setLngLat([site.longitude, site.latitude]).addTo(map)
         requestAnimationFrame(() => popup.getElement()?.classList.add('is-visible'))
       }
 
-      const scheduleHide = () => {
-        cancelHide()
-        hideTimer = setTimeout(() => {
-          popup.getElement()?.classList.remove('is-visible')
-          setTimeout(() => popup.remove(), HIDE_TRANSITION_MS)
-        }, HIDE_DELAY_MS)
+      const closeNow = () => {
+        popup.getElement()?.classList.remove('is-visible')
+        setTimeout(() => popup.remove(), HIDE_TRANSITION_MS)
+        if (closeActivePopupRef.current === closeNow) closeActivePopupRef.current = null
       }
 
-      element.addEventListener('mouseenter', show)
-      element.addEventListener('mouseleave', scheduleHide)
-      popupContainer.addEventListener('mouseenter', cancelHide)
-      popupContainer.addEventListener('mouseleave', scheduleHide)
-
-      element.addEventListener('click', () => {
+      const flyToSite = () => {
         selectRef.current(site)
         map.flyTo({ center: [site.longitude, site.latitude], zoom: 8, pitch: 50, duration: 1800 })
-      })
+      }
+
+      if (IS_TOUCH_DEVICE) {
+        // Taper : ouvre (et ferme la précédente) ; taper le même : referme.
+        element.addEventListener('click', (event) => {
+          event.stopPropagation()
+          const wasOpen = popup.isOpen()
+          closeActivePopupRef.current?.()
+          if (!wasOpen) {
+            renderAndOpen()
+            closeActivePopupRef.current = closeNow
+          }
+          flyToSite()
+        })
+      } else {
+        // Survol marqueur OU carte = ouvert ; un court délai à la sortie
+        // laisse le temps de glisser de l'un à l'autre sans coupure brutale.
+        let hideTimer: ReturnType<typeof setTimeout> | null = null
+
+        const cancelHide = () => {
+          if (hideTimer) {
+            clearTimeout(hideTimer)
+            hideTimer = null
+          }
+        }
+
+        const scheduleHide = () => {
+          cancelHide()
+          hideTimer = setTimeout(closeNow, HIDE_DELAY_MS)
+        }
+
+        element.addEventListener('mouseenter', () => {
+          cancelHide()
+          renderAndOpen()
+          closeActivePopupRef.current = closeNow
+        })
+        element.addEventListener('mouseleave', scheduleHide)
+        popupContainer.addEventListener('mouseenter', cancelHide)
+        popupContainer.addEventListener('mouseleave', scheduleHide)
+        element.addEventListener('click', flyToSite)
+      }
 
       markers.push(new maplibregl.Marker({ element }).setLngLat([site.longitude, site.latitude]).addTo(map))
     })
@@ -140,12 +174,16 @@ export function useSimulationMap({ onSiteSelect, weatherBySiteId }: UseSimulatio
       popupRoots.forEach((root) => root.unmount())
       map.remove()
       mapRef.current = null
+      closeActivePopupRef.current = null
     }
   }, [])
 
   const recenter = () => {
     const map = mapRef.current
     if (!map) return
+    // Une popup ouverte deviendrait illisible une fois la caméra très
+    // dézoomée pour englober tous les sites — on la ferme avant.
+    closeActivePopupRef.current?.()
     map.fitBounds(SITE_BOUNDS, {
       padding: getResponsiveMapPadding(map.getContainer().clientWidth),
       pitch: DEFAULT_PITCH,
