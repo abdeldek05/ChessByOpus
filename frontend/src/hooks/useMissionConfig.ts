@@ -1,5 +1,4 @@
 import { useState } from 'react'
-import { radarTemplates } from '@/data/radarTemplates'
 import { resizeMesangeConfigs } from '@/lib/resizeMesangeConfigs'
 import type { RadarConfig, RadarTemplate } from '@/types/radar.types'
 import type { MesangeLaunchConfig, RadarPosition } from '@/types/mission.types'
