@@ -1,10 +1,20 @@
+import { useConfirmLaunchSite } from '@/hooks/useConfirmLaunchSite'
 import type { LaunchSite } from '@/types/simulation.types'
 
 interface SiteInfoPanelProps {
   site: LaunchSite | null
 }
 
+const BUTTON_LABEL = {
+  idle: 'Confirmer →',
+  saving: 'Enregistrement…',
+  saved: 'Confirmé ✓',
+  error: 'Échec — réessayer',
+} as const
+
 export function SiteInfoPanel({ site }: SiteInfoPanelProps) {
+  const { status, confirm } = useConfirmLaunchSite()
+
   if (!site) return null
 
   const coordinates = `${site.latitude.toFixed(4)}, ${site.longitude.toFixed(4)}`
@@ -31,9 +41,11 @@ export function SiteInfoPanel({ site }: SiteInfoPanelProps) {
 
       <button
         type="button"
-        className="mt-5 w-full border border-accent px-4 py-2 text-xs tracking-[0.15em] text-accent uppercase transition-colors duration-300 ease-out hover:bg-accent hover:text-bg"
+        onClick={() => confirm(site)}
+        disabled={status === 'saving' || status === 'saved'}
+        className="mt-5 w-full border border-accent px-4 py-2 text-xs tracking-[0.15em] text-accent uppercase transition-colors duration-300 ease-out hover:bg-accent hover:text-bg disabled:cursor-default disabled:opacity-70 disabled:hover:bg-transparent disabled:hover:text-accent"
       >
-        Confirmer →
+        {BUTTON_LABEL[status]}
       </button>
     </div>
   )

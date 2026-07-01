@@ -110,6 +110,24 @@ body {
   animation: marker-rotate 8s linear infinite;
 }
 
+/* Carte de placement du HUD mission : marqueurs plats, sans glow (suite à
+   la refonte "moins de chrome décoratif" du HUD). */
+.launch-marker {
+  width: 12px;
+  height: 12px;
+  border-radius: 9999px;
+  background: var(--color-accent);
+  border: 2px solid var(--color-bg);
+}
+.radar-marker {
+  width: 18px;
+  height: 18px;
+  border-radius: 9999px;
+  border: 2px solid var(--color-accent);
+  background: var(--color-bg);
+  cursor: pointer;
+}
+
 /* Popup MapLibre (carte météo) : on retire le chrome par défaut pour ne
    garder que notre carte React. Sélecteur imbriqué (et pas juste la classe
    seule) pour gagner à coup sûr sur le CSS par défaut de la lib, quel que
@@ -145,5 +163,53 @@ body {
   height: 18px;
   background: linear-gradient(to bottom, var(--color-accent), transparent);
   transform: translateX(-50%);
+}
+
+/* Panneau HUD : aucune ornementation (pas de cadre, pas de coin coupé, pas
+   de glow, pas de blur) — fond plat, juste pour garder le texte lisible
+   au-dessus de la scène 3D. Pas de "chrome" sci-fi, façon tableau de bord
+   d'avionique réel plutôt que mood-board IA. */
+.hud-panel {
+  background: var(--color-bg);
+}
+
+/* Séparateur de section : trait plat, fin, une seule couleur. */
+.hud-divider {
+  height: 1px;
+  background: var(--color-border);
+}
+
+/* Champ HUD : lecture/saisie en ligne, soulignée seulement (pas de boîte
+   fermée autour de chaque valeur). */
+.hud-input {
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid var(--color-border);
+  color: var(--color-ink);
+  transition: border-color 0.2s ease-out;
+}
+.hud-input:focus {
+  outline: none;
+  border-color: var(--color-accent);
+}
+
+/* Légende flottante reliée au modèle 3D par un trait fin, façon annotation
+   de schéma technique (pas de glow, pas de dégradé). */
+.hud-callout {
+  position: absolute;
+}
+.hud-callout::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  width: 40px;
+  height: 1px;
+  background: var(--color-border);
+}
+.hud-callout--left::before {
+  right: 100%;
+}
+.hud-callout--right::before {
+  left: 100%;
 }
 

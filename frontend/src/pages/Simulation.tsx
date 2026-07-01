@@ -11,7 +11,7 @@ export function Simulation() {
     <div className="relative h-screen w-screen overflow-hidden bg-bg">
       <SimulationMap onSiteSelect={setSelectedSite} />
       <HudOverlay />
-      <SiteInfoPanel site={selectedSite} />
+      <SiteInfoPanel key={selectedSite?.id} site={selectedSite} />
     </div>
   )
 }
