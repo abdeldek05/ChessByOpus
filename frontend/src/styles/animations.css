@@ -27,3 +27,48 @@
     transform: rotate(360deg);
   }
 }
+
+/* Entrée d'une carte Mesange : glisse + apparaît. */
+@keyframes card-in {
+  from {
+    opacity: 0;
+    transform: translateY(14px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+.animate-card-in {
+  animation: card-in 0.4s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+
+/* Balayage radar de la boussole d'azimut. */
+@keyframes radar-sweep {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+.animate-radar-sweep {
+  transform-origin: center;
+  animation: radar-sweep 3.5s linear infinite;
+}
+
+/* Pulsation douce (pièce d'échecs sélectionnée, points d'apogée). */
+@keyframes soft-pulse {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.7;
+    transform: scale(1.12);
+  }
+}
+.animate-soft-pulse {
+  animation: soft-pulse 2s ease-in-out infinite;
+}

@@ -3,7 +3,7 @@ import { useMesangeMaterialQuality } from '@/three/hooks/useMesangeMaterialQuali
 import { MESANGE_MODEL_PATH } from '@/three/constants/modelPaths'
 
 /**
- * Mésange dressée et immobile pour la scène de lancement (contrairement à
+ * Mesange dressée et immobile pour la scène de lancement (contrairement à
  * `MesangeModel` qui tourne sur lui-même pour la vitrine de l'accueil). Même
  * chargement/orientation, sans rotation ni inclinaison au pointeur.
  */

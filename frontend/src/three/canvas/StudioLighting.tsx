@@ -1,7 +1,7 @@
 import { Environment, Lightformer } from '@react-three/drei'
 
 /**
- * Éclairage "studio produit" pour la Mésange : trois lumières directionnelles
+ * Éclairage "studio produit" pour la Mesange : trois lumières directionnelles
  * (clé chaude qui projette l'auto-ombrage, contre-jour froid pour détacher la
  * silhouette, remplissage doré par-dessous) + un environnement de softboxes
  * qui crée des reflets spéculaires nets roulant sur le chrome et l'or quand la

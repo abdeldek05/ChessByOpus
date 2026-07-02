@@ -58,8 +58,11 @@ class MissionPayload(BaseModel):
 
 class MesangeLaunchConfigPayload(BaseModel):
     id: str
+    role: str = "PAWN"
+    launchSiteId: str = ""
     azimuthDeg: float
     inclinationDeg: float
+    launchDelaySec: float = 0
 
 
 class ScenarioPayload(BaseModel):

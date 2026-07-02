@@ -4,23 +4,31 @@ interface RadarSpecCalloutsProps {
   config: RadarConfig
 }
 
+interface Spec {
+  label: string
+  value: string
+  position: string
+}
+
+/** Étiquettes flottantes des specs radar — pastilles douces, sans trait de liaison. */
 export function RadarSpecCallouts({ config }: RadarSpecCalloutsProps) {
+  const specs: Spec[] = [
+    { label: 'Portée', value: `${config.rangeKm} km`, position: 'top-6 left-6' },
+    { label: 'Plafond', value: `${config.ceilingM} m`, position: 'top-6 right-6 text-right' },
+    { label: 'Rotatif', value: config.rotating ? 'Oui' : 'Non', position: 'bottom-6 left-6' },
+  ]
+
   return (
     <>
-      <div className="hud-callout hud-callout--right top-10 left-[58%] font-mono">
-        <p className="ml-12 text-[10px] tracking-[0.15em] text-ink-dim uppercase">Portée</p>
-        <p className="ml-12 text-sm text-accent">{config.rangeKm} km</p>
-      </div>
-
-      <div className="hud-callout hud-callout--left right-10 top-1/2 font-mono">
-        <p className="mr-12 text-right text-[10px] tracking-[0.15em] text-ink-dim uppercase">Plafond</p>
-        <p className="mr-12 text-right text-sm text-accent">{config.ceilingM} m</p>
-      </div>
-
-      <div className="hud-callout hud-callout--right bottom-12 left-[58%] font-mono">
-        <p className="ml-12 text-[10px] tracking-[0.15em] text-ink-dim uppercase">Rotatif</p>
-        <p className="ml-12 text-sm text-accent">{config.rotating ? 'Oui' : 'Non'}</p>
-      </div>
+      {specs.map((spec) => (
+        <div
+          key={spec.label}
+          className={`pointer-events-none absolute ${spec.position} rounded-xl bg-surface/70 px-3 py-2 backdrop-blur-sm`}
+        >
+          <p className="text-[9px] font-semibold tracking-[0.2em] text-ink-dim uppercase">{spec.label}</p>
+          <p className="text-sm font-medium text-accent-bright">{spec.value}</p>
+        </div>
+      ))}
     </>
   )
 }

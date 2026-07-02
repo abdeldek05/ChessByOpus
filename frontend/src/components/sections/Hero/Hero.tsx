@@ -14,7 +14,7 @@ export function Hero() {
           </h1>
           <p className="mt-6 max-w-md text-ink-dim">
             CHESS simule, scénarise et valide des menaces aériennes réalistes
-            autour de la fusée Mésange.
+            autour de la fusée Mesange.
           </p>
 
           <div className="mt-8">

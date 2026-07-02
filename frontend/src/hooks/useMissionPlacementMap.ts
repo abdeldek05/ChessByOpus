@@ -19,7 +19,7 @@ interface UseMissionPlacementMapResult {
 /**
  * Carte 2D (vue du dessus, pas de relief ni d'inclinaison — la précision du
  * placement prime sur l'esthétique) centrée sur la base de lancement. Le
- * point Mésange est fixe ; un clic ailleurs sur la carte place ou déplace le
+ * point Mesange est fixe ; un clic ailleurs sur la carte place ou déplace le
  * marqueur radar.
  */
 export function useMissionPlacementMap({
@@ -45,7 +45,7 @@ export function useMissionPlacementMap({
 
     const launchElement = document.createElement('div')
     launchElement.className = 'launch-marker'
-    launchElement.setAttribute('aria-label', 'Mésange — point de lancement fixe')
+    launchElement.setAttribute('aria-label', 'Mesange — point de lancement fixe')
     new maplibregl.Marker({ element: launchElement })
       .setLngLat([site.longitude, site.latitude])
       .addTo(map)

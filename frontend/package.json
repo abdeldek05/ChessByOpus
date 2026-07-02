@@ -4,14 +4,19 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
+    "dev": "concurrently -n front,api -c cyan,magenta \"vite\" \"npm run dev:api\"",
+    "dev:front": "vite",
+    "dev:api": "cd ..\\backend && .venv\\Scripts\\uvicorn.exe main:app --reload --port 8000",
     "build": "tsc -b && vite build",
     "lint": "oxlint",
     "preview": "vite preview"
   },
   "dependencies": {
     "@fontsource/chakra-petch": "^5.2.7",
+    "@fontsource/fraunces": "^5.2.9",
+    "@fontsource/montserrat": "^5.2.8",
     "@fontsource/saira": "^5.2.11",
+    "@fontsource/spline-sans-mono": "^5.2.8",
     "@react-three/drei": "^10.7.7",
     "@react-three/fiber": "^9.6.1",
     "@tailwindcss/vite": "^4.3.1",
@@ -29,6 +34,7 @@
     "@types/react-dom": "^19.2.3",
     "@types/three": "^0.185.0",
     "@vitejs/plugin-react": "^6.0.2",
+    "concurrently": "^10.0.3",
     "oxlint": "^1.69.0",
     "typescript": "~6.0.2",
     "vite": "^8.1.0"

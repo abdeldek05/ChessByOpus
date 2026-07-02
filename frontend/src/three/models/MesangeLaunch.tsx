@@ -12,7 +12,7 @@ interface MesangeLaunchProps {
 }
 
 /**
- * Une Mésange en vol balistique (placeholder). Le pivot porte la trajectoire
+ * Une Mesange en vol balistique (placeholder). Le pivot porte la trajectoire
  * et l'orientation ; le décalage interne pose la base de la fusée sur le
  * pivot pour qu'elle pointe dans son sens de déplacement.
  */

@@ -30,15 +30,15 @@ export const DAY_AMBIANCE: LaunchAmbiance = {
 }
 
 export const NIGHT_AMBIANCE: LaunchAmbiance = {
-  skyTop: '#0b1220',
-  skyHorizon: '#26313f',
-  fog: '#1b2430',
-  ground: '#232a24',
-  keyColor: '#9fb4d6',
-  keyIntensity: 0.9,
-  hemiSky: '#2a3850',
-  hemiGround: '#161a16',
-  hemiIntensity: 0.35,
-  ambientColor: '#3a4658',
-  ambientIntensity: 0.22,
+  skyTop: '#1a2740',
+  skyHorizon: '#42536b',
+  fog: '#42536b',
+  ground: '#39423b',
+  keyColor: '#b8c8e6',
+  keyIntensity: 1.7,
+  hemiSky: '#4a5c7a',
+  hemiGround: '#2a3026',
+  hemiIntensity: 0.7,
+  ambientColor: '#5a6880',
+  ambientIntensity: 0.45,
 }

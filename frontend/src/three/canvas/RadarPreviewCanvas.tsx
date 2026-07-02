@@ -1,4 +1,4 @@
-import { Suspense, useRef } from 'react'
+import { Suspense, memo, useRef } from 'react'
 import { Canvas } from '@react-three/fiber'
 import * as THREE from 'three'
 import { RadarModel } from '@/three/models/RadarModel'
@@ -11,7 +11,12 @@ interface RadarPreviewCanvasProps {
   className?: string
 }
 
-export function RadarPreviewCanvas({ modelPath, tintColor, className }: RadarPreviewCanvasProps) {
+/**
+ * Mémoïsé : ne dépend que du modèle + teinte. Sans ça, bouger un curseur de
+ * réglage (portée/plafond) re-rendait tout le Canvas Three.js à chaque cran
+ * et rendait le slider saccadé.
+ */
+function RadarPreviewCanvasComponent({ modelPath, tintColor, className }: RadarPreviewCanvasProps) {
   const modelRef = useRef<THREE.Group>(null)
 
   return (
@@ -34,3 +39,5 @@ export function RadarPreviewCanvas({ modelPath, tintColor, className }: RadarPre
     </Canvas>
   )
 }
+
+export const RadarPreviewCanvas = memo(RadarPreviewCanvasComponent)

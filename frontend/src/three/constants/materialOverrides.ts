@@ -4,7 +4,7 @@ export interface MaterialOverride {
 }
 
 /**
- * Le bake Blender du modèle Mésange laisse plusieurs matériaux sans valeur
+ * Le bake Blender du modèle Mesange laisse plusieurs matériaux sans valeur
  * de rugosité/métallicité explicite. La norme glTF retombe alors sur
  * roughness=1 (mat, aucun reflet) — ce qui rend chrome/métal/aileron
  * visuellement plats malgré leur nom. On corrige ici au rendu, sans

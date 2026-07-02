@@ -2,7 +2,7 @@ import { LAUNCH_PAD_COLOR, LAUNCH_PAD_RING_COLOR, LAUNCH_PAD_HEIGHT } from '@/th
 
 /**
  * Aire de lancement générique et sobre (béton + anneau de repère), en
- * primitives — pas un décor de jeu, juste un socle crédible sous la Mésange.
+ * primitives — pas un décor de jeu, juste un socle crédible sous la Mesange.
  */
 export function LaunchPad() {
   return (

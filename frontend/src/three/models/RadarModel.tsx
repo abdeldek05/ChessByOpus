@@ -9,13 +9,14 @@ const SPIN_SPEED_RAD_PER_SEC = 0.5
 interface RadarModelProps {
   modelPath: string
   tintColor?: string
+  shadows?: boolean
 }
 
 export const RadarModel = forwardRef<THREE.Group, RadarModelProps>(function RadarModel(
-  { modelPath, tintColor },
+  { modelPath, tintColor, shadows = true },
   ref,
 ) {
-  const { scene } = useCenteredScene(modelPath)
+  const { scene } = useCenteredScene(modelPath, 3, shadows)
   const rootRef = useRef<THREE.Group>(null)
   const spinRef = useRef<THREE.Group>(null)
 

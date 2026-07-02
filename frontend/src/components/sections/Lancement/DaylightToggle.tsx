@@ -10,7 +10,7 @@ export function DaylightToggle({ isDay, onToggle }: DaylightToggleProps) {
       type="button"
       onClick={onToggle}
       aria-label={isDay ? 'Passer en nuit' : 'Passer en jour'}
-      className="pointer-events-auto flex size-10 items-center justify-center border border-border text-accent transition-colors duration-200 ease-out hover:border-accent"
+      className="pointer-events-auto flex size-10 items-center justify-center border border-accent/50 bg-bg/70 text-accent backdrop-blur-sm transition-colors duration-200 ease-out hover:border-accent hover:bg-bg/90"
     >
       {isDay ? (
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" className="size-5">

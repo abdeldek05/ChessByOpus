@@ -8,7 +8,7 @@ interface UseMesangeSceneResult {
 }
 
 /**
- * Charge le modèle Mésange, l'oriente debout (axe le plus long sur Y) et le
+ * Charge le modèle Mesange, l'oriente debout (axe le plus long sur Y) et le
  * recentre sur l'origine, une seule fois après le chargement.
  *
  * On travaille sur un CLONE : `useGLTF` met la scène en cache globalement, et

@@ -2,7 +2,7 @@ import { Environment, Lightformer } from '@react-three/drei'
 
 /**
  * Éclairage neutre pour les radars (matériaux mats kaki/gris), distinct du
- * studio doré/chromé de la Mésange : tons froids et blancs, pas de teinte
+ * studio doré/chromé de la Mesange : tons froids et blancs, pas de teinte
  * laiton qui plaquerait une couleur "produit" sur du matériel tactique.
  */
 export function RadarLighting() {

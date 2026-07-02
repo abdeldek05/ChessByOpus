@@ -1,5 +1,5 @@
 import { Navigate, useLocation } from 'react-router-dom'
-import { MissionHud } from '@/components/sections/Mission/MissionHud'
+import { MissionConsole } from '@/components/sections/Mission/MissionConsole'
 import type { LaunchSite } from '@/types/simulation.types'
 
 interface MissionLocationState {
@@ -13,9 +13,5 @@ export function Mission() {
 
   if (!state?.site) return <Navigate to="/simulation" replace />
 
-  return (
-    <div className="relative min-h-screen w-screen overflow-y-auto bg-bg md:h-screen md:overflow-hidden">
-      <MissionHud site={state.site} missionId={state.missionId} />
-    </div>
-  )
+  return <MissionConsole site={state.site} missionId={state.missionId} />
 }

@@ -18,7 +18,7 @@ export function ScenarioRow({ scenario }: ScenarioRowProps) {
 
       <p className="text-ink-dim">{scenario.radarRangeKm} km</p>
 
-      <p className="text-accent">{scenario.mesangeConfigs.length} Mésange</p>
+      <p className="text-accent">{scenario.mesangeConfigs.length} Mesange</p>
     </div>
   )
 }

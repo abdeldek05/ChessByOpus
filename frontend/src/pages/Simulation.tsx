@@ -8,7 +8,7 @@ export function Simulation() {
   const [selectedSite, setSelectedSite] = useState<LaunchSite | null>(null)
 
   return (
-    <div className="relative h-screen w-screen overflow-hidden bg-bg">
+    <div className="theme-dark relative h-screen w-screen overflow-hidden bg-bg">
       <SimulationMap onSiteSelect={setSelectedSite} />
       <HudOverlay />
       <SiteInfoPanel key={selectedSite?.id} site={selectedSite} />

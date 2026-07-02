@@ -2,36 +2,35 @@ import { Link } from 'react-router-dom'
 import { launchSites } from '@/data/launchSites'
 
 export function HudOverlay() {
-  const activeSiteCount = String(launchSites.length).padStart(2, '0')
+  const siteCount = String(launchSites.length).padStart(2, '0')
 
   return (
     <div className="pointer-events-none absolute inset-0">
-      {/* Vignette d'ambiance */}
       <div className="hud-vignette absolute inset-0" />
 
-      {/* Coins du cadre */}
-      <span className="absolute top-4 left-4 size-6 border-t border-l border-accent/60" />
-      <span className="absolute top-4 right-4 size-6 border-t border-r border-accent/60" />
-      <span className="absolute bottom-4 left-4 size-6 border-b border-l border-accent/60" />
-      <span className="absolute right-4 bottom-4 size-6 border-r border-b border-accent/60" />
-
-      {/* Passerelle vers l'accueil (Mésange en 3D) */}
-      <Link
-        to="/"
-        className="pointer-events-auto absolute top-7 left-10 font-mono text-[11px] tracking-[0.18em] text-ink-dim uppercase transition-colors hover:text-accent"
-      >
-        ← Voir Mésange
-      </Link>
-
-      {/* Ligne de scan */}
-      <div className="absolute inset-x-0 top-0 h-full overflow-hidden">
-        <div className="h-px w-full bg-accent/30 animate-[hud-scan_7s_linear_infinite]" />
+      {/* En-tête de campagne (haut gauche) */}
+      <div className="absolute top-7 left-10">
+        <Link
+          to="/"
+          className="group pointer-events-auto inline-flex items-center gap-1.5 font-display text-[10px] tracking-[0.2em] text-ink-faint uppercase transition-colors hover:text-accent-bright"
+        >
+          <span className="transition-transform duration-300 group-hover:-translate-x-1">←</span>
+          Mesange
+        </Link>
+        <p className="mt-4 font-display text-[10px] tracking-[0.28em] text-accent uppercase">
+          Opus Aerospace · CHESS
+        </p>
+        <h1 className="mt-1 font-display text-2xl leading-tight font-medium text-ink">
+          Campagne de tir
+        </h1>
       </div>
 
-      {/* Légende inférieure droite */}
-      <div className="absolute right-10 bottom-9 text-right font-mono text-[10px] leading-relaxed tracking-[0.18em] text-ink-faint uppercase">
-        <p>Sites de lancement — {activeSiteCount} actifs</p>
-        <p>Sélectionnez un site sur la carte</p>
+      {/* Télémétrie (bas droite, au-dessus de l'attribution MapLibre) */}
+      <div className="absolute right-10 bottom-14 text-right font-display text-[10px] leading-relaxed tracking-[0.2em] text-ink-faint uppercase">
+        <p>
+          <span className="text-accent tabular-nums">{siteCount}</span> sites de tir disponibles
+        </p>
+        <p>Sélectionnez une base sur la carte</p>
       </div>
     </div>
   )

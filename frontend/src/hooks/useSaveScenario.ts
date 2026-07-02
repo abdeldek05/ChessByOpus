@@ -9,7 +9,7 @@ interface UseSaveScenarioResult {
   save: (radarConfig: RadarConfig, mesangeConfigs: MesangeLaunchConfig[]) => void
 }
 
-/** Enregistre le scénario (radar + Mésange engagées) auprès du backend (POST /api/missions/{id}/scenario). */
+/** Enregistre le scénario (radar + Mesange engagées) auprès du backend (POST /api/missions/{id}/scenario). */
 export function useSaveScenario(missionId: number): UseSaveScenarioResult {
   const [status, setStatus] = useState<SaveStatus>('idle')
 

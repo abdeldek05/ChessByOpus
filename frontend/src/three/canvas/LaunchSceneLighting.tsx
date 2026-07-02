@@ -24,11 +24,11 @@ export function LaunchSceneLighting({ ambiance }: LaunchSceneLightingProps) {
         intensity={ambiance.keyIntensity}
         color={ambiance.keyColor}
         castShadow
-        shadow-mapSize={[2048, 2048]}
+        shadow-mapSize={[1024, 1024]}
         shadow-bias={-0.0004}
         shadow-normalBias={0.02}
       >
-        <orthographicCamera attach="shadow-camera" args={[-60, 60, 60, -60, 0.1, 200]} />
+        <orthographicCamera attach="shadow-camera" args={[-70, 70, 70, -70, 0.1, 300]} />
       </directionalLight>
     </>
   )

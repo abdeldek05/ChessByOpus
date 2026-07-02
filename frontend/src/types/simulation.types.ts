@@ -7,4 +7,6 @@ export interface LaunchSite {
   longitude: number
   elevation: number
   timezone: string
+  /** Site opérationnel pour le MVP (seuls les actifs sont sélectionnables). */
+  active: boolean
 }

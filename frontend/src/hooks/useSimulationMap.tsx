@@ -7,19 +7,27 @@ import { computeSiteBounds, getResponsiveMapPadding } from '@/lib/mapViewport'
 import type { LaunchSite } from '@/types/simulation.types'
 import type { SiteWeather } from '@/types/weather.types'
 
-// Style sombre Carto + relief AWS Terrain : gratuits, sans clé d'accès.
+// Base sombre Carto (Dark Matter), gratuite et sans clé. Pas de relief 3D
+// (les tuiles DEM saccadaient) : carte plate = fluide et nette.
 const MAP_STYLE = 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json'
-const TERRAIN_TILES = 'https://elevation-tiles-prod.s3.amazonaws.com/terrarium/{z}/{x}/{y}.png'
-// Exagération modérée : un relief trop marqué fait "sauter" la caméra
-// pendant le zoom/déplacement à cause du chargement progressif des tuiles.
-const TERRAIN_EXAGGERATION = 1.15
+
+// Recolorage « gris foncé + réseau blanc lumineux » : fond gris neutre, eau
+// en creux, routes/frontières en blanc léger et lumineux, labels blancs.
+const MAP_COLORS = {
+  background: '#141517',
+  land: '#191b1e',
+  water: '#0f1012',
+  line: '#e9edf24d',
+  label: '#dfe3e7',
+  labelHalo: '#0f1012',
+}
 // Délai avant fermeture : laisse le temps à la souris de glisser du
 // marqueur vers la carte sans que celle-ci disparaisse entre les deux.
 const HIDE_DELAY_MS = 150
 // Doit correspondre à la durée de transition de `.maplibregl-popup` en CSS.
 const HIDE_TRANSITION_MS = 180
 
-const DEFAULT_PITCH = 45
+const DEFAULT_PITCH = 0
 const DEFAULT_BEARING = 0
 // Recalculée à partir des coordonnées réelles des sites — un site ajouté ou
 // retiré de la base réajuste le cadrage tout seul, pas besoin de chiffres en dur.
@@ -72,15 +80,22 @@ export function useSimulationMap({ onSiteSelect, weatherBySiteId }: UseSimulatio
     })
     mapRef.current = map
 
+    // Recolore les couches vectorielles au chargement pour habiller la carte
+    // aux teintes du site (laiton-nuit) plutôt que le gris Carto par défaut.
     map.on('load', () => {
-      map.addSource('terrain', {
-        type: 'raster-dem',
-        tiles: [TERRAIN_TILES],
-        encoding: 'terrarium',
-        tileSize: 256,
-        maxzoom: 13,
-      })
-      map.setTerrain({ source: 'terrain', exaggeration: TERRAIN_EXAGGERATION })
+      for (const layer of map.getStyle().layers ?? []) {
+        if (layer.type === 'background') {
+          map.setPaintProperty(layer.id, 'background-color', MAP_COLORS.background)
+        } else if (layer.type === 'fill') {
+          const isWater = layer.id.includes('water')
+          map.setPaintProperty(layer.id, 'fill-color', isWater ? MAP_COLORS.water : MAP_COLORS.land)
+        } else if (layer.type === 'line') {
+          map.setPaintProperty(layer.id, 'line-color', MAP_COLORS.line)
+        } else if (layer.type === 'symbol') {
+          map.setPaintProperty(layer.id, 'text-color', MAP_COLORS.label)
+          map.setPaintProperty(layer.id, 'text-halo-color', MAP_COLORS.labelHalo)
+        }
+      }
     })
 
     // Sur tactile, taper la carte en dehors d'un marqueur ferme la popup ouverte.
@@ -96,7 +111,7 @@ export function useSimulationMap({ onSiteSelect, weatherBySiteId }: UseSimulatio
       element.type = 'button'
       element.className = 'site-marker'
       element.setAttribute('aria-label', site.name)
-      element.innerHTML = '<span class="site-marker__glow"></span><span class="site-marker__pulse"></span>'
+      element.innerHTML = '<span class="site-marker__glow"></span>'
 
       const popupContainer = document.createElement('div')
       const popupRoot = createRoot(popupContainer)
@@ -123,7 +138,7 @@ export function useSimulationMap({ onSiteSelect, weatherBySiteId }: UseSimulatio
 
       const flyToSite = () => {
         selectRef.current(site)
-        map.flyTo({ center: [site.longitude, site.latitude], zoom: 8, pitch: 50, duration: 1800 })
+        map.flyTo({ center: [site.longitude, site.latitude], zoom: 7.5, pitch: 0, duration: 1400 })
       }
 
       if (IS_TOUCH_DEVICE) {
@@ -139,8 +154,9 @@ export function useSimulationMap({ onSiteSelect, weatherBySiteId }: UseSimulatio
           flyToSite()
         })
       } else {
-        // Survol marqueur OU carte = ouvert ; un court délai à la sortie
-        // laisse le temps de glisser de l'un à l'autre sans coupure brutale.
+        // Survol du marqueur = carte météo visible (info seule, non
+        // cliquable — voir pointer-events:none en CSS). Un court délai à la
+        // sortie évite un clignotement si la souris frôle le bord.
         let hideTimer: ReturnType<typeof setTimeout> | null = null
 
         const cancelHide = () => {
@@ -150,19 +166,15 @@ export function useSimulationMap({ onSiteSelect, weatherBySiteId }: UseSimulatio
           }
         }
 
-        const scheduleHide = () => {
-          cancelHide()
-          hideTimer = setTimeout(closeNow, HIDE_DELAY_MS)
-        }
-
         element.addEventListener('mouseenter', () => {
           cancelHide()
           renderAndOpen()
           closeActivePopupRef.current = closeNow
         })
-        element.addEventListener('mouseleave', scheduleHide)
-        popupContainer.addEventListener('mouseenter', cancelHide)
-        popupContainer.addEventListener('mouseleave', scheduleHide)
+        element.addEventListener('mouseleave', () => {
+          cancelHide()
+          hideTimer = setTimeout(closeNow, HIDE_DELAY_MS)
+        })
         element.addEventListener('click', flyToSite)
       }
 

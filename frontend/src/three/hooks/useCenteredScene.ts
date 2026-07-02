@@ -15,7 +15,7 @@ interface UseCenteredSceneResult {
  * aperçu flottant : la caméra y recadre toujours sur le centre réel de
  * l'objet, peu importe où sa base est posée).
  */
-export function useCenteredScene(modelPath: string, targetRadius = 3): UseCenteredSceneResult {
+export function useCenteredScene(modelPath: string, targetRadius = 3, shadows = true): UseCenteredSceneResult {
   const { scene: original } = useGLTF(modelPath)
   const scene = useMemo(() => original.clone(true), [original])
 
@@ -37,11 +37,11 @@ export function useCenteredScene(modelPath: string, targetRadius = 3): UseCenter
     scene.traverse((child) => {
       const mesh = child as THREE.Mesh
       if (mesh.isMesh) {
-        mesh.castShadow = true
-        mesh.receiveShadow = true
+        mesh.castShadow = shadows
+        mesh.receiveShadow = shadows
       }
     })
-  }, [scene, targetRadius])
+  }, [scene, targetRadius, shadows])
 
   return { scene }
 }
