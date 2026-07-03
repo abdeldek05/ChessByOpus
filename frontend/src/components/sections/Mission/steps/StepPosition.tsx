@@ -5,17 +5,23 @@ import type { RadarPosition } from '@/types/mission.types'
 interface StepPositionProps {
   site: LaunchSite
   radarPosition: RadarPosition | null
+  rangeKm: number
   onPlaceRadar: (position: RadarPosition) => void
 }
 
-export function StepPosition({ site, radarPosition, onPlaceRadar }: StepPositionProps) {
+export function StepPosition({ site, radarPosition, rangeKm, onPlaceRadar }: StepPositionProps) {
   return (
     <div className="mx-auto flex h-full max-w-5xl flex-col gap-4">
       <p className="text-sm font-medium text-ink-dim">
-        Placez le radar sur le terrain — le pas de tir est fixe
+        Placez le radar dans sa zone de portée — le cercle montre son rayon d'action ({rangeKm} km)
       </p>
       <div className="min-h-[52vh] flex-1 overflow-hidden rounded-3xl bg-surface shadow-xl shadow-black/30">
-        <MissionPlacementMap site={site} radarPosition={radarPosition} onPlaceRadar={onPlaceRadar} />
+        <MissionPlacementMap
+          site={site}
+          radarPosition={radarPosition}
+          rangeKm={rangeKm}
+          onPlaceRadar={onPlaceRadar}
+        />
       </div>
     </div>
   )

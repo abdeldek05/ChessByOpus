@@ -35,7 +35,6 @@ export function Lancement() {
       <LaunchSceneCanvas
         radarConfig={state.radarConfig}
         radarOffset={radarOffset}
-        mesangeConfigs={state.mesangeConfigs ?? []}
         ambiance={ambiance}
         className="h-full w-full"
       />

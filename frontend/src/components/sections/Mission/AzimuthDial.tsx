@@ -1,4 +1,5 @@
 import { usePointerDrag } from '@/hooks/usePointerDrag'
+import { DialValueInput } from './DialValueInput'
 
 interface AzimuthDialProps {
   value: number
@@ -81,9 +82,7 @@ export function AzimuthDial({ value, onChange }: AzimuthDialProps) {
         <circle cx="80" cy="80" r="5" fill="var(--color-ink)" />
       </svg>
 
-      <p className="text-sm font-semibold text-accent-bright tabular-nums">
-        {value}° <span className="font-normal text-ink-faint">azimut</span>
-      </p>
+      <DialValueInput value={value} min={0} max={360} unit="°" label="azimut" onChange={(deg) => onChange(deg % 360)} />
     </div>
   )
 }

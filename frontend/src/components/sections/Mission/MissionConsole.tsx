@@ -62,7 +62,12 @@ export function MissionConsole({ site, missionId }: MissionConsoleProps) {
           <StepRadarConfig config={config.radarConfig} onChange={config.updateRadarConfig} />
         )}
         {stepper.current === 'position' && (
-          <StepPosition site={site} radarPosition={config.radarPosition} onPlaceRadar={config.setRadarPosition} />
+          <StepPosition
+            site={site}
+            radarPosition={config.radarPosition}
+            rangeKm={config.radarConfig?.rangeKm ?? 60}
+            onPlaceRadar={config.setRadarPosition}
+          />
         )}
         {stepper.current === 'trajectories' && (
           <StepTrajectories
