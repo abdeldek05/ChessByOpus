@@ -24,13 +24,24 @@ export function useCenteredScene(modelPath: string, targetRadius = 3, shadows = 
     scene.position.set(0, 0, 0)
     scene.updateMatrixWorld(true)
 
-    const rawSphere = new THREE.Box3().setFromObject(scene).getBoundingSphere(new THREE.Sphere())
+    // Box3.setFromObject mesure en coordonnées MONDE : si le modèle est rendu
+    // dans un groupe décalé (ex. radar posé à distance dans la scène de
+    // lancement), le recentrage soustrairait aussi l'offset du parent. On
+    // repasse donc chaque mesure dans le repère du parent, où `position` vit.
+    const parentInverse = new THREE.Matrix4()
+    if (scene.parent) {
+      scene.parent.updateWorldMatrix(true, false)
+      parentInverse.copy(scene.parent.matrixWorld).invert()
+    }
+
+    const rawBox = new THREE.Box3().setFromObject(scene).applyMatrix4(parentInverse)
+    const rawSphere = rawBox.getBoundingSphere(new THREE.Sphere())
     if (rawSphere.radius > 0) {
       scene.scale.setScalar(targetRadius / rawSphere.radius)
       scene.updateMatrixWorld(true)
     }
 
-    const box = new THREE.Box3().setFromObject(scene)
+    const box = new THREE.Box3().setFromObject(scene).applyMatrix4(parentInverse)
     const center = box.getCenter(new THREE.Vector3())
     scene.position.set(-center.x, -box.min.y, -center.z)
 

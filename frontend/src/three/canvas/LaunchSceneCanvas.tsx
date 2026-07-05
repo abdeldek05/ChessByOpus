@@ -2,79 +2,75 @@ import { Suspense } from 'react'
 import { Canvas } from '@react-three/fiber'
 import { OrbitControls } from '@react-three/drei'
 import * as THREE from 'three'
-import { MesangeErected } from '@/three/models/MesangeErected'
+import { DaylightSky } from './DaylightSky'
+import { SunLight } from './SunLight'
+import { OutdoorEnvironment } from './OutdoorEnvironment'
+import { LawnGround } from '@/three/models/LawnGround'
+import { LauncherRig } from '@/three/models/LauncherRig'
+import { RocketOnLauncher } from '@/three/models/RocketOnLauncher'
 import { RadarModel } from '@/three/models/RadarModel'
-import { LaunchPad } from '@/three/models/LaunchPad'
-import { LaunchSceneLighting } from './LaunchSceneLighting'
-import { LaunchEnvironment } from './LaunchEnvironment'
-import { useGroundTexture } from '@/three/hooks/useGroundTexture'
-import type { LaunchAmbiance } from '@/three/constants/launchAmbiance'
 import type { RadarConfig } from '@/types/radar.types'
 import type { SceneOffset } from '@/lib/computeRadarSceneOffset'
 
 interface LaunchSceneCanvasProps {
   radarConfig: RadarConfig
   radarOffset: SceneOffset
-  ambiance: LaunchAmbiance
   className?: string
 }
 
-// Rayon minimal de cadrage : même quand le radar est posé tout près, on garde
-// assez de recul pour voir la Mesange dressée et le pad entiers.
-const MIN_FRAMING_RADIUS = 26
+// La caméra démarre cadrée sur le banc de tir (le sujet) ; le radar se
+// découvre en orbitant. La brume recule si le radar est loin.
+const CAMERA_POSITION: [number, number, number] = [12, 5.2, 15]
+const CAMERA_TARGET: [number, number, number] = [0, 3.4, 0]
+const MIN_FOG_FAR = 380
 
-export function LaunchSceneCanvas({ radarConfig, radarOffset, ambiance, className }: LaunchSceneCanvasProps) {
-  const groundTexture = useGroundTexture()
-
-  const sceneDistance = Math.hypot(radarOffset.x, radarOffset.z)
-  const framingRadius = Math.max(sceneDistance, MIN_FRAMING_RADIUS)
-  const cameraDistance = framingRadius * 1.7 + 10
-  const fogFar = framingRadius * 4 + 60
+export function LaunchSceneCanvas({ radarConfig, radarOffset, className }: LaunchSceneCanvasProps) {
+  const radarDistance = Math.hypot(radarOffset.x, radarOffset.z)
+  const fogFar = Math.max(MIN_FOG_FAR, radarDistance * 2.6 + 90)
   const fogNear = fogFar * 0.3
-  const cameraFar = Math.max(1500, fogFar * 6)
-  const groundSize = cameraFar * 1.5
-  // Cible entre le pas de tir et le radar, un peu au-dessus du sol pour cadrer
-  // la fusée dressée.
-  const target: [number, number, number] = [radarOffset.x / 2, 10, radarOffset.z / 2]
+  const lawnSize = fogFar * 2.4
+  const cameraFar = fogFar * 4
 
   return (
     <Canvas
       className={className}
-      camera={{ position: [cameraDistance * 0.6, cameraDistance * 0.5, cameraDistance * 0.6], fov: 42, near: 1, far: cameraFar }}
+      camera={{ position: CAMERA_POSITION, fov: 42, near: 0.5, far: cameraFar }}
       gl={{ antialias: true, powerPreference: 'high-performance' }}
       shadows
-      dpr={[1, 1.25]}
+      dpr={[1, 1.5]}
       onCreated={({ gl }) => {
         gl.toneMapping = THREE.ACESFilmicToneMapping
-        gl.toneMappingExposure = 1.0
+        gl.toneMappingExposure = 0.95
+        gl.shadowMap.type = THREE.PCFSoftShadowMap
       }}
     >
       <Suspense fallback={null}>
-        <LaunchEnvironment ambiance={ambiance} fogNear={fogNear} fogFar={fogFar} />
-        <LaunchSceneLighting ambiance={ambiance} />
+        <DaylightSky fogNear={fogNear} fogFar={fogFar} />
+        <SunLight />
+        <OutdoorEnvironment />
 
-        <mesh rotation-x={-Math.PI / 2} receiveShadow>
-          <planeGeometry args={[groundSize, groundSize]} />
-          <meshStandardMaterial color={ambiance.ground} map={groundTexture} roughness={1} metalness={0} />
-        </mesh>
+        <LawnGround size={lawnSize} />
+        <LauncherRig />
+        <RocketOnLauncher />
 
-        <LaunchPad />
-        <MesangeErected />
-
-        {/* Radar sans ombres : modèle très lourd — on réserve le budget de
-            rendu à la fluidité et à la netteté de la scène. */}
+        {/* Radar posé à sa distance réelle à l'échelle, sans ombres : le
+            modèle est lourd, le budget de rendu reste sur le banc de tir. */}
         <group position={[radarOffset.x, 0, radarOffset.z]}>
-          <RadarModel modelPath={radarConfig.modelPath} tintColor={radarConfig.tintColor} shadows={false} />
+          <RadarModel
+            modelPath={radarConfig.modelPath}
+            tintColor={radarConfig.tintColor}
+            shadows={false}
+          />
         </group>
 
         <OrbitControls
-          target={target}
+          target={CAMERA_TARGET}
           enablePan={false}
           enableDamping
           dampingFactor={0.1}
-          minDistance={framingRadius * 0.6}
-          maxDistance={cameraDistance * 2.5}
-          maxPolarAngle={Math.PI * 0.495}
+          minDistance={5}
+          maxDistance={Math.max(80, radarDistance * 2.2)}
+          maxPolarAngle={Math.PI * 0.49}
         />
       </Suspense>
     </Canvas>

@@ -1,11 +1,8 @@
-import { useState } from 'react'
 import { Navigate, useLocation } from 'react-router-dom'
 import { LaunchSceneCanvas } from '@/three/canvas/LaunchSceneCanvas'
-import { DaylightToggle } from '@/components/sections/Lancement/DaylightToggle'
 import { computeRadarSceneOffset } from '@/lib/computeRadarSceneOffset'
 import { computeDistanceKm, formatDistance } from '@/lib/computeDistanceKm'
 import { getRadarName } from '@/lib/getRadarName'
-import { DAY_AMBIANCE, NIGHT_AMBIANCE } from '@/three/constants/launchAmbiance'
 import type { LaunchSite } from '@/types/simulation.types'
 import type { RadarConfig } from '@/types/radar.types'
 import type { RadarPosition, MesangeLaunchConfig } from '@/types/mission.types'
@@ -20,7 +17,6 @@ interface LancementLocationState {
 export function Lancement() {
   const location = useLocation()
   const state = location.state as LancementLocationState | null
-  const [isDay, setIsDay] = useState(true)
 
   if (!state?.site || !state.radarConfig || !state.radarPosition) {
     return <Navigate to="/mission" replace />
@@ -28,14 +24,12 @@ export function Lancement() {
 
   const radarOffset = computeRadarSceneOffset(state.site, state.radarPosition)
   const distance = formatDistance(computeDistanceKm(state.site, state.radarPosition))
-  const ambiance = isDay ? DAY_AMBIANCE : NIGHT_AMBIANCE
 
   return (
     <div className="relative h-screen w-screen overflow-hidden bg-bg">
       <LaunchSceneCanvas
         radarConfig={state.radarConfig}
         radarOffset={radarOffset}
-        ambiance={ambiance}
         className="h-full w-full"
       />
 
@@ -47,10 +41,6 @@ export function Lancement() {
         <p className="text-[10px] tracking-[0.15em] text-ink-faint uppercase">
           Mise en place — trajectoire RocketPy à venir
         </p>
-      </div>
-
-      <div className="absolute top-6 right-6">
-        <DaylightToggle isDay={isDay} onToggle={() => setIsDay((current) => !current)} />
       </div>
     </div>
   )

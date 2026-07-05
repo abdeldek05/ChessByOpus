@@ -78,7 +78,15 @@ export function useMesangeScene(modelPath: string): UseMesangeSceneResult {
     if (noseIsAtBottom) scene.rotateOnAxis(new THREE.Vector3(0, 0, 1), Math.PI)
 
     scene.updateMatrixWorld(true)
-    const box = new THREE.Box3().setFromObject(scene)
+    // Recentrage dans le repère du PARENT (où vit `position`), pas en monde :
+    // sinon un groupe parent décalé (fusée posée sur le banc de tir) serait
+    // soustrait avec le centre et fausserait la position.
+    const parentInverse = new THREE.Matrix4()
+    if (scene.parent) {
+      scene.parent.updateWorldMatrix(true, false)
+      parentInverse.copy(scene.parent.matrixWorld).invert()
+    }
+    const box = new THREE.Box3().setFromObject(scene).applyMatrix4(parentInverse)
     const center = box.getCenter(new THREE.Vector3())
     scene.position.set(-center.x, -center.y, -center.z)
 
