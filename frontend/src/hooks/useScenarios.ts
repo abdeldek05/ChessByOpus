@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { listScenarios } from '@/lib/api'
 import type { ScenarioRecord } from '@/types/scenario.types'
 
 type ScenariosStatus = 'loading' | 'ready' | 'error'
@@ -14,12 +15,8 @@ export function useScenarios(): UseScenariosResult {
   const [status, setStatus] = useState<ScenariosStatus>('loading')
 
   useEffect(() => {
-    fetch('/api/scenarios')
-      .then((response) => {
-        if (!response.ok) throw new Error('Échec du chargement')
-        return response.json()
-      })
-      .then((data: ScenarioRecord[]) => {
+    listScenarios()
+      .then((data) => {
         setScenarios(data)
         setStatus('ready')
       })

@@ -1,22 +1,28 @@
+import { lazy, Suspense } from 'react'
 import { Routes, Route } from 'react-router-dom'
 import { Home } from '@/pages/Home'
 import { Contact } from '@/pages/Contact'
 import { NotFound } from '@/pages/NotFound'
-import { Simulation } from '@/pages/Simulation'
-import { Mission } from '@/pages/Mission'
-import { Historique } from '@/pages/Historique'
-import { Lancement } from '@/pages/Lancement'
+
+// Routes lourdes (Three.js / MapLibre) chargées à la demande : la page d'accueil
+// ne paie pas le poids du moteur 3D et de la carte tant qu'on n'y va pas.
+const Simulation = lazy(() => import('@/pages/Simulation').then((m) => ({ default: m.Simulation })))
+const Mission = lazy(() => import('@/pages/Mission').then((m) => ({ default: m.Mission })))
+const Historique = lazy(() => import('@/pages/Historique').then((m) => ({ default: m.Historique })))
+const Lancement = lazy(() => import('@/pages/Lancement').then((m) => ({ default: m.Lancement })))
 
 export default function App() {
   return (
-    <Routes>
-      <Route path="/" element={<Home />} />
-      <Route path="/contact" element={<Contact />} />
-      <Route path="/simulation" element={<Simulation />} />
-      <Route path="/mission" element={<Mission />} />
-      <Route path="/historique" element={<Historique />} />
-      <Route path="/lancement" element={<Lancement />} />
-      <Route path="*" element={<NotFound />} />
-    </Routes>
+    <Suspense fallback={<div className="h-screen w-screen bg-bg" />}>
+      <Routes>
+        <Route path="/" element={<Home />} />
+        <Route path="/contact" element={<Contact />} />
+        <Route path="/simulation" element={<Simulation />} />
+        <Route path="/mission" element={<Mission />} />
+        <Route path="/historique" element={<Historique />} />
+        <Route path="/lancement" element={<Lancement />} />
+        <Route path="*" element={<NotFound />} />
+      </Routes>
+    </Suspense>
   )
 }

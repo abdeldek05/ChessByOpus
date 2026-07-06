@@ -19,8 +19,9 @@ export const RELIEF_WAVES: ReliefWave[] = [
 ]
 
 // Nombre de subdivisions du plan de sol : allégé (moins de triangles) tout en
-// gardant un relief lisse à ces basses fréquences.
-export const RELIEF_SEGMENTS = 140
+// gardant un relief lisse à ces basses fréquences. 96² = ~9k quads, largement
+// suffisant pour ces ondulations douces.
+export const RELIEF_SEGMENTS = 96
 
 // Zone plate sous la plateforme (rayon) et fin de la transition vers le relief.
 // La zone plate est centrée sur le banc de tir, décalé du monde par

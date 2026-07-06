@@ -2,6 +2,7 @@ import { useNavigate } from 'react-router-dom'
 import { useMissionConfig } from '@/hooks/useMissionConfig'
 import { useMissionStepper } from '@/hooks/useMissionStepper'
 import { useSaveScenario } from '@/hooks/useSaveScenario'
+import { validateScenario } from '@/lib/validateScenario'
 import { MissionStepRail } from './MissionStepRail'
 import { StepRadar } from './steps/StepRadar'
 import { StepRadarConfig } from './steps/StepRadarConfig'
@@ -19,8 +20,15 @@ interface MissionConsoleProps {
 export function MissionConsole({ site, missionId }: MissionConsoleProps) {
   const config = useMissionConfig()
   const stepper = useMissionStepper()
-  const { status, save } = useSaveScenario(missionId)
+  const { status, scenarioId, save } = useSaveScenario(missionId)
   const navigate = useNavigate()
+
+  const validation = validateScenario({
+    site,
+    radarConfig: config.radarConfig,
+    radarPosition: config.radarPosition,
+    mesangeConfigs: config.mesangeConfigs,
+  })
 
   const canProceed =
     (stepper.current === 'radar' && !!config.radarConfig) ||
@@ -28,11 +36,16 @@ export function MissionConsole({ site, missionId }: MissionConsoleProps) {
     stepper.current === 'config' ||
     stepper.current === 'trajectories'
 
+  // Lancement autorisé uniquement si le scénario est valide ET enregistré (le
+  // back calcule la trajectoire à l'enregistrement, prête au lancement).
+  const canLaunch = validation.valid && status === 'saved' && scenarioId !== null
+
   const launch = () => {
-    if (!config.radarConfig || !config.radarPosition) return
+    if (!canLaunch || !config.radarConfig || !config.radarPosition) return
     navigate('/lancement', {
       state: {
         site,
+        scenarioId,
         radarConfig: config.radarConfig,
         radarPosition: config.radarPosition,
         mesangeConfigs: config.mesangeConfigs,
@@ -85,6 +98,8 @@ export function MissionConsole({ site, missionId }: MissionConsoleProps) {
             radarPosition={config.radarPosition}
             mesangeConfigs={config.mesangeConfigs}
             saveStatus={status}
+            violations={validation.violations}
+            canLaunch={canLaunch}
             onSave={() => config.radarConfig && save(config.radarConfig, config.mesangeConfigs)}
             onLaunch={launch}
           />
