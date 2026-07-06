@@ -6,9 +6,12 @@ import { DaylightSky } from './DaylightSky'
 import { SunLight } from './SunLight'
 import { OutdoorEnvironment } from './OutdoorEnvironment'
 import { LawnGround } from '@/three/models/LawnGround'
+import { GrassBlades } from '@/three/models/GrassBlades'
 import { LauncherRig } from '@/three/models/LauncherRig'
 import { RocketOnLauncher } from '@/three/models/RocketOnLauncher'
 import { RadarModel } from '@/three/models/RadarModel'
+import { DAYLIGHT_EXPOSURE, DAYLIGHT_BACKGROUND } from '@/three/constants/launchDaylight'
+import { LAUNCH_CENTER, CAMERA_POSITION, CAMERA_TARGET } from '@/three/constants/sceneLayout'
 import type { RadarConfig } from '@/types/radar.types'
 import type { SceneOffset } from '@/lib/computeRadarSceneOffset'
 
@@ -18,49 +21,50 @@ interface LaunchSceneCanvasProps {
   className?: string
 }
 
-// La caméra démarre cadrée sur le banc de tir (le sujet) ; le radar se
-// découvre en orbitant. La brume recule si le radar est loin.
-const CAMERA_POSITION: [number, number, number] = [12, 5.2, 15]
-const CAMERA_TARGET: [number, number, number] = [0, 3.4, 0]
-const MIN_FOG_FAR = 380
+const LAWN_SIZE = 900
+const CAMERA_FAR = 2200
 
 export function LaunchSceneCanvas({ radarConfig, radarOffset, className }: LaunchSceneCanvasProps) {
   const radarDistance = Math.hypot(radarOffset.x, radarOffset.z)
-  const fogFar = Math.max(MIN_FOG_FAR, radarDistance * 2.6 + 90)
-  const fogNear = fogFar * 0.3
-  const lawnSize = fogFar * 2.4
-  const cameraFar = fogFar * 4
 
   return (
     <Canvas
       className={className}
-      camera={{ position: CAMERA_POSITION, fov: 42, near: 0.5, far: cameraFar }}
+      camera={{ position: CAMERA_POSITION, fov: 42, near: 0.5, far: CAMERA_FAR }}
       gl={{ antialias: true, powerPreference: 'high-performance' }}
       shadows
-      dpr={[1, 1.5]}
-      onCreated={({ gl }) => {
+      // DPR plafonné à 1 : rendu allégé (moins de pixels à shader), la scène
+      // est riche en géométrie/instances — on privilégie la fluidité.
+      dpr={1}
+      onCreated={({ gl, scene }) => {
         gl.toneMapping = THREE.ACESFilmicToneMapping
-        gl.toneMappingExposure = 0.95
+        gl.toneMappingExposure = DAYLIGHT_EXPOSURE
         gl.shadowMap.type = THREE.PCFSoftShadowMap
+        scene.background = new THREE.Color(DAYLIGHT_BACKGROUND)
       }}
     >
-      <Suspense fallback={null}>
-        <DaylightSky fogNear={fogNear} fogFar={fogFar} />
+      <Suspense fallback={<color attach="background" args={[DAYLIGHT_BACKGROUND]} />}>
+        <DaylightSky />
         <SunLight />
         <OutdoorEnvironment />
 
-        <LawnGround size={lawnSize} />
-        <LauncherRig />
-        <RocketOnLauncher />
+        {/* Sol + herbe couvrent toute la map, centrés sur l'origine monde ;
+            leur relief est aplani autour de LAUNCH_CENTER (voir sampleLawnRelief). */}
+        <LawnGround size={LAWN_SIZE} />
+        <GrassBlades />
 
-        {/* Radar posé à sa distance réelle à l'échelle, sans ombres : le
-            modèle est lourd, le budget de rendu reste sur le banc de tir. */}
-        <group position={[radarOffset.x, 0, radarOffset.z]}>
-          <RadarModel
-            modelPath={radarConfig.modelPath}
-            tintColor={radarConfig.tintColor}
-            shadows={false}
-          />
+        {/* Banc de tir + fusée + radar poussés vers le bord de la pelouse. */}
+        <group position={LAUNCH_CENTER}>
+          <LauncherRig />
+          <RocketOnLauncher />
+
+          <group position={[radarOffset.x, 0, radarOffset.z]}>
+            <RadarModel
+              modelPath={radarConfig.modelPath}
+              tintColor={radarConfig.tintColor}
+              shadows={false}
+            />
+          </group>
         </group>
 
         <OrbitControls

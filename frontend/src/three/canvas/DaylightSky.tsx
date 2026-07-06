@@ -3,26 +3,14 @@ import { Sky, Clouds, Cloud } from '@react-three/drei'
 import {
   SUN_POSITION,
   SKY,
-  HAZE_COLOR,
   CLOUD_PUFFS,
   CLOUD_SEGMENT_LIMIT,
   CLOUD_DRIFT_SPEED,
 } from '@/three/constants/launchDaylight'
 
-interface DaylightSkyProps {
-  fogNear: number
-  fogFar: number
-}
-
-/**
- * Ciel de beau temps : shader de diffusion atmosphérique (bleu physique,
- * halo solaire), cumulus volumétriques épars qui dérivent lentement, et
- * brume d'horizon qui fond la pelouse dans le ciel au loin.
- */
-export function DaylightSky({ fogNear, fogFar }: DaylightSkyProps) {
+export function DaylightSky() {
   return (
     <>
-      <fog attach="fog" args={[HAZE_COLOR, fogNear, fogFar]} />
       <Sky
         distance={SKY.distance}
         sunPosition={SUN_POSITION}
