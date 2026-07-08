@@ -1,6 +1,6 @@
 import { useState } from 'react'
 
-export type MissionStepId = 'radar' | 'config' | 'position' | 'trajectories' | 'launch'
+export type MissionStepId = 'radar' | 'position' | 'trajectories' | 'launch'
 
 export interface MissionStep {
   id: MissionStepId
@@ -9,9 +9,8 @@ export interface MissionStep {
 
 export const MISSION_STEPS: MissionStep[] = [
   { id: 'radar', label: 'Radar' },
-  { id: 'config', label: 'Réglages' },
-  { id: 'position', label: 'Position' },
-  { id: 'trajectories', label: 'Trajectoires' },
+  { id: 'position', label: 'Position radar' },
+  { id: 'trajectories', label: 'Menaces' },
   { id: 'launch', label: 'Lancement' },
 ]
 

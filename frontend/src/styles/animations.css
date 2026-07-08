@@ -43,18 +43,39 @@
   animation: card-in 0.4s cubic-bezier(0.2, 0.7, 0.2, 1) both;
 }
 
-/* Balayage radar de la boussole d'azimut. */
-@keyframes radar-sweep {
-  from {
-    transform: rotate(0deg);
+/* Ruban d'azimut vertical (carte des menaces) : bande d'instrument de bord.
+   Léger effet pseudo-3D par perspective + fondu haut/bas des graduations, pour
+   l'aspect « signal » qui défile. */
+.azimuth-tape {
+  perspective: 340px;
+  -webkit-mask-image: linear-gradient(
+    to bottom,
+    transparent 0%,
+    black 22%,
+    black 78%,
+    transparent 100%
+  );
+  mask-image: linear-gradient(to bottom, transparent 0%, black 22%, black 78%, transparent 100%);
+}
+.azimuth-tape__scene {
+  transform-style: preserve-3d;
+  transform: rotateY(-16deg);
+  transform-origin: right center;
+}
+/* Curseur central : pulsation « signal » (lueur qui respire). */
+@keyframes azimuth-signal {
+  0%,
+  100% {
+    opacity: 1;
+    box-shadow: 0 0 6px 1px var(--color-accent-bright);
   }
-  to {
-    transform: rotate(360deg);
+  50% {
+    opacity: 0.55;
+    box-shadow: 0 0 12px 3px var(--color-accent-bright);
   }
 }
-.animate-radar-sweep {
-  transform-origin: center;
-  animation: radar-sweep 3.5s linear infinite;
+.azimuth-tape__cursor {
+  animation: azimuth-signal 1.6s ease-in-out infinite;
 }
 
 /* Pulsation douce (pièce d'échecs sélectionnée, points d'apogée). */

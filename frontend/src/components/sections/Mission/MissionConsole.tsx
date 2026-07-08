@@ -5,9 +5,8 @@ import { useSaveScenario } from '@/hooks/useSaveScenario'
 import { validateScenario } from '@/lib/validateScenario'
 import { MissionStepRail } from './MissionStepRail'
 import { StepRadar } from './steps/StepRadar'
-import { StepRadarConfig } from './steps/StepRadarConfig'
 import { StepPosition } from './steps/StepPosition'
-import { StepTrajectories } from './steps/StepTrajectories'
+import { StepThreats } from './steps/StepThreats'
 import { StepLaunch } from './steps/StepLaunch'
 import { MissionSceneBackground } from './MissionSceneBackground'
 import type { LaunchSite } from '@/types/simulation.types'
@@ -23,17 +22,23 @@ export function MissionConsole({ site, missionId }: MissionConsoleProps) {
   const { status, scenarioId, save } = useSaveScenario(missionId)
   const navigate = useNavigate()
 
+  // Radar principal (radars[0], toujours présent) : sert de pont pour le
+  // placement/save/lancement tant que le multi-radar complet n'est pas branché.
+  const primaryRadar = config.radars[0]
+  // Menace principale (Roi si présent, sinon la première Mesange).
+  const king = config.mesangeConfigs.find((m) => m.role === 'KING') ?? config.mesangeConfigs[0]
+
   const validation = validateScenario({
     site,
-    radarConfig: config.radarConfig,
-    radarPosition: config.radarPosition,
+    radars: config.radars,
     mesangeConfigs: config.mesangeConfigs,
   })
 
+  const allRadarsPlaced = config.radars.every((radar) => radar.position !== null)
+
   const canProceed =
-    (stepper.current === 'radar' && !!config.radarConfig) ||
-    (stepper.current === 'position' && !!config.radarPosition) ||
-    stepper.current === 'config' ||
+    stepper.current === 'radar' ||
+    (stepper.current === 'position' && allRadarsPlaced) ||
     stepper.current === 'trajectories'
 
   // Lancement autorisé uniquement si le scénario est valide ET enregistré (le
@@ -41,14 +46,15 @@ export function MissionConsole({ site, missionId }: MissionConsoleProps) {
   const canLaunch = validation.valid && status === 'saved' && scenarioId !== null
 
   const launch = () => {
-    if (!canLaunch || !config.radarConfig || !config.radarPosition) return
+    if (!canLaunch || !primaryRadar.position) return
     navigate('/lancement', {
       state: {
         site,
         scenarioId,
-        radarConfig: config.radarConfig,
-        radarPosition: config.radarPosition,
+        radarConfig: primaryRadar.config,
+        radarPosition: primaryRadar.position,
         mesangeConfigs: config.mesangeConfigs,
+        detectionThresholdSec: config.detectionThresholdSec,
       },
     })
   }
@@ -69,38 +75,39 @@ export function MissionConsole({ site, missionId }: MissionConsoleProps) {
 
       <main className="flex-1 overflow-y-auto px-6 py-4 md:px-10">
         {stepper.current === 'radar' && (
-          <StepRadar radarConfig={config.radarConfig} onSelect={config.selectRadar} />
-        )}
-        {stepper.current === 'config' && config.radarConfig && (
-          <StepRadarConfig config={config.radarConfig} onChange={config.updateRadarConfig} />
+          <StepRadar
+            radars={config.radars}
+            canAddRadar={config.canAddRadar}
+            onAddRadar={config.addRadar}
+            onRemoveRadar={config.removeRadar}
+            onSelectTemplate={config.selectRadarTemplate}
+            onUpdateConfig={config.updateRadarConfig}
+            detectionThresholdSec={config.detectionThresholdSec}
+            onThresholdChange={config.setDetectionThreshold}
+          />
         )}
         {stepper.current === 'position' && (
-          <StepPosition
-            site={site}
-            radarPosition={config.radarPosition}
-            rangeKm={config.radarConfig?.rangeKm ?? 60}
-            onPlaceRadar={config.setRadarPosition}
-          />
+          <StepPosition site={site} radars={config.radars} onPlaceRadar={config.placeRadar} />
         )}
         {stepper.current === 'trajectories' && (
-          <StepTrajectories
-            configs={config.mesangeConfigs}
-            canAdd={config.canAddMesange}
-            onAdd={config.addMesange}
-            onRemove={config.removeMesange}
-            onChange={config.updateMesangeConfig}
+          <StepThreats
+            site={site}
+            radars={config.radars}
+            king={king}
+            onSetAzimut={(deg) => config.updateMesangeConfig(king.id, { azimuthDeg: deg })}
+            onChange={(patch) => config.updateMesangeConfig(king.id, patch)}
           />
         )}
-        {stepper.current === 'launch' && config.radarConfig && config.radarPosition && (
+        {stepper.current === 'launch' && primaryRadar.position && (
           <StepLaunch
             site={site}
-            radarConfig={config.radarConfig}
-            radarPosition={config.radarPosition}
+            radarConfig={primaryRadar.config}
+            radarPosition={primaryRadar.position}
             mesangeConfigs={config.mesangeConfigs}
             saveStatus={status}
             violations={validation.violations}
             canLaunch={canLaunch}
-            onSave={() => config.radarConfig && save(config.radarConfig, config.mesangeConfigs)}
+            onSave={() => save(primaryRadar.config, config.mesangeConfigs, config.detectionThresholdSec)}
             onLaunch={launch}
           />
         )}

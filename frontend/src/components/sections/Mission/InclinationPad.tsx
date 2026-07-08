@@ -1,5 +1,6 @@
 import { usePointerDrag } from '@/hooks/usePointerDrag'
 import { DialValueInput } from './DialValueInput'
+import { INCLINATION_MIN, INCLINATION_MAX } from '@/lib/validateScenario'
 
 interface InclinationPadProps {
   value: number
@@ -9,8 +10,8 @@ interface InclinationPadProps {
 // Pivot du cadran (bas-gauche) dans le viewBox 240×160.
 const PX = 46
 const PY = 132
-const MIN = 45
-const MAX = 90
+const MIN = INCLINATION_MIN
+const MAX = INCLINATION_MAX
 
 function polar(deg: number, radius: number) {
   const rad = (deg * Math.PI) / 180

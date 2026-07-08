@@ -9,21 +9,21 @@ interface UseSaveScenarioResult {
   status: SaveStatus
   /** Id du scénario enregistré (null tant qu'il ne l'est pas). */
   scenarioId: number | null
-  save: (radarConfig: RadarConfig, mesangeConfigs: MesangeLaunchConfig[]) => void
+  save: (radarConfig: RadarConfig, mesangeConfigs: MesangeLaunchConfig[], detectionThresholdSec: number) => void
 }
 
 /**
- * Enregistre le scénario (radar + Mesange engagées) auprès du back. Le back
- * calcule la trajectoire à ce moment ; on conserve l'id retourné pour que le
- * lancement puisse exiger un scénario enregistré.
+ * Enregistre le scénario (radar + Mesange engagées + seuil de préavis) auprès
+ * du back. On conserve l'id retourné pour que le lancement puisse exiger un
+ * scénario enregistré.
  */
 export function useSaveScenario(missionId: number): UseSaveScenarioResult {
   const [status, setStatus] = useState<SaveStatus>('idle')
   const [scenarioId, setScenarioId] = useState<number | null>(null)
 
-  const save = (radarConfig: RadarConfig, mesangeConfigs: MesangeLaunchConfig[]) => {
+  const save = (radarConfig: RadarConfig, mesangeConfigs: MesangeLaunchConfig[], detectionThresholdSec: number) => {
     setStatus('saving')
-    saveScenario(missionId, radarConfig, mesangeConfigs)
+    saveScenario(missionId, radarConfig, mesangeConfigs, detectionThresholdSec)
       .then((scenario) => {
         setScenarioId(scenario.id)
         setStatus('saved')

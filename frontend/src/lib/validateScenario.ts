@@ -1,25 +1,24 @@
 import { computeDistanceKm } from '@/lib/computeDistanceKm'
 import type { LaunchSite } from '@/types/simulation.types'
-import type { RadarConfig } from '@/types/radar.types'
-import type { RadarPosition, MesangeLaunchConfig } from '@/types/mission.types'
+import type { PlacedRadar, MesangeLaunchConfig } from '@/types/mission.types'
 
 // Bornes physiques d'une configuration Mesange (miroir du back : angles utiles).
 export const AZIMUTH_MIN = 0
 export const AZIMUTH_MAX = 360
-export const INCLINATION_MIN = 45
+// Élévation de la rampe : 90° = vertical, 70° = inclinaison maximale autorisée.
+export const INCLINATION_MIN = 70
 export const INCLINATION_MAX = 90
 export const LAUNCH_DELAY_MIN = 0
 export const LAUNCH_DELAY_MAX = 600
 
-// Le radar doit être ni collé au pas de tir, ni au-delà d'un multiple de sa
-// portée (sinon il ne pourrait jamais rien détecter — scénario incohérent).
+// Le radar doit être ni collé au pas de tir, ni au-delà de sa portée EXACTE
+// (limite stricte, sans marge de tolérance : au-delà, il ne couvre plus le
+// pas de tir — scénario incohérent).
 export const RADAR_MIN_DISTANCE_KM = 0.5
-export const RADAR_MAX_DISTANCE_FACTOR = 1.15
 
 export interface ScenarioInput {
   site: LaunchSite | null
-  radarConfig: RadarConfig | null
-  radarPosition: RadarPosition | null
+  radars: PlacedRadar[]
   mesangeConfigs: MesangeLaunchConfig[]
 }
 
@@ -42,31 +41,34 @@ export interface ScenarioValidation {
  */
 export function validateScenario(input: ScenarioInput): ScenarioValidation {
   const violations: ScenarioViolation[] = []
-  const { site, radarConfig, radarPosition, mesangeConfigs } = input
+  const { site, radars, mesangeConfigs } = input
 
-  // 1. Radar sélectionné + positionné.
-  if (!radarConfig) {
-    violations.push({ code: 'radar-missing', message: 'Aucun radar sélectionné.' })
-  }
-  if (!radarPosition) {
-    violations.push({ code: 'radar-unplaced', message: 'Le radar n’est pas positionné sur la carte.' })
-  }
-
-  // 2. Distance radar cohérente avec sa portée.
-  if (site && radarConfig && radarPosition) {
-    const distanceKm = computeDistanceKm(site, radarPosition)
-    const maxKm = radarConfig.rangeKm * RADAR_MAX_DISTANCE_FACTOR
-    if (distanceKm < RADAR_MIN_DISTANCE_KM) {
-      violations.push({
-        code: 'radar-too-close',
-        message: 'Le radar est trop proche du pas de tir.',
-      })
-    } else if (distanceKm > maxKm) {
-      violations.push({
-        code: 'radar-out-of-range',
-        message: `Le radar est hors de portée (${distanceKm.toFixed(0)} km > ${maxKm.toFixed(0)} km).`,
-      })
+  // 1. Chaque radar configuré doit être positionné sur la carte (pas juste un
+  //    parmi d'autres : si on en ajoute un 2e, il doit être posé aussi).
+  radars.forEach((radar, index) => {
+    if (!radar.position) {
+      const label = radars.length > 1 ? `Radar ${index + 1} : ` : ''
+      violations.push({ code: 'radar-unplaced', message: `${label}non positionné sur la carte.` })
     }
+  })
+
+  // 2. Chaque radar placé doit être à une distance cohérente d'un pas de tir.
+  //    (Référence : le site pour l'instant ; passera aux pas de tir posés.)
+  if (site) {
+    radars.forEach((radar, index) => {
+      if (!radar.position) return
+      const distanceKm = computeDistanceKm(site, radar.position)
+      const maxKm = radar.config.rangeKm
+      const label = radars.length > 1 ? `Radar ${index + 1} : ` : ''
+      if (distanceKm < RADAR_MIN_DISTANCE_KM) {
+        violations.push({ code: 'radar-too-close', message: `${label}trop proche du pas de tir.` })
+      } else if (distanceKm > maxKm) {
+        violations.push({
+          code: 'radar-out-of-range',
+          message: `${label}hors de portée (${distanceKm.toFixed(2).replace('.', ',')} km > ${maxKm} km).`,
+        })
+      }
+    })
   }
 
   // 3. Au moins une menace principale (KING).
@@ -78,7 +80,7 @@ export function validateScenario(input: ScenarioInput): ScenarioValidation {
     })
   }
 
-  // 4. Angles / délais dans les bornes pour chaque Mesange.
+  // 4. Angles / délais dans les bornes (le pas de tir est fixe = le site).
   mesangeConfigs.forEach((m, index) => {
     const label = `Mesange #${index + 1}`
     if (m.azimuthDeg < AZIMUTH_MIN || m.azimuthDeg > AZIMUTH_MAX) {
@@ -87,7 +89,7 @@ export function validateScenario(input: ScenarioInput): ScenarioValidation {
     if (m.inclinationDeg < INCLINATION_MIN || m.inclinationDeg > INCLINATION_MAX) {
       violations.push({
         code: 'inclination-invalid',
-        message: `${label} : inclinaison hors bornes (45–90°).`,
+        message: `${label} : élévation hors bornes (${INCLINATION_MIN}–${INCLINATION_MAX}°).`,
       })
     }
     if (m.launchDelaySec < LAUNCH_DELAY_MIN || m.launchDelaySec > LAUNCH_DELAY_MAX) {

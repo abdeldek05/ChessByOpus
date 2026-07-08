@@ -1,6 +1,5 @@
 import { NumberStepper } from './NumberStepper'
 import { RoleSelector } from './RoleSelector'
-import { AzimuthDial } from './AzimuthDial'
 import { InclinationPad } from './InclinationPad'
 import type { MesangeLaunchConfig } from '@/types/mission.types'
 
@@ -33,8 +32,7 @@ export function MesangeConfigCard({ index, config, canRemove, onChange, onRemove
       <RoleSelector value={config.role} onChange={(role) => onChange({ role })} />
 
       <div className="flex flex-wrap items-start justify-center gap-x-8 gap-y-4 rounded-2xl bg-bg/40 py-4">
-        <AzimuthDial value={config.azimuthDeg} onChange={(v) => onChange({ azimuthDeg: v })} />
-        <InclinationPad value={config.inclinationDeg} onChange={(v) => onChange({ inclinationDeg: v })} />
+        <InclinationPad value={config.inclinationDeg} onChange={(v: number) => onChange({ inclinationDeg: v })} />
       </div>
 
       <NumberStepper

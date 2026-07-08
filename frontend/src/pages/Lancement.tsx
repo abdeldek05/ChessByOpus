@@ -1,9 +1,8 @@
 import { Navigate, useLocation } from 'react-router-dom'
 import { LaunchSceneCanvas } from '@/three/canvas/LaunchSceneCanvas'
 import { LaunchHud } from '@/components/sections/Lancement/LaunchHud'
-import { TelemetryPanel } from '@/components/sections/Lancement/TelemetryPanel'
+import { MissionBilan } from '@/components/sections/Lancement/MissionBilan'
 import { useLaunchSequence } from '@/hooks/useLaunchSequence'
-import { buildTelemetry } from '@/lib/buildTelemetry'
 import { computeRadarSceneOffset } from '@/lib/computeRadarSceneOffset'
 import { computeDistanceKm, formatDistance } from '@/lib/computeDistanceKm'
 import { getRadarName } from '@/lib/getRadarName'
@@ -17,6 +16,8 @@ interface LancementLocationState {
   radarConfig: RadarConfig
   radarPosition: RadarPosition
   mesangeConfigs: MesangeLaunchConfig[]
+  /** Seuil de préavis de détection requis (s), fixé à la création du scénario. */
+  detectionThresholdSec: number
 }
 
 export function Lancement() {
@@ -40,30 +41,12 @@ function LancementScene({ state }: LancementSceneProps) {
   const distance = formatDistance(computeDistanceKm(state.site, state.radarPosition))
   const radarName = getRadarName(state.radarConfig.templateId)
 
-  // Menace principale suivie par la caméra : la KING, sinon la première.
+  // Menace principale (Roi si présent, sinon la première) : cale la rampe.
   const primary = state.mesangeConfigs.find((m) => m.role === 'KING') ?? state.mesangeConfigs[0]
 
   const sequence = useLaunchSequence({
     scenarioId: state.scenarioId,
     radarPosition: state.radarPosition,
-    radarOffset,
-    radarRangeKm: state.radarConfig.rangeKm,
-    primary,
-  })
-
-  const showTrajectory =
-    sequence.phase === 'flight' || sequence.phase === 'running' || sequence.phase === 'done'
-
-  const telemetry = buildTelemetry({
-    phase: sequence.phase,
-    radarName,
-    elapsedSec: sequence.stats.elapsedSec,
-    altitudeKm: sequence.stats.altitudeKm,
-    radarDistanceKm: sequence.stats.distanceKm,
-    speedMs: sequence.stats.speedMs,
-    detected: sequence.stats.detected,
-    detectionRangeKm: sequence.stats.detectionRangeKm,
-    leadTimeSec: sequence.stats.leadTimeSec,
   })
 
   return (
@@ -73,15 +56,19 @@ function LancementScene({ state }: LancementSceneProps) {
         radarOffset={radarOffset}
         launchEnabled={sequence.phase === 'armed'}
         onLaunch={sequence.launch}
-        phase={sequence.phase}
-        startRef={sequence.startRef}
-        azimuthDeg={primary.azimuthDeg}
-        inclinationDeg={primary.inclinationDeg}
-        showTrajectory={showTrajectory}
+        inclinationDeg={primary?.inclinationDeg ?? 80}
+        azimuthDeg={primary?.azimuthDeg ?? 0}
         className="h-full w-full"
       />
 
-      <TelemetryPanel model={telemetry} />
+      {(sequence.phase === 'done' || sequence.phase === 'error') && (
+        <MissionBilan
+          result={sequence.result}
+          siteName={state.site.name}
+          radarName={radarName}
+          requiredLeadSec={state.detectionThresholdSec ?? 30}
+        />
+      )}
 
       <LaunchHud
         siteName={state.site.name}
@@ -89,7 +76,6 @@ function LancementScene({ state }: LancementSceneProps) {
         distance={distance}
         phase={sequence.phase}
         countdown={sequence.countdown}
-        message={sequence.message}
         onReplay={sequence.replay}
       />
     </div>

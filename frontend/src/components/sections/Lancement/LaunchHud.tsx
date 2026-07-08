@@ -6,35 +6,23 @@ interface LaunchHudProps {
   distance: string
   phase: LaunchPhase
   countdown: number
-  message: string
   onReplay: () => void
-}
-
-const PHASE_STATUS: Record<LaunchPhase, { tag: string; tint: string; dot: string }> = {
-  armed: { tag: 'EN ATTENTE', tint: 'text-accent-bright', dot: 'bg-accent-bright' },
-  countdown: { tag: 'DÉCOMPTE', tint: 'text-warning', dot: 'bg-warning' },
-  igniting: { tag: 'ALLUMAGE', tint: 'text-warning', dot: 'bg-warning' },
-  flight: { tag: 'MENACE EN VOL', tint: 'text-warning', dot: 'bg-warning' },
-  running: { tag: 'ANALYSE', tint: 'text-accent-bright', dot: 'bg-accent-bright' },
-  done: { tag: 'MISSION CLOSE', tint: 'text-success', dot: 'bg-success' },
-  error: { tag: 'ANOMALIE', tint: 'text-danger', dot: 'bg-danger' },
 }
 
 const CLIP = 'polygon(14px 0, 100% 0, 100% calc(100% - 14px), calc(100% - 14px) 100%, 0 100%, 0 14px)'
 
 /**
- * Surcouche de la scène : identité mission (haut-droite), grand compte à rebours
- * plein écran, jauge de statut en bas, et bouton REJOUER une fois la mission
- * close ou en anomalie.
+ * Surcouche minimale de la scène : identité mission (haut-droite) et grand
+ * compte à rebours plein écran au lancement. Bouton REJOUER une fois la
+ * séquence terminée. Plus de bandeau de statut bavard.
  */
-export function LaunchHud({ siteName, radarName, distance, phase, countdown, message, onReplay }: LaunchHudProps) {
-  const status = PHASE_STATUS[phase]
-  const armed = phase === 'armed'
+export function LaunchHud({ siteName, radarName, distance, phase, countdown, onReplay }: LaunchHudProps) {
   const finished = phase === 'done' || phase === 'error'
+  const running = phase === 'igniting' || phase === 'running'
 
   return (
     <div className="pointer-events-none absolute inset-0 font-mono">
-      {/* Identité mission (à droite, la télémétrie prend la gauche) */}
+      {/* Identité mission */}
       <div className="absolute top-6 right-6 space-y-1 text-right">
         <p className="text-[11px] tracking-[0.2em] text-ink-dim uppercase">{siteName}</p>
         <p className="text-xs text-ink">
@@ -51,23 +39,17 @@ export function LaunchHud({ siteName, radarName, distance, phase, countdown, mes
         </div>
       )}
 
-      {/* Statut bas + bouton rejouer */}
-      <div className="absolute bottom-7 left-1/2 flex -translate-x-1/2 items-center gap-3">
-        <div
-          className="flex items-center gap-3 border border-white/10 bg-black/55 py-2.5 pr-6 pl-4"
-          style={{ clipPath: CLIP }}
-        >
-          <span className={`relative inline-flex h-2.5 w-2.5 ${status.dot} rounded-full`}>
-            {armed && (
-              <span className={`absolute inset-0 ${status.dot} animate-ping rounded-full opacity-75`} />
-            )}
-          </span>
-          <span className={`text-[10px] font-bold tracking-[0.28em] ${status.tint}`}>{status.tag}</span>
-          <span className="h-3 w-px bg-white/15" />
-          <span className="text-xs tracking-wide text-ink-dim">{message}</span>
+      {/* Indicateur simulation en cours */}
+      {running && (
+        <div className="absolute bottom-8 left-1/2 flex -translate-x-1/2 items-center gap-3">
+          <span className="h-2.5 w-2.5 animate-ping rounded-full bg-accent-bright" />
+          <span className="text-xs tracking-[0.24em] text-accent-bright uppercase">Simulation en cours</span>
         </div>
+      )}
 
-        {finished && (
+      {/* Bouton rejouer */}
+      {finished && (
+        <div className="absolute bottom-7 left-1/2 -translate-x-1/2">
           <button
             type="button"
             onClick={onReplay}
@@ -76,8 +58,8 @@ export function LaunchHud({ siteName, radarName, distance, phase, countdown, mes
           >
             ⟳ REJOUER
           </button>
-        )}
-      </div>
+        </div>
+      )}
     </div>
   )
 }

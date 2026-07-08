@@ -1,50 +1,99 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useMemo, useRef } from 'react'
 import maplibregl from 'maplibre-gl'
 import { buildRangeCircle } from '@/lib/geoCircle'
+import { createLabeledMarker } from '@/lib/mapMarker'
+import { computeDistanceKm } from '@/lib/computeDistanceKm'
 import type { LaunchSite } from '@/types/simulation.types'
-import type { RadarPosition } from '@/types/mission.types'
+import type { RadarPosition, PlacedRadar } from '@/types/mission.types'
 
 // Même style sombre gratuit, sans clé d'accès.
 const MAP_STYLE = 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json'
+// Cercle de couverture : laiton normal, rouge si le radar est hors portée du
+// pas de tir (miroir du token --color-accent / --color-alert du thème).
+const COVERAGE_COLOR = '#94866e'
+const ALERT_COLOR = '#e0584f'
 
 interface UseMissionPlacementMapParams {
+  /** Région (cadrage initial de la carte). */
   site: LaunchSite
-  radarPosition: RadarPosition | null
-  rangeKm: number
-  onPlaceRadar: (position: RadarPosition) => void
+  radars: PlacedRadar[]
+  /** Radar en cours d'édition : le clic sur la carte le positionne. */
+  activeRadarId: string
+  onPlaceRadar: (id: string, position: RadarPosition) => void
+}
+
+export interface RadarRangeExcess {
+  /** Id du radar concerné. */
+  id: string
+  /** Distance réelle radar → pas de tir (km, non arrondie). */
+  distanceKm: number
+  /** Portée du radar (km) — la limite exacte dépassée. */
+  maxKm: number
 }
 
 interface UseMissionPlacementMapResult {
   containerRef: React.RefObject<HTMLDivElement | null>
+  /** Radars posés au-delà de leur portée exacte, avec les distances mesurées. */
+  radarsOutOfRange: RadarRangeExcess[]
+}
+
+function rangeLayerIds(radarId: string) {
+  return {
+    source: `range-${radarId}`,
+    fill: `range-fill-${radarId}`,
+    line: `range-line-${radarId}`,
+  }
 }
 
 /**
- * Carte 2D de placement du radar. Points clés :
- * - le marqueur radar est PILOTÉ PAR L'ÉTAT `radarPosition` (pas seulement par
- *   le clic) → état = rendu, cohérent et persistant au remontage ;
- * - la vue est cadrée sur la portée du radar (on voit le pas de tir + tout son
- *   rayon d'action), pas un zoom fixe arbitraire ;
- * - cercle de portée + trait pas-de-tir→radar + échelle pour juger la distance.
+ * Carte 2D de placement de 1 à 2 radars, autour du PAS DE TIR fixe (= le site,
+ * repère de référence). Chaque radar posé affiche son propre cercle de COUVERTURE
+ * (rayon = sa portée, centré sur le radar). Le radar ACTIF (onglet sélectionné)
+ * reçoit les clics ; les autres restent visibles en retrait. Une étiquette
+ * distingue chaque point (« Pas de tir », « Radar 1 »…). L'azimut de la Mesange
+ * ne se règle PAS ici — uniquement à l'étape Menaces (cf. useMissionThreatMap).
  */
 export function useMissionPlacementMap({
   site,
-  radarPosition,
-  rangeKm,
+  radars,
+  activeRadarId,
   onPlaceRadar,
 }: UseMissionPlacementMapParams): UseMissionPlacementMapResult {
   const containerRef = useRef<HTMLDivElement>(null)
   const mapRef = useRef<maplibregl.Map | null>(null)
-  const radarMarkerRef = useRef<maplibregl.Marker | null>(null)
+  const markersRef = useRef<Record<string, maplibregl.Marker>>({})
+  const activeIdRef = useRef(activeRadarId)
+  activeIdRef.current = activeRadarId
   const placeRef = useRef(onPlaceRadar)
   placeRef.current = onPlaceRadar
 
-  // --- Création de la carte (une fois par site, cadrée sur la portée) ---
+  // Radars posés dont la distance au pas de tir dépasse leur portée EXACTE
+  // (haversine, sans marge — même règle que validateScenario, pour que
+  // l'avertissement carte et le blocage final restent cohérents). On avertit
+  // tôt, avec les distances mesurées, sans attendre l'écran de validation.
+  const radarsOutOfRange = useMemo(() => {
+    const out: RadarRangeExcess[] = []
+    radars.forEach((radar) => {
+      if (!radar.position) return
+      const distanceKm = computeDistanceKm(site, radar.position)
+      if (distanceKm > radar.config.rangeKm) {
+        out.push({ id: radar.id, distanceKm, maxKm: radar.config.rangeKm })
+      }
+    })
+    return out
+  }, [site, radars])
+
+  // --- Création de la carte (une fois par site) ---
   useEffect(() => {
     if (!containerRef.current) return
 
+    // Cadrage initial : la région autour du site, dimensionné sur la plus grande
+    // portée radar (juste pour donner une échelle de départ raisonnable).
+    const maxRangeKm = Math.max(...radars.map((r) => r.config.rangeKm), 60)
     const bounds = new maplibregl.LngLatBounds()
-    const circle = buildRangeCircle(site.longitude, site.latitude, rangeKm)
-    circle.forEach(([lng, lat]) => bounds.extend([lng, lat]))
+    buildRangeCircle(site.longitude, site.latitude, maxRangeKm).forEach(([lng, lat]) =>
+      bounds.extend([lng, lat]),
+    )
 
     const map = new maplibregl.Map({
       container: containerRef.current,
@@ -55,90 +104,122 @@ export function useMissionPlacementMap({
     mapRef.current = map
     map.addControl(new maplibregl.ScaleControl({ unit: 'metric' }), 'bottom-left')
 
-    const launchElement = document.createElement('div')
-    launchElement.className = 'launch-marker'
-    launchElement.setAttribute('aria-label', 'Mesange — pas de tir')
-    new maplibregl.Marker({ element: launchElement })
-      .setLngLat([site.longitude, site.latitude])
-      .addTo(map)
-
-    map.on('load', () => {
-      // Cercle de portée du radar autour du pas de tir.
-      map.addSource('range', {
-        type: 'geojson',
-        data: { type: 'Feature', geometry: { type: 'Polygon', coordinates: [circle] }, properties: {} },
-      })
-      map.addLayer({
-        id: 'range-fill',
-        type: 'fill',
-        source: 'range',
-        paint: { 'fill-color': '#94866e', 'fill-opacity': 0.08 },
-      })
-      map.addLayer({
-        id: 'range-line',
-        type: 'line',
-        source: 'range',
-        paint: { 'line-color': '#94866e', 'line-width': 1.5, 'line-dasharray': [3, 3], 'line-opacity': 0.6 },
-      })
-
-      // Trait pas-de-tir → radar (vide au départ).
-      map.addSource('link', {
-        type: 'geojson',
-        data: { type: 'Feature', geometry: { type: 'LineString', coordinates: [] }, properties: {} },
-      })
-      map.addLayer({
-        id: 'link-line',
-        type: 'line',
-        source: 'link',
-        paint: { 'line-color': '#cdbb98', 'line-width': 2 },
-      })
-    })
+    // Pas de tir FIXE = le site (repère de référence pour poser les radars).
+    createLabeledMarker(map, [site.longitude, site.latitude], 'launch-marker launch-marker--origin', 'Pas de tir')
 
     map.on('click', (event) => {
-      placeRef.current({ latitude: event.lngLat.lat, longitude: event.lngLat.lng })
+      placeRef.current(activeIdRef.current, { latitude: event.lngLat.lat, longitude: event.lngLat.lng })
     })
 
+    // Resync taille (mise en page flexbox) — cf. note historique du bug marqueurs.
+    const resizeObserver = new ResizeObserver(() => map.resize())
+    resizeObserver.observe(containerRef.current)
+
     return () => {
-      radarMarkerRef.current?.remove()
-      radarMarkerRef.current = null
+      resizeObserver.disconnect()
+      Object.values(markersRef.current).forEach((marker) => marker.remove())
+      markersRef.current = {}
       map.remove()
       mapRef.current = null
     }
-  }, [site, rangeKm])
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- carte créée une seule fois par site
+  }, [site])
 
-  // --- Synchronise marqueur + trait à partir de L'ÉTAT `radarPosition` ---
+  // --- Cercle de couverture par radar : centré sur le radar une fois posé ---
   useEffect(() => {
     const map = mapRef.current
     if (!map) return
 
-    if (!radarPosition) {
-      radarMarkerRef.current?.remove()
-      radarMarkerRef.current = null
-      return
-    }
-
-    const lngLat: [number, number] = [radarPosition.longitude, radarPosition.latitude]
-
-    if (radarMarkerRef.current) {
-      radarMarkerRef.current.setLngLat(lngLat)
-    } else {
-      const element = document.createElement('div')
-      element.className = 'radar-marker'
-      element.setAttribute('aria-label', 'Radar')
-      radarMarkerRef.current = new maplibregl.Marker({ element }).setLngLat(lngLat).addTo(map)
-    }
-
-    const updateLink = () => {
-      const source = map.getSource('link') as maplibregl.GeoJSONSource | undefined
-      source?.setData({
-        type: 'Feature',
-        geometry: { type: 'LineString', coordinates: [[site.longitude, site.latitude], lngLat] },
-        properties: {},
+    const drawCircles = () => {
+      radars.forEach((radar) => {
+        const ids = rangeLayerIds(radar.id)
+        // Cercle centré sur le radar posé (sa couverture) ; vide s'il n'est pas
+        // encore placé.
+        const circle = radar.position
+          ? buildRangeCircle(radar.position.longitude, radar.position.latitude, radar.config.rangeKm)
+          : []
+        const geojson = {
+          type: 'Feature' as const,
+          geometry: { type: 'Polygon' as const, coordinates: circle.length ? [circle] : [] },
+          properties: {},
+        }
+        const active = radar.id === activeRadarId
+        // Radar hors de portée du pas de tir → cercle en rouge d'alerte.
+        const outOfRange = radarsOutOfRange.some((excess) => excess.id === radar.id)
+        const color = outOfRange ? ALERT_COLOR : COVERAGE_COLOR
+        const source = map.getSource(ids.source) as maplibregl.GeoJSONSource | undefined
+        if (source) {
+          source.setData(geojson)
+        } else {
+          map.addSource(ids.source, { type: 'geojson', data: geojson })
+          map.addLayer({
+            id: ids.fill,
+            type: 'fill',
+            source: ids.source,
+            paint: { 'fill-color': color, 'fill-opacity': active ? 0.08 : 0.03 },
+          })
+          map.addLayer({
+            id: ids.line,
+            type: 'line',
+            source: ids.source,
+            paint: {
+              'line-color': color,
+              'line-width': active ? 1.5 : 1,
+              'line-dasharray': [3, 3],
+              'line-opacity': active ? 0.6 : 0.3,
+            },
+          })
+        }
+        map.setPaintProperty(ids.fill, 'fill-color', color)
+        map.setPaintProperty(ids.line, 'line-color', color)
+        map.setPaintProperty(ids.fill, 'fill-opacity', active ? 0.08 : 0.03)
+        map.setPaintProperty(ids.line, 'line-opacity', active ? 0.6 : 0.3)
+        map.setPaintProperty(ids.line, 'line-width', active ? 1.5 : 1)
       })
     }
-    if (map.isStyleLoaded()) updateLink()
-    else map.once('load', updateLink)
-  }, [radarPosition, site])
 
-  return { containerRef }
+    if (map.isStyleLoaded()) drawCircles()
+    else map.once('load', drawCircles)
+  }, [radars, activeRadarId, radarsOutOfRange])
+
+  // --- Marqueurs radar : un par radar posé, étiqueté, piloté par l'état ---
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map) return
+
+    const seenIds = new Set(radars.map((r) => r.id))
+    Object.keys(markersRef.current).forEach((id) => {
+      if (!seenIds.has(id)) {
+        markersRef.current[id].remove()
+        delete markersRef.current[id]
+      }
+    })
+
+    radars.forEach((radar, index) => {
+      if (!radar.position) {
+        markersRef.current[radar.id]?.remove()
+        delete markersRef.current[radar.id]
+        return
+      }
+
+      const lngLat: [number, number] = [radar.position.longitude, radar.position.latitude]
+      const active = radar.id === activeRadarId
+      const label = `Radar ${index + 1}`
+
+      if (markersRef.current[radar.id]) {
+        const marker = markersRef.current[radar.id]
+        marker.setLngLat(lngLat)
+        marker.getElement().classList.toggle('radar-marker--dim', !active)
+      } else {
+        markersRef.current[radar.id] = createLabeledMarker(
+          map,
+          lngLat,
+          `radar-marker${active ? '' : ' radar-marker--dim'}`,
+          label,
+        )
+      }
+    })
+  }, [radars, activeRadarId])
+
+  return { containerRef, radarsOutOfRange }
 }

@@ -1,0 +1,100 @@
+import { BilanRow } from './BilanRow'
+import type { MissionResult, MissionVerdict } from '@/types/missionResult.types'
+import type { MesangeRole } from '@/types/mission.types'
+
+interface MissionBilanProps {
+  result: MissionResult | null
+  siteName: string
+  radarName: string
+  /** Seuil de préavis de détection requis (s), fixé par le client au scénario. */
+  requiredLeadSec: number
+}
+
+const ROLE_LABEL: Record<MesangeRole, string> = { KING: 'Roi', QUEEN: 'Dame', PAWN: 'Pions' }
+
+const VERDICT_DISPLAY: Record<MissionVerdict, { title: string; tint: string }> = {
+  detected: { title: 'ROI DÉTECTÉ À TEMPS ✓', tint: 'text-success' },
+  late: { title: 'DÉTECTÉ TROP TARD ✗', tint: 'text-danger' },
+  missed: { title: 'ROI NON DÉTECTÉ ✗', tint: 'text-danger' },
+  unknown: { title: 'EN ATTENTE', tint: 'text-ink-dim' },
+}
+
+// Valeur nullable → texte affiché (« — » tant que le moteur radar ne l'a pas produite).
+const sec = (v: number | null) => (v === null ? '—' : `${Math.round(v)} s`)
+const km = (v: number | null) => (v === null ? '—' : `${v.toFixed(1)} km`)
+const tPlus = (v: number | null) => (v === null ? '—' : `T+ ${Math.round(v)} s`)
+
+const CLIP = 'polygon(12px 0, 100% 0, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0 100%, 0 12px)'
+
+/**
+ * Bilan de mission post-simulation — le livrable exploitable. Deux choses qui
+ * comptent : le VERDICT (préavis obtenu vs seuil requis → réussi/raté + marge)
+ * et le DIAGNOSTIC (coût des leurres, cause). Tant que le moteur radar n'existe
+ * pas, `result` est null et tout s'affiche « — » avec la mention correspondante.
+ */
+export function MissionBilan({ result, siteName, radarName, requiredLeadSec }: MissionBilanProps) {
+  const verdict = result?.verdict ?? 'unknown'
+  const display = VERDICT_DISPLAY[verdict]
+
+  const lead = result?.leadTimeSec ?? null
+  const margin = lead !== null ? lead - requiredLeadSec : null
+  const marginText =
+    margin === null ? null : `Marge ${margin >= 0 ? '+' : ''}${Math.round(margin)} s`
+  const marginTint = margin === null ? 'text-white/50' : margin >= 0 ? 'text-success' : 'text-danger'
+
+  return (
+    <aside className="pointer-events-none absolute top-0 left-0 flex h-full w-[400px] max-w-[42vw] flex-col gap-4 bg-gradient-to-r from-black/80 via-black/55 to-transparent px-7 py-6 font-mono">
+      {/* En-tête */}
+      <div className="border-b border-white/10 pb-3">
+        <p className="text-[10px] tracking-[0.24em] text-white/40 uppercase">Bilan de mission</p>
+        <p className="mt-1 text-sm text-white/80">
+          {siteName} · {radarName}
+        </p>
+      </div>
+
+      {/* Verdict */}
+      <div className="border border-white/12 bg-black/40 px-5 py-4" style={{ clipPath: CLIP }}>
+        <p className={`text-2xl leading-tight font-bold ${display.tint}`}>{display.title}</p>
+        {verdict === 'unknown' ? (
+          <p className="mt-1.5 text-[11px] leading-relaxed text-white/40">
+            Résultats produits par le moteur radar (à venir).
+          </p>
+        ) : (
+          <p className="mt-1.5 text-xs text-white/60">
+            Préavis <span className="text-ink">{sec(lead)}</span> · Seuil{' '}
+            <span className="text-ink">{sec(requiredLeadSec)}</span> ·{' '}
+            <span className={marginTint}>{marginText ?? '—'}</span>
+          </p>
+        )}
+      </div>
+
+      {/* Détection */}
+      <section>
+        <h2 className="mb-1.5 text-xs font-semibold tracking-[0.06em] text-white/85 uppercase">Détection</h2>
+        <BilanRow label="Préavis obtenu" value={sec(lead)} tint="accent" />
+        <BilanRow label="Seuil requis" value={sec(requiredLeadSec)} />
+        <BilanRow label="Distance d’acquisition" value={km(result?.acquisitionDistanceKm ?? null)} />
+        <BilanRow
+          label="Menaces détectées"
+          value={result?.detectedCount === undefined || result?.detectedCount === null ? '—' : `${result.detectedCount} / ${result.totalThreats}`}
+        />
+      </section>
+
+      {/* Diagnostic */}
+      <section>
+        <h2 className="mb-1.5 text-xs font-semibold tracking-[0.06em] text-white/85 uppercase">Diagnostic</h2>
+        <BilanRow label="Détection possible dès" value={tPlus(result?.firstPossibleDetectionSec ?? null)} />
+        <BilanRow label="Coût des leurres" value={sec(result?.decoyCostSec ?? null)} tint="warn" />
+        {(result?.decoyBreakdown ?? []).map((d) => (
+          <BilanRow key={d.role} label={ROLE_LABEL[d.role]} value={sec(d.costSec)} indent />
+        ))}
+        <div className="mt-2 border-t border-white/8 pt-2">
+          <p className="text-[10px] tracking-[0.1em] text-white/40 uppercase">Cause</p>
+          <p className="mt-0.5 text-xs leading-relaxed text-white/70">
+            {result?.cause ?? '—'}
+          </p>
+        </div>
+      </section>
+    </aside>
+  )
+}

@@ -41,11 +41,19 @@ def get_connection() -> sqlite3.Connection:
             radar_ceiling_m REAL NOT NULL,
             radar_rotating INTEGER NOT NULL,
             radar_min_rcs_m2 REAL NOT NULL,
+            detection_threshold_sec REAL NOT NULL DEFAULT 30,
             mesange_configs TEXT NOT NULL,
             created_at TEXT NOT NULL
         )
         """
     )
+    # Migration sûre : ajoute la colonne aux bases déjà créées sans elle.
+    try:
+        connection.execute(
+            "ALTER TABLE scenarios ADD COLUMN detection_threshold_sec REAL NOT NULL DEFAULT 30"
+        )
+    except sqlite3.OperationalError:
+        pass  # colonne déjà présente
     return connection
 
 
@@ -71,6 +79,7 @@ class ScenarioPayload(BaseModel):
     radarCeilingM: float
     radarRotating: bool
     radarMinRcsM2: float
+    detectionThresholdSec: float = 30
     mesangeConfigs: list[MesangeLaunchConfigPayload]
 
 
@@ -124,9 +133,10 @@ def create_scenario(mission_id: int, payload: ScenarioPayload):
         """
         INSERT INTO scenarios (
             mission_id, radar_template_id, radar_range_km, radar_ceiling_m,
-            radar_rotating, radar_min_rcs_m2, mesange_configs, created_at
+            radar_rotating, radar_min_rcs_m2, detection_threshold_sec,
+            mesange_configs, created_at
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         """,
         (
             mission_id,
@@ -135,6 +145,7 @@ def create_scenario(mission_id: int, payload: ScenarioPayload):
             payload.radarCeilingM,
             int(payload.radarRotating),
             payload.radarMinRcsM2,
+            payload.detectionThresholdSec,
             mesange_configs_json,
             created_at,
         ),
@@ -154,7 +165,8 @@ def list_scenarios():
         SELECT
             scenarios.id, scenarios.mission_id, scenarios.radar_template_id,
             scenarios.radar_range_km, scenarios.radar_ceiling_m, scenarios.radar_rotating,
-            scenarios.radar_min_rcs_m2, scenarios.mesange_configs, scenarios.created_at,
+            scenarios.radar_min_rcs_m2, scenarios.detection_threshold_sec,
+            scenarios.mesange_configs, scenarios.created_at,
             missions.site_name, missions.latitude, missions.longitude
         FROM scenarios
         JOIN missions ON missions.id = scenarios.mission_id
@@ -172,11 +184,12 @@ def list_scenarios():
             "radarCeilingM": row[4],
             "radarRotating": bool(row[5]),
             "radarMinRcsM2": row[6],
-            "mesangeConfigs": json.loads(row[7]),
-            "createdAt": row[8],
-            "siteName": row[9],
-            "latitude": row[10],
-            "longitude": row[11],
+            "detectionThresholdSec": row[7],
+            "mesangeConfigs": json.loads(row[8]),
+            "createdAt": row[9],
+            "siteName": row[10],
+            "latitude": row[11],
+            "longitude": row[12],
         }
         for row in rows
     ]

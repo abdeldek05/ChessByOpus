@@ -2,6 +2,7 @@ import type { LaunchSite } from '@/types/simulation.types'
 import type { RadarConfig } from '@/types/radar.types'
 import type { MesangeLaunchConfig, RadarPosition } from '@/types/mission.types'
 import type { ScenarioRecord } from '@/types/scenario.types'
+import type { MissionResult } from '@/types/missionResult.types'
 
 // Client HTTP centralisé pour le back-end (FastAPI, proxifié sous /api).
 // Un seul endroit sait comment parler au serveur : les hooks/UI passent par
@@ -20,11 +21,31 @@ export class ApiError extends Error {
   }
 }
 
+// Délai max d'une requête : si le back est down/injoignable, le proxy Vite peut
+// laisser la requête pendre indéfiniment. Sans ce garde-fou, l'UI reste figée
+// (ex. bouton bloqué sur « Enregistrement »). Passé ce délai, on abandonne et
+// on remonte une erreur → l'UI affiche « Échec — réessayer ».
+const REQUEST_TIMEOUT_MS = 8000
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(`${API_BASE}${path}`, {
-    headers: { 'Content-Type': 'application/json' },
-    ...init,
-  })
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS)
+
+  let response: Response
+  try {
+    response = await fetch(`${API_BASE}${path}`, {
+      headers: { 'Content-Type': 'application/json' },
+      ...init,
+      signal: controller.signal,
+    })
+  } catch (error) {
+    // Abort (timeout) ou erreur réseau → erreur explicite, pas de blocage.
+    const aborted = error instanceof DOMException && error.name === 'AbortError'
+    throw new ApiError(aborted ? `Requête ${path} expirée` : `Réseau injoignable`, 0)
+  } finally {
+    clearTimeout(timer)
+  }
+
   if (!response.ok) {
     throw new ApiError(`Requête ${path} échouée`, response.status)
   }
@@ -60,6 +81,7 @@ export function saveScenario(
   missionId: number,
   radarConfig: RadarConfig,
   mesangeConfigs: MesangeLaunchConfig[],
+  detectionThresholdSec: number,
 ): Promise<ScenarioCreated> {
   return request<ScenarioCreated>(`/missions/${missionId}/scenario`, {
     method: 'POST',
@@ -69,6 +91,7 @@ export function saveScenario(
       radarCeilingM: radarConfig.ceilingM,
       radarRotating: radarConfig.rotating,
       radarMinRcsM2: radarConfig.minDetectableRcsM2,
+      detectionThresholdSec,
       mesangeConfigs,
     }),
   })
@@ -95,6 +118,8 @@ export interface SimulationResult {
   status: SimulationStatus
   /** Trajectoires calculées par le back (vide tant que le calcul n'est pas prêt). */
   trajectories: unknown[]
+  /** Bilan de mission (verdict + diagnostic) ; null tant que le moteur radar n'existe pas. */
+  mission: MissionResult | null
   /** Message d'erreur éventuel si status = 'failed'. */
   error?: string
 }
@@ -112,7 +137,7 @@ export async function launchSimulation(payload: LaunchRequest): Promise<Simulati
     })
   } catch (error) {
     if (error instanceof ApiError && error.status === 404) {
-      return { scenarioId: payload.scenarioId, status: 'pending', trajectories: [] }
+      return { scenarioId: payload.scenarioId, status: 'pending', trajectories: [], mission: null }
     }
     throw error
   }

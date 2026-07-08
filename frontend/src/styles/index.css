@@ -93,8 +93,11 @@ body {
    dessiner une seule ligne. Halo flou pour la lueur. */
 .site-marker {
   position: relative;
-  width: 26px;
-  height: 26px;
+  /* Zone de clic élargie (38px) : les sites restent faciles à cliquer même
+     quand la carte est très dézoomée (un site lointain élargit le cadrage).
+     Le losange visuel garde sa taille — seuls les `inset` compensent. */
+  width: 38px;
+  height: 38px;
   padding: 0;
   border: none;
   background: transparent;
@@ -108,7 +111,7 @@ body {
 }
 .site-marker__glow {
   position: absolute;
-  inset: -12px;
+  inset: -6px;
   border-radius: 9999px;
   background: radial-gradient(circle, currentColor 0%, transparent 68%);
   opacity: 0.4;
@@ -122,7 +125,7 @@ body {
 .site-marker::before {
   content: "";
   position: absolute;
-  inset: 5px;
+  inset: 11px;
   background: currentColor;
   transform: rotate(45deg);
   border-radius: 2px;
@@ -146,19 +149,53 @@ body {
 /* Carte de placement du HUD mission : marqueurs plats, sans glow (suite à
    la refonte "moins de chrome décoratif" du HUD). */
 .launch-marker {
+  position: relative;
   width: 12px;
   height: 12px;
   border-radius: 9999px;
   background: var(--color-ink);
   box-shadow: 0 0 0 4px color-mix(in srgb, var(--color-ink) 25%, transparent);
 }
+/* Pas de tir focal (étape Menaces) : point vif laiton, sous la boussole. */
+.launch-marker--origin {
+  background: var(--color-accent-bright);
+  box-shadow: 0 0 10px 2px color-mix(in srgb, var(--color-accent-bright) 55%, transparent);
+}
 .radar-marker {
+  position: relative;
   width: 16px;
   height: 16px;
   border-radius: 9999px;
   background: var(--color-accent);
   box-shadow: 0 0 12px 2px var(--color-accent);
   cursor: pointer;
+}
+/* Radar posé mais non actif (un autre onglet radar est en cours d'édition) :
+   même position, en retrait pour ne pas se confondre avec le radar actif. */
+.radar-marker--dim {
+  background: var(--color-ink-faint);
+  box-shadow: 0 0 6px 1px color-mix(in srgb, var(--color-ink-faint) 60%, transparent);
+}
+
+/* Étiquette légère accolée à un marqueur (Pas de tir / Radar 1…) — pas de
+   fond plein, juste un halo texte pour rester lisible sur tuile claire ou
+   sombre, dans l'esprit "léger" plutôt qu'un panneau. */
+.map-marker-label {
+  position: absolute;
+  top: 50%;
+  left: 100%;
+  margin-left: 9px;
+  transform: translateY(-50%);
+  white-space: nowrap;
+  font-family: var(--font-display);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--color-ink);
+  text-shadow:
+    0 0 4px var(--color-bg),
+    0 0 8px var(--color-bg);
+  pointer-events: none;
 }
 
 /* Popup MapLibre (carte météo) : on retire le chrome par défaut pour ne
