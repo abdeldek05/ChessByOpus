@@ -1,21 +1,26 @@
 import { computeDistanceKm, formatDistance } from '@/lib/computeDistanceKm'
 import type { LaunchSite } from '@/types/simulation.types'
-import type { RadarConfig } from '@/types/radar.types'
-import type { MesangeLaunchConfig, RadarPosition } from '@/types/mission.types'
+import type { MesangeLaunchConfig, PlacedRadar } from '@/types/mission.types'
 import type { ScenarioViolation } from '@/lib/validateScenario'
 
 type SaveStatus = 'idle' | 'saving' | 'saved' | 'error'
 
 interface StepLaunchProps {
   site: LaunchSite
-  radarConfig: RadarConfig
-  radarPosition: RadarPosition
+  /** Tous les radars du scénario (1-2), avec leur config + position. */
+  radars: PlacedRadar[]
   mesangeConfigs: MesangeLaunchConfig[]
   saveStatus: SaveStatus
   violations: ScenarioViolation[]
   canLaunch: boolean
   onSave: () => void
   onLaunch: () => void
+}
+
+interface RecapRow {
+  label: string
+  value: string
+  accent: boolean
 }
 
 const SAVE_LABEL: Record<SaveStatus, string> = {
@@ -27,8 +32,7 @@ const SAVE_LABEL: Record<SaveStatus, string> = {
 
 export function StepLaunch({
   site,
-  radarConfig,
-  radarPosition,
+  radars,
   mesangeConfigs,
   saveStatus,
   violations,
@@ -36,12 +40,22 @@ export function StepLaunch({
   onSave,
   onLaunch,
 }: StepLaunchProps) {
-  const distance = formatDistance(computeDistanceKm(site, radarPosition))
+  // Le récap reflète TOUS les radars choisis : chacun donne sa config (nom,
+  // portée) et sa distance au pas de tir. Le préfixe « Radar N » n'apparaît
+  // qu'en multi-radar, pour ne pas alourdir le cas nominal à un seul radar.
+  const multi = radars.length > 1
+  const radarRows: RecapRow[] = radars.flatMap((radar, index) => {
+    const prefix = multi ? `Radar ${index + 1}` : 'Radar'
+    const distance = radar.position ? formatDistance(computeDistanceKm(site, radar.position)) : '—'
+    return [
+      { label: prefix, value: `${radar.config.name} · ${radar.config.rangeKm} km`, accent: false },
+      { label: `Distance ${prefix.toLowerCase()}`, value: distance, accent: true },
+    ]
+  })
 
-  const rows = [
+  const rows: RecapRow[] = [
     { label: 'Base de lancement', value: site.name, accent: false },
-    { label: 'Radar', value: `${radarConfig.name} · ${radarConfig.rangeKm} km`, accent: false },
-    { label: 'Distance radar', value: distance, accent: true },
+    ...radarRows,
     { label: 'Mesange engagées', value: String(mesangeConfigs.length), accent: false },
   ]
 

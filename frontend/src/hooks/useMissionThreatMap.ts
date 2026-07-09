@@ -12,6 +12,10 @@ const MAP_STYLE = 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.j
 // Cône de menace : tons laiton du HUD, jamais de rouge.
 const CONE_COLOR = '#94866e'
 const CONE_CORE_COLOR = '#cdbb98'
+// Cercles de couverture radar : même laiton, mais en RETRAIT (contexte). Ils
+// aident à choisir l'azimut — on voit quelle zone chaque radar couvre — sans
+// voler la vedette au cône de visée.
+const COVERAGE_COLOR = '#94866e'
 // Vue 3D : inclinaison de la caméra carte (perspective terrain).
 const MAP_PITCH_DEG = 55
 // Couches saisissables pour orienter le cône au glisser.
@@ -77,7 +81,48 @@ export function useMissionThreatMap({
     // Pas de tir FIXE (= le site), étiqueté.
     createLabeledMarker(map, [site.longitude, site.latitude], 'launch-marker launch-marker--origin', 'Pas de tir')
 
-    // Radars posés = contexte, étiquetés, atténués.
+    // Radars posés = contexte, étiquetés, atténués. Chacun porte son cercle de
+    // couverture (rayon = portée), en retrait, pour aider à orienter l'azimut.
+    const drawRadarCoverage = () => {
+      radars.forEach((radar) => {
+        if (!radar.position) return
+        const sourceId = `coverage-${radar.id}`
+        if (map.getSource(sourceId)) return
+        const circle = buildRangeCircle(
+          radar.position.longitude,
+          radar.position.latitude,
+          radar.config.rangeKm,
+        )
+        map.addSource(sourceId, {
+          type: 'geojson',
+          data: {
+            type: 'Feature',
+            geometry: { type: 'Polygon', coordinates: [circle] },
+            properties: {},
+          },
+        })
+        map.addLayer({
+          id: `coverage-fill-${radar.id}`,
+          type: 'fill',
+          source: sourceId,
+          paint: { 'fill-color': COVERAGE_COLOR, 'fill-opacity': 0.03 },
+        })
+        map.addLayer({
+          id: `coverage-line-${radar.id}`,
+          type: 'line',
+          source: sourceId,
+          paint: {
+            'line-color': COVERAGE_COLOR,
+            'line-width': 1,
+            'line-dasharray': [3, 3],
+            'line-opacity': 0.3,
+          },
+        })
+      })
+    }
+    if (map.isStyleLoaded()) drawRadarCoverage()
+    else map.once('load', drawRadarCoverage)
+
     radars.forEach((radar, index) => {
       if (!radar.position) return
       createLabeledMarker(

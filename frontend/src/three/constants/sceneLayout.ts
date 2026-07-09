@@ -1,14 +1,12 @@
-// Implantation de la scène de lancement sur la map. Le banc de tir est au
-// centre de la pelouse : le radar peut être projeté dans n'importe quelle
-// direction géographique (Nord/Sud/Est/Ouest) et rester sur l'herbe, quel que
-// soit son azimut réel (voir computeRadarSceneOffset, rayon borné à 400).
+// Implantation de la scène de lancement. Le banc de tir est à l'origine ; le
+// radar est projeté dans sa direction géographique réelle, à sa VRAIE distance
+// (échelle FIXE 1:200, voir computeRadarSceneOffset). Le terrain n'est plus de
+// taille fixe : il s'étend pour englober le radar quelle que soit sa distance
+// (voir LaunchSceneCanvas), on ne compresse jamais la distance.
 //
-// Le sol couvre toute la map centré sur l'origine monde ; le relief est aplani
-// autour de LAUNCH_CENTER pour asseoir la base à plat. Base, fusée, herbe et
+// Le sol est centré sur l'origine monde ; le relief est aplani autour de
+// LAUNCH_CENTER pour asseoir la base à plat. Base, fusée, herbe, anneaux et
 // radar sont tous placés relativement à LAUNCH_CENTER.
-
-// Banc de tir centré sur la pelouse (LAWN_SIZE vaut 900, bord à ±450 ; le radar
-// reste dans un disque de 400 autour du centre, donc toujours sur l'herbe).
 export const LAUNCH_CENTER: [number, number, number] = [0, 0, 0]
 
 // Caméra : légèrement en hauteur, côté +Z, cadrée sur le plateau.

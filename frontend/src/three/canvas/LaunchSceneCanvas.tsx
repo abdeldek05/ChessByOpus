@@ -27,8 +27,12 @@ interface LaunchSceneCanvasProps {
   className?: string
 }
 
-const LAWN_SIZE = 900
-const CAMERA_FAR = 2200
+// Taille MINIMALE de la pelouse (unités) : cadre serré autour de la base quand
+// le radar est proche. Au-delà, le terrain s'étend pour englober le radar réel.
+const MIN_LAWN_SIZE = 900
+// Marge de pelouse au-delà du radar (unités), pour qu'il ne soit jamais pile au
+// bord. ~80 unités = 16 km de dégagement à l'échelle 1:200.
+const LAWN_MARGIN = 120
 
 export function LaunchSceneCanvas({
   radarConfig,
@@ -39,12 +43,17 @@ export function LaunchSceneCanvas({
   azimuthDeg,
   className,
 }: LaunchSceneCanvasProps) {
-  const radarDistance = Math.hypot(radarOffset.x, radarOffset.z)
+  const radarDistance = radarOffset.sceneRadius
+  // Terrain qui englobe toujours le radar (échelle FIXE 1:200 : on ne compresse
+  // pas la distance, c'est la scène qui s'agrandit). Le bord dépasse le radar
+  // de LAWN_MARGIN ; la caméra recule d'autant pour tout garder à l'écran.
+  const lawnSize = Math.max(MIN_LAWN_SIZE, (radarDistance + LAWN_MARGIN) * 2)
+  const cameraFar = Math.max(2200, lawnSize * 2.5)
 
   return (
     <Canvas
       className={className}
-      camera={{ position: CAMERA_POSITION, fov: 42, near: 0.5, far: CAMERA_FAR }}
+      camera={{ position: CAMERA_POSITION, fov: 42, near: 0.5, far: cameraFar }}
       gl={{ antialias: false, powerPreference: 'high-performance' }}
       // Ombres douces rendues quelques frames puis figées (FreezeShadows).
       shadows="soft"
@@ -63,7 +72,7 @@ export function LaunchSceneCanvas({
         <SunLight />
         <OutdoorEnvironment />
 
-        <LawnGround size={LAWN_SIZE} />
+        <LawnGround size={lawnSize} />
 
         <group position={LAUNCH_CENTER}>
           <LaunchRail inclinationDeg={inclinationDeg} azimuthDeg={azimuthDeg} />

@@ -6,17 +6,13 @@ import type { RadarConfig } from '@/types/radar.types'
 interface RadarSettingsProps {
   config: RadarConfig
   onChange: (patch: Partial<RadarConfig>) => void
-  /** Seuil de préavis de détection requis (s) — critère de réussite du client. */
-  detectionThresholdSec: number
-  onThresholdChange: (seconds: number) => void
 }
 
 /**
  * Réglages du radar sélectionné : portée, plafond, rotatif, paramètre avancé
- * (SER), et seuil de préavis de détection. Affiché directement sous le sélecteur
- * de radar (même page), pas dans une étape séparée.
+ * (SER), et seuil de préavis de détection — tous propres à CE radar.
  */
-export function RadarSettings({ config, onChange, detectionThresholdSec, onThresholdChange }: RadarSettingsProps) {
+export function RadarSettings({ config, onChange }: RadarSettingsProps) {
   const [showRcs, setShowRcs] = useState(false)
 
   return (
@@ -53,15 +49,15 @@ export function RadarSettings({ config, onChange, detectionThresholdSec, onThres
       <div className="space-y-3 rounded-3xl bg-surface p-6">
         <HudRange
           label="Seuil de préavis (détection)"
-          value={detectionThresholdSec}
+          value={config.detectionThresholdSec}
           min={5}
           max={120}
           step={1}
           unit="s"
-          onChange={onThresholdChange}
+          onChange={(v) => onChange({ detectionThresholdSec: v })}
         />
         <p className="text-[11px] leading-relaxed text-ink-faint">
-          Préavis minimum exigé entre l'accroche de la menace par le radar et l'impact. En dessous, la
+          Préavis minimum exigé entre l'accroche de la menace par ce radar et l'impact. En dessous, la
           détection est jugée trop tardive.
         </p>
       </div>

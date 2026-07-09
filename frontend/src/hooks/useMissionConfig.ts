@@ -18,7 +18,7 @@ function makeId(): string {
 }
 
 function toConfig(template: RadarTemplate): RadarConfig {
-  return { ...template, templateId: template.id }
+  return { ...template, templateId: template.id, detectionThresholdSec: DEFAULT_DETECTION_THRESHOLD_SEC }
 }
 
 function createRadar(template: RadarTemplate = radarTemplates[0]): PlacedRadar {
@@ -40,9 +40,6 @@ interface UseMissionConfigResult {
   removeMesange: (id: string) => void
   updateMesangeConfig: (id: string, patch: Partial<MesangeLaunchConfig>) => void
   canAddMesange: boolean
-
-  detectionThresholdSec: number
-  setDetectionThreshold: (seconds: number) => void
 }
 
 /**
@@ -53,7 +50,6 @@ interface UseMissionConfigResult {
 export function useMissionConfig(): UseMissionConfigResult {
   const [radars, setRadars] = useState<PlacedRadar[]>(() => [createRadar()])
   const [mesangeConfigs, setMesangeConfigs] = useState<MesangeLaunchConfig[]>(() => [createMesange(0)])
-  const [detectionThresholdSec, setDetectionThreshold] = useState(DEFAULT_DETECTION_THRESHOLD_SEC)
 
   const addRadar = () => {
     setRadars((current) => (current.length >= MAX_RADARS ? current : [...current, createRadar()]))
@@ -106,7 +102,5 @@ export function useMissionConfig(): UseMissionConfigResult {
     removeMesange,
     updateMesangeConfig,
     canAddMesange: mesangeConfigs.length < MAX_MESANGE,
-    detectionThresholdSec,
-    setDetectionThreshold,
   }
 }

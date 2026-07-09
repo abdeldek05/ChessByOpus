@@ -54,11 +54,10 @@ export function MissionPlacementMap({
               type="button"
               onClick={() => onSelectActive(radar.id)}
               className={`rounded-full px-3 py-1.5 text-[11px] font-medium backdrop-blur-sm transition-colors ${
-                radar.id === activeRadarId ? 'bg-accent text-bg' : 'bg-bg/70 text-ink-dim hover:bg-bg/90'
+                radar.id === activeRadarId ? 'bg-radar text-bg' : 'bg-bg/70 text-ink-dim hover:bg-bg/90'
               }`}
             >
               Radar {index + 1}
-              {radar.position && <span className="ml-1 text-ok">●</span>}
             </button>
           ))}
         </div>

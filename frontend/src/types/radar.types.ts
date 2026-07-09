@@ -12,4 +12,6 @@ export interface RadarTemplate {
 
 export interface RadarConfig extends RadarTemplate {
   templateId: string
+  /** Seuil de préavis de détection exigé (s), propre à ce radar. */
+  detectionThresholdSec: number
 }

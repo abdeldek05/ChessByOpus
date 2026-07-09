@@ -5,6 +5,7 @@ import { useSaveScenario } from '@/hooks/useSaveScenario'
 import { validateScenario } from '@/lib/validateScenario'
 import { MissionStepRail } from './MissionStepRail'
 import { StepRadar } from './steps/StepRadar'
+import { StepRadarSettings } from './steps/StepRadarSettings'
 import { StepPosition } from './steps/StepPosition'
 import { StepThreats } from './steps/StepThreats'
 import { StepLaunch } from './steps/StepLaunch'
@@ -38,6 +39,7 @@ export function MissionConsole({ site, missionId }: MissionConsoleProps) {
 
   const canProceed =
     stepper.current === 'radar' ||
+    stepper.current === 'settings' ||
     (stepper.current === 'position' && allRadarsPlaced) ||
     stepper.current === 'trajectories'
 
@@ -54,7 +56,7 @@ export function MissionConsole({ site, missionId }: MissionConsoleProps) {
         radarConfig: primaryRadar.config,
         radarPosition: primaryRadar.position,
         mesangeConfigs: config.mesangeConfigs,
-        detectionThresholdSec: config.detectionThresholdSec,
+        detectionThresholdSec: primaryRadar.config.detectionThresholdSec,
       },
     })
   }
@@ -81,10 +83,10 @@ export function MissionConsole({ site, missionId }: MissionConsoleProps) {
             onAddRadar={config.addRadar}
             onRemoveRadar={config.removeRadar}
             onSelectTemplate={config.selectRadarTemplate}
-            onUpdateConfig={config.updateRadarConfig}
-            detectionThresholdSec={config.detectionThresholdSec}
-            onThresholdChange={config.setDetectionThreshold}
           />
+        )}
+        {stepper.current === 'settings' && (
+          <StepRadarSettings radars={config.radars} onUpdateConfig={config.updateRadarConfig} />
         )}
         {stepper.current === 'position' && (
           <StepPosition site={site} radars={config.radars} onPlaceRadar={config.placeRadar} />
@@ -98,16 +100,15 @@ export function MissionConsole({ site, missionId }: MissionConsoleProps) {
             onChange={(patch) => config.updateMesangeConfig(king.id, patch)}
           />
         )}
-        {stepper.current === 'launch' && primaryRadar.position && (
+        {stepper.current === 'launch' && (
           <StepLaunch
             site={site}
-            radarConfig={primaryRadar.config}
-            radarPosition={primaryRadar.position}
+            radars={config.radars}
             mesangeConfigs={config.mesangeConfigs}
             saveStatus={status}
             violations={validation.violations}
             canLaunch={canLaunch}
-            onSave={() => save(primaryRadar.config, config.mesangeConfigs, config.detectionThresholdSec)}
+            onSave={() => save(primaryRadar.config, config.mesangeConfigs, primaryRadar.config.detectionThresholdSec)}
             onLaunch={launch}
           />
         )}

@@ -40,6 +40,10 @@
   --color-accent-bright: #cdbb98;
   --color-ok: #8fe28a;
   --color-alert: #e0584f;
+
+  /* Identité radar : même laiton que le pas de tir — une seule famille de
+     couleur HUD dans toute l'app, pas de couleur dédiée par fonction. */
+  --color-radar: #94866e;
 }
 
 /* Thème « aérien sombre » (scopé à /simulation) : ardoise froide + accent
@@ -156,25 +160,24 @@ body {
   background: var(--color-ink);
   box-shadow: 0 0 0 4px color-mix(in srgb, var(--color-ink) 25%, transparent);
 }
-/* Pas de tir focal (étape Menaces) : point vif laiton, sous la boussole. */
+/* Pas de tir focal (étape Menaces) : point vif laiton, plat (pas de glow). */
 .launch-marker--origin {
   background: var(--color-accent-bright);
-  box-shadow: 0 0 10px 2px color-mix(in srgb, var(--color-accent-bright) 55%, transparent);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--color-accent-bright) 25%, transparent);
 }
 .radar-marker {
   position: relative;
   width: 16px;
   height: 16px;
   border-radius: 9999px;
-  background: var(--color-accent);
-  box-shadow: 0 0 12px 2px var(--color-accent);
+  background: var(--color-radar);
   cursor: pointer;
 }
 /* Radar posé mais non actif (un autre onglet radar est en cours d'édition) :
-   même position, en retrait pour ne pas se confondre avec le radar actif. */
+   même teinte radar, juste atténuée — reste identifiable comme "un radar",
+   pas un élément différent ou cassé. */
 .radar-marker--dim {
-  background: var(--color-ink-faint);
-  box-shadow: 0 0 6px 1px color-mix(in srgb, var(--color-ink-faint) 60%, transparent);
+  background: color-mix(in srgb, var(--color-radar) 55%, transparent);
 }
 
 /* Étiquette légère accolée à un marqueur (Pas de tir / Radar 1…) — pas de
