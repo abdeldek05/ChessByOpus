@@ -3,32 +3,34 @@ import type { RadarPosition } from '@/types/mission.types'
 
 const EARTH_RADIUS_M = 6371000
 
-/**
- * Échelle FIXE de la scène : 1 unité de scène = 200 m réels. Simulation d'exo,
- * pas de jeu : la distance affichée doit toujours être la vraie distance, à une
- * échelle constante et connue — jamais compressée « pour faire joli ». À 1:200,
- * 80 km = 400 unités, ce qui tient sur la pelouse de base ; au-delà le radar
- * s'éloigne réellement et c'est le terrain/la caméra qui suivent (cf.
- * LaunchSceneCanvas), on ne triche pas sur la position.
- */
-export const METERS_PER_SCENE_UNIT = 200
-
-// Le radar ne se colle jamais physiquement sur le banc de tir (rayon minimal en
-// unités de scène). Purement anti-chevauchement, sans effet sur l'échelle.
-const MIN_RADAR_SCENE_RADIUS = 22
+// Échelle de la distance radar dans la scène 3D, en RACINE (∝ √km). La 3D est
+// une REPRÉSENTATION (pas une mesure) : la vraie distance en mètres vit sur la
+// carte tactique 2D. La racine donne un CONTRASTE proche/loin marqué (un radar
+// proche paraît vraiment proche, un lointain vraiment loin) tout en restant
+// contenu sur la pelouse. L'ORDRE et les proportions relatives sont vrais ; la
+// DIRECTION est géographiquement exacte.
+//
+//   rayon_scène = FACTEUR × √km
+//
+//   5 km → 72u · 20 km → 143u · 60 km → 248u · 150 km → 392u · 300 km → 554u
+// Facteur relevé : à 60 km le radar est franchement éloigné (le sol s'étend en
+// conséquence, cf. LawnGround dans LaunchSceneCanvas).
+const SCENE_RADIUS_PER_SQRT_KM = 32
+// Plancher : le radar ne se colle jamais physiquement sur le banc de tir.
+const MIN_RADAR_SCENE_RADIUS = 30
 
 export interface SceneOffset {
   x: number
   z: number
-  /** Rayon scène du radar (unités) — sert au cadrage terrain/caméra. */
+  /** Rayon scène du radar (unités) — sert au cadrage caméra. */
   sceneRadius: number
 }
 
 /**
- * Convertit la position GPS du radar en décalage 3D relatif au banc de tir, à
- * l'échelle FIXE 1:200. Orientation : Est → +x, Nord → -z (convention Three.js).
- * Direction ET distance sont géographiquement exactes. Seul un plancher
- * anti-chevauchement s'applique quand le radar est quasi sur le pas de tir.
+ * Décalage 3D du radar relatif au pas de tir, pour la SCÈNE (représentation).
+ * Orientation : Est → +x, Nord → -z (convention Three.js). Direction exacte ;
+ * distance à l'échelle LOGARITHMIQUE (ordre/proportions vrais, jamais hors
+ * champ). La distance métrique exacte est portée par la carte 2D.
  */
 export function computeRadarSceneOffset(site: LaunchSite, radarPosition: RadarPosition): SceneOffset {
   const latRad = (site.latitude * Math.PI) / 180
@@ -43,8 +45,8 @@ export function computeRadarSceneOffset(site: LaunchSite, radarPosition: RadarPo
     return { x: 0, z: -MIN_RADAR_SCENE_RADIUS, sceneRadius: MIN_RADAR_SCENE_RADIUS }
   }
 
-  // Échelle stricte 1:200, avec seulement un plancher anti-chevauchement.
-  const sceneRadius = Math.max(MIN_RADAR_SCENE_RADIUS, realDistance / METERS_PER_SCENE_UNIT)
+  const km = realDistance / 1000
+  const sceneRadius = Math.max(MIN_RADAR_SCENE_RADIUS, SCENE_RADIUS_PER_SQRT_KM * Math.sqrt(km))
 
   const dirX = realX / realDistance
   const dirZ = realZ / realDistance

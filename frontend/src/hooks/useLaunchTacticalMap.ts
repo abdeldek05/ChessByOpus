@@ -1,0 +1,171 @@
+import { useEffect, useRef } from 'react'
+import maplibregl from 'maplibre-gl'
+import { buildRangeCircle } from '@/lib/geoCircle'
+import { buildSightCone } from '@/lib/geoSightCone'
+import { createLabeledMarker } from '@/lib/mapMarker'
+import {
+  TACTICAL_MAP_STYLE,
+  COVERAGE_COLOR,
+  THREAT_CONE_COLOR,
+  RING_COLOR,
+  RING_STEPS_KM,
+} from '@/lib/launchTacticalMap'
+import type { LaunchSite } from '@/types/simulation.types'
+import type { PlacedRadar } from '@/types/mission.types'
+
+interface UseLaunchTacticalMapParams {
+  site: LaunchSite
+  /** Tous les radars placés (1-2), chacun avec sa couverture. */
+  radars: PlacedRadar[]
+  azimuthDeg: number
+  /** Agrandie : pan + zoom souris actifs ; compacte : figée. */
+  expanded: boolean
+}
+
+interface UseLaunchTacticalMapResult {
+  containerRef: React.RefObject<HTMLDivElement | null>
+}
+
+/** Active/désactive les gestes de navigation d'un coup (bascule figée ↔ libre). */
+function setInteractive(map: maplibregl.Map, on: boolean) {
+  const handlers = [map.dragPan, map.scrollZoom, map.boxZoom, map.doubleClickZoom, map.touchZoomRotate, map.keyboard]
+  handlers.forEach((h) => (on ? h.enable() : h.disable()))
+}
+
+/**
+ * Carte tactique de l'écran de lancement : vue de dessus à l'échelle réelle,
+ * là où la distance est FIDÈLE (la scène 3D montre le pas de tir grandeur
+ * nature). Épurée : quelques anneaux de distance discrets, le cône d'azimut de
+ * la MENACE (depuis le pas de tir), et pour chaque radar sa couverture + un
+ * trait de liaison. Radars statiques (plus de faisceau tournant). Read-only en
+ * compact ; pan/zoom actifs une fois agrandie.
+ */
+export function useLaunchTacticalMap({
+  site,
+  radars,
+  azimuthDeg,
+  expanded,
+}: UseLaunchTacticalMapParams): UseLaunchTacticalMapResult {
+  const containerRef = useRef<HTMLDivElement>(null)
+  const mapRef = useRef<maplibregl.Map | null>(null)
+
+  // --- Création de la carte (une fois) ---
+  useEffect(() => {
+    if (!containerRef.current) return
+
+    const placed = radars.filter((radar) => radar.position !== null)
+    const maxRangeKm = Math.max(...placed.map((r) => r.config.rangeKm), 40)
+
+    // Cadrage SERRÉ : englobe pas de tir + radars. Padding ASYMÉTRIQUE FORT pour
+    // pousser l'ensemble nettement dans un coin → le pas de tir est franchement
+    // décalé sur le côté (pas au milieu), scène plus dynamique.
+    const bounds = new maplibregl.LngLatBounds()
+    bounds.extend([site.longitude, site.latitude])
+    placed.forEach((radar) => bounds.extend([radar.position!.longitude, radar.position!.latitude]))
+
+    const map = new maplibregl.Map({
+      container: containerRef.current,
+      style: TACTICAL_MAP_STYLE,
+      bounds,
+      fitBoundsOptions: { padding: { top: 30, right: 30, bottom: 120, left: 150 }, maxZoom: 11 },
+      interactive: false, // navigation togglée ensuite selon `expanded`
+      attributionControl: false,
+    })
+    mapRef.current = map
+
+    const draw = () => {
+      // Anneaux de distance, discrets, centrés sur le pas de tir.
+      RING_STEPS_KM.filter((km) => km <= maxRangeKm).forEach((km) => {
+        const ring = buildRangeCircle(site.longitude, site.latitude, km)
+        map.addSource(`ring-${km}`, {
+          type: 'geojson',
+          data: { type: 'Feature', geometry: { type: 'LineString', coordinates: ring }, properties: {} },
+        })
+        map.addLayer({
+          id: `ring-${km}`,
+          type: 'line',
+          source: `ring-${km}`,
+          paint: { 'line-color': RING_COLOR, 'line-width': 1, 'line-opacity': 0.35 },
+        })
+      })
+
+      // Cône d'azimut de la MENACE (depuis le pas de tir), trait fin.
+      const cone = buildSightCone(site.longitude, site.latitude, azimuthDeg, maxRangeKm * 1.1)
+      map.addSource('cone', {
+        type: 'geojson',
+        data: { type: 'Feature', geometry: { type: 'Polygon', coordinates: [cone] }, properties: {} },
+      })
+      map.addLayer({ id: 'cone-fill', type: 'fill', source: 'cone', paint: { 'fill-color': THREAT_CONE_COLOR, 'fill-opacity': 0.12 } })
+      map.addLayer({
+        id: 'cone-line',
+        type: 'line',
+        source: 'cone',
+        layout: { 'line-cap': 'round', 'line-join': 'round' },
+        paint: { 'line-color': THREAT_CONE_COLOR, 'line-width': 1.4, 'line-opacity': 0.8 },
+      })
+
+      // Par radar posé : couverture (trait fin) + liaison discrète + marqueur.
+      placed.forEach((radar, index) => {
+        const { longitude: rLng, latitude: rLat } = radar.position!
+        const label = placed.length > 1 ? `Radar ${index + 1}` : 'Radar'
+
+        const coverage = buildRangeCircle(rLng, rLat, radar.config.rangeKm)
+        map.addSource(`cov-${radar.id}`, {
+          type: 'geojson',
+          data: { type: 'Feature', geometry: { type: 'Polygon', coordinates: [coverage] }, properties: {} },
+        })
+        map.addLayer({ id: `cov-fill-${radar.id}`, type: 'fill', source: `cov-${radar.id}`, paint: { 'fill-color': COVERAGE_COLOR, 'fill-opacity': 0.04 } })
+        map.addLayer({
+          id: `cov-line-${radar.id}`,
+          type: 'line',
+          source: `cov-${radar.id}`,
+          paint: { 'line-color': COVERAGE_COLOR, 'line-width': 1, 'line-dasharray': [4, 4], 'line-opacity': 0.5 },
+        })
+
+        map.addSource(`link-${radar.id}`, {
+          type: 'geojson',
+          data: {
+            type: 'Feature',
+            geometry: { type: 'LineString', coordinates: [[site.longitude, site.latitude], [rLng, rLat]] },
+            properties: {},
+          },
+        })
+        map.addLayer({
+          id: `link-${radar.id}`,
+          type: 'line',
+          source: `link-${radar.id}`,
+          layout: { 'line-cap': 'round' },
+          paint: { 'line-color': COVERAGE_COLOR, 'line-width': 1.2, 'line-opacity': 0.6 },
+        })
+
+        createLabeledMarker(map, [rLng, rLat], 'radar-marker', label)
+      })
+
+      createLabeledMarker(map, [site.longitude, site.latitude], 'launch-marker launch-marker--origin', 'Pas de tir')
+    }
+
+    if (map.isStyleLoaded()) draw()
+    else map.once('load', draw)
+
+    const resizeObserver = new ResizeObserver(() => map.resize())
+    resizeObserver.observe(containerRef.current)
+
+    return () => {
+      resizeObserver.disconnect()
+      map.remove()
+      mapRef.current = null
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- carte créée une seule fois
+  }, [])
+
+  // --- Interactivité selon l'état agrandi ---
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map) return
+    setInteractive(map, expanded)
+    const timer = setTimeout(() => map.resize(), 260)
+    return () => clearTimeout(timer)
+  }, [expanded])
+
+  return { containerRef }
+}

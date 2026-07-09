@@ -2,12 +2,11 @@ import * as THREE from 'three'
 import { RailBase, RAIL_PIVOT_TOP } from './RailBase'
 import { RailBoom } from './RailBoom'
 import { MesangeStatic } from './MesangeStatic'
-import { snapLaunchAngle } from '@/lib/snapLaunchAngle'
 import { RAIL } from '@/three/constants/launchRail'
 import { ROCKET_FALLBACK_HALF_HEIGHT } from '@/three/constants/launcherRig'
 
 interface LaunchRailProps {
-  /** Inclinaison demandée (deg) : la rampe se cale sur l'angle connu le plus proche. */
+  /** Inclinaison choisie (deg, 90 = vertical) : la rampe la reproduit fidèlement. */
   inclinationDeg: number
   /** Azimut de tir (deg) : oriente la rampe vers la direction de tir (0 = Nord/-Z). */
   azimuthDeg: number
@@ -15,17 +14,21 @@ interface LaunchRailProps {
 
 // La Mesange est plaquée devant le fût (face de tir), un peu en avant du treillis.
 const ROCKET_FRONT_OFFSET = -(RAIL.boomWidth / 2 + 0.35)
+// On remonte la Mesange le long du fût pour que sa BASE dépasse un peu le pivot :
+// ainsi, même quand le fût bascule (jusqu'à 70°), l'extrémité basse et les
+// ailerons restent au-dessus du sol au lieu de s'y enfoncer.
+const ROCKET_ALONG_BOOM = ROCKET_FALLBACK_HALF_HEIGHT + 0.6
 
 /**
  * Rampe de tir en treillis inclinée, déployable. Le fût s'articule sur le bloc
- * de pivot de la base ; son angle est calé sur l'angle connu le plus proche
- * (90/70/45), tandis que le vrai tir utilisera l'angle exact. La Mesange est
- * dressée le long du fût, base au pivot. L'ensemble est orienté vers l'azimut.
+ * de pivot de la base et reproduit FIDÈLEMENT l'inclinaison choisie (angle
+ * exact, au dixième de degré — plus de snapping sur des crans). La Mesange est
+ * dressée le long du fût, sa base au-dessus du pivot. L'ensemble est orienté
+ * vers l'azimut.
  */
 export function LaunchRail({ inclinationDeg, azimuthDeg }: LaunchRailProps) {
-  const snapped = snapLaunchAngle(inclinationDeg)
-  // Inclinaison depuis la verticale : 90° → 0 (droit), 45° → 45° de bascule.
-  const tiltRad = THREE.MathUtils.degToRad(90 - snapped)
+  // Inclinaison depuis la verticale : 90° → 0 (droit), 70° → 20° de bascule.
+  const tiltRad = THREE.MathUtils.degToRad(90 - inclinationDeg)
   const azimuthRad = THREE.MathUtils.degToRad(azimuthDeg)
 
   return (
@@ -35,7 +38,7 @@ export function LaunchRail({ inclinationDeg, azimuthDeg }: LaunchRailProps) {
       {/* Fût + Mesange basculent ensemble autour du sommet du pivot. */}
       <group position={[0, RAIL_PIVOT_TOP, 0]} rotation={[-tiltRad, 0, 0]}>
         <RailBoom />
-        <group position={[0, ROCKET_FALLBACK_HALF_HEIGHT, ROCKET_FRONT_OFFSET]}>
+        <group position={[0, ROCKET_ALONG_BOOM, ROCKET_FRONT_OFFSET]}>
           <MesangeStatic />
         </group>
       </group>

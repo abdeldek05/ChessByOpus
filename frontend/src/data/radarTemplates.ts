@@ -9,7 +9,7 @@ export const radarTemplates: RadarTemplate[] = [
     ceilingM: 20000,
     rotating: true,
     minDetectableRcsM2: 1,
-    modelPath: "/models/grf.glb",
+    modelPath: "/models/giraffe.glb",
     tintColor: "#5c6650",
   },
   {
@@ -20,6 +20,6 @@ export const radarTemplates: RadarTemplate[] = [
     ceilingM: 20000,
     rotating: true,
     minDetectableRcsM2: 1,
-    modelPath: "/models/GM60.glb",
+    modelPath: "/models/gm60.glb",
   },
 ];

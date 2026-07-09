@@ -3,7 +3,6 @@ import type { LaunchPhase } from '@/hooks/useLaunchSequence'
 interface LaunchHudProps {
   siteName: string
   radarName: string
-  distance: string
   phase: LaunchPhase
   countdown: number
   onReplay: () => void
@@ -16,7 +15,7 @@ const CLIP = 'polygon(14px 0, 100% 0, 100% calc(100% - 14px), calc(100% - 14px) 
  * compte à rebours plein écran au lancement. Bouton REJOUER une fois la
  * séquence terminée. Plus de bandeau de statut bavard.
  */
-export function LaunchHud({ siteName, radarName, distance, phase, countdown, onReplay }: LaunchHudProps) {
+export function LaunchHud({ siteName, radarName, phase, countdown, onReplay }: LaunchHudProps) {
   const finished = phase === 'done' || phase === 'error'
   const running = phase === 'igniting' || phase === 'running'
 
@@ -25,9 +24,7 @@ export function LaunchHud({ siteName, radarName, distance, phase, countdown, onR
       {/* Identité mission */}
       <div className="absolute top-6 right-6 space-y-1 text-right">
         <p className="text-[11px] tracking-[0.2em] text-ink-dim uppercase">{siteName}</p>
-        <p className="text-xs text-ink">
-          {radarName} · {distance} du pas de tir
-        </p>
+        <p className="text-xs text-ink">{radarName}</p>
       </div>
 
       {/* Compte à rebours plein écran */}

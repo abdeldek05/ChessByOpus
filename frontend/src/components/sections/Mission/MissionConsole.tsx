@@ -53,8 +53,8 @@ export function MissionConsole({ site, missionId }: MissionConsoleProps) {
       state: {
         site,
         scenarioId,
-        radarConfig: primaryRadar.config,
-        radarPosition: primaryRadar.position,
+        // Tous les radars placés (1-2) : la scène de lancement les affiche tous.
+        radars: config.radars.filter((radar) => radar.position !== null),
         mesangeConfigs: config.mesangeConfigs,
         detectionThresholdSec: primaryRadar.config.detectionThresholdSec,
       },
