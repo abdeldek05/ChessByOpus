@@ -79,7 +79,7 @@ export function useMissionThreatMap({
     map.addControl(new maplibregl.ScaleControl({ unit: 'metric' }), 'bottom-left')
 
     // Pas de tir FIXE (= le site), étiqueté.
-    createLabeledMarker(map, [site.longitude, site.latitude], 'launch-marker launch-marker--origin', 'Pas de tir')
+    createLabeledMarker(map, [site.longitude, site.latitude], 'launch-marker launch-marker--origin', 'Launch pad')
 
     // Radars posés = contexte, étiquetés, atténués. Chacun porte son cercle de
     // couverture (rayon = portée), en retrait, pour aider à orienter l'azimut.

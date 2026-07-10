@@ -1,73 +1,51 @@
-// Conditions atmosphériques : NUIT CLAIRE ÉTOILÉE. Ciel nuit bleu profond,
-// étoiles, lune comme source principale. Sol lisible en lumière lunaire froide.
-// (Le fichier garde son nom historique pour ne pas casser les imports.)
+// Conditions atmosphériques : JOUR, GOLDEN HOUR (soleil rasant, lumière chaude).
+// (Le fichier garde son nom historique `launchDaylight` pour ne pas casser les
+// imports.) Objectif : base d'un rendu photo-réaliste — ciel physique, soleil
+// bas doré, IBL chaud pour de vrais reflets sur les métaux et l'eau.
 
-// Lune : position dans le ciel (haute et de côté) — donne des ombres douces.
-export const MOON_POSITION: [number, number, number] = [45, 68, 30]
+// Direction du SOLEIL bas sur l'horizon (golden hour). Vecteur monde ; sert au
+// ciel physique (drei <Sky>) ET à la lumière directionnelle (SunLight).
+export const SUN_DIRECTION: [number, number, number] = [-38, 14, 26]
 
-// Position de la lumière directionnelle (lune) alignée sur MOON_POSITION,
-// rapprochée pour une shadow-camera compacte.
-export const SUN_LIGHT_POSITION: [number, number, number] = [22, 34, 15]
+// Position de la lumière directionnelle (soleil) : alignée sur SUN_DIRECTION,
+// rapprochée pour une shadow-camera exploitable.
+export const SUN_LIGHT_POSITION: [number, number, number] = [-60, 22, 40]
 
-// Dôme de ciel nuit : dégradé + disque lunaire + halo + nuages peints dans le
-// shader (statique, quasi gratuit).
-export const NIGHT_SKY = {
-  // Couleur du zénith (haut) et de l'horizon (bas) du dégradé de ciel nuit.
-  zenithColor: '#05070f',
-  horizonColor: '#182842',
-  // Disque lunaire et son halo.
-  moonColor: '#eef2ff',
-  moonHaloColor: '#3a4a72',
-  moonSize: 0.045,
-  moonHalo: 0.28,
-}
+// Réglages du ciel physique <Sky> (drei) — Preetham. Turbidité modérée, forte
+// diffusion Rayleigh pour un ciel golden hour saturé, soleil bas.
+export const SKY = {
+  turbidity: 5,
+  rayleigh: 2.6,
+  mieCoefficient: 0.008,
+  mieDirectionalG: 0.86,
+  /** Élévation/azimut du soleil (degrés) — bas sur l'horizon. */
+  elevationDeg: 7,
+  azimuthDeg: 160,
+  distance: 2000,
+} as const
 
-// Étoiles (drei <Stars>) figées : champ discret, sans animation (speed 0).
-export const STARS = {
-  radius: 300,
-  depth: 60,
-  count: 1800,
-  factor: 4,
-  saturation: 0,
-  fade: true,
-}
-
-// IBL nuit : panneaux faibles et froids — la lune éclaire les métaux, le ciel
-// nuit se reflète en bleu profond, le sol renvoie très peu.
-export interface IblPanelConfig {
-  form: 'rect' | 'circle' | 'ring'
-  intensity: number
-  position: [number, number, number]
-  scale: number | [number, number, number]
-  color: string
-}
-
-export const IBL_PANELS: IblPanelConfig[] = [
-  // Voûte nuit bleu profond
-  { form: 'rect',   intensity: 0.6,  position: [0, 20, 0],   scale: [60, 60, 1], color: '#13203c' },
-  // Disque lunaire — froid, source de reflet principale
-  { form: 'circle', intensity: 5.5,  position: [22, 34, 15], scale: 6,           color: '#eef2ff' },
-  // Halo péri-lunaire
-  { form: 'ring',   intensity: 1.8,  position: [22, 34, 15], scale: 18,          color: '#5f74a8' },
-  // Bandeau d'horizon nuit
-  { form: 'rect',   intensity: 0.6,  position: [0, 4, -40],  scale: [90, 12, 1], color: '#22314f' },
-  { form: 'rect',   intensity: 0.6,  position: [0, 4,  40],  scale: [90, 12, 1], color: '#22314f' },
-  // Rebond sol
-  { form: 'rect',   intensity: 0.35, position: [0, -14, 0],  scale: [60, 60, 1], color: '#1a2416' },
-]
-
-// 512 : reflets nettement plus fins sur les métaux (mât, garde-corps, radar).
-// Bake unique (frames={1}), donc sans coût par frame malgré la résolution.
-export const IBL_RESOLUTION = 512
-
+// Lumière directe + remplissage, teintes chaudes golden hour.
 export const LIGHTING = {
-  moonColor: '#d6e0ff',    // clair de lune froid mais généreux
-  moonIntensity: 2.6,      // fort clair de lune : terrain bien lisible
-  skyTint: '#3a4e7a',      // remplissage ciel nuit clair
-  groundTint: '#1c2614',   // rebond sol
-  hemiIntensity: 0.95,     // ambiance nuit lumineuse
+  sunColor: '#ffd9a0', // soleil doré chaud
+  sunIntensity: 3.4, // fort, rasant
+  skyTint: '#bcd3f0', // remplissage hémisphérique : ciel clair
+  groundTint: '#3a3320', // rebond sol chaud (terre/herbe sèche)
+  hemiIntensity: 1.1,
 }
 
-// Rendu : exposition nuit remontée (terrain visible) et fond bleu nuit.
-export const DAYLIGHT_EXPOSURE = 1.15
-export const DAYLIGHT_BACKGROUND = '#0d1730'
+// IBL : preset HDRI d'extérieur au coucher de soleil (reflets chauds réalistes
+// sur métaux et eau). Baké une fois — pas de coût continu.
+export const ENVIRONMENT_PRESET = 'sunset' as const
+// Intensité de l'IBL appliquée globalement aux matériaux.
+export const ENVIRONMENT_INTENSITY = 1.1
+
+// Rendu : tone mapping ACES, exposition et fond calés jour.
+export const DAYLIGHT_EXPOSURE = 1.0
+export const DAYLIGHT_BACKGROUND = '#dcc9a8' // brume chaude d'horizon (fond)
+
+// Brume atmosphérique de profondeur (golden hour) : teinte dorée lumineuse qui
+// fond l'horizon et donne l'échelle. Le fog commence à FOG_NEAR_FRAC × terrain
+// et sature à FOG_FAR_FRAC × terrain — dosé pour envelopper sans noyer le radar.
+export const FOG_COLOR = '#e8d3ac'
+export const FOG_NEAR_FRAC = 0.35
+export const FOG_FAR_FRAC = 1.15

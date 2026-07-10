@@ -9,10 +9,10 @@ export interface MissionStep {
 
 export const MISSION_STEPS: MissionStep[] = [
   { id: 'radar', label: 'Radar' },
-  { id: 'settings', label: 'Réglages' },
-  { id: 'position', label: 'Position radar' },
-  { id: 'trajectories', label: 'Menaces' },
-  { id: 'launch', label: 'Lancement' },
+  { id: 'settings', label: 'Settings' },
+  { id: 'position', label: 'Radar position' },
+  { id: 'trajectories', label: 'Threats' },
+  { id: 'launch', label: 'Launch' },
 ]
 
 interface UseMissionStepperResult {

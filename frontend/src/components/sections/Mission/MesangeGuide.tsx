@@ -13,23 +13,23 @@ interface MesangeGuideProps {
 const STEPS: GuideStep[] = [
   {
     selector: '[data-guide="role"]',
-    title: 'Le rôle de la Mesange',
-    text: 'Roi = la menace principale (la vraie cible). Dame = leurre principal qui l’imite. Pion = leurre de saturation, lancé en nombre.',
+    title: 'The Mesange role',
+    text: 'King = the main threat (the real target). Queen = the primary decoy that mimics it. Pawn = saturation decoy, launched in numbers.',
   },
   {
     selector: '[data-guide="azimuth"]',
-    title: 'Direction de tir',
-    text: 'Tournez la boussole pour orienter le tir. La fusée pointe dans la direction choisie.',
+    title: 'Firing direction',
+    text: 'Turn the compass to aim the shot. The rocket points in the chosen direction.',
   },
   {
     selector: '[data-guide="inclination"]',
-    title: 'Angle de tir',
-    text: 'Inclinez la fusée : la trajectoire balistique se redessine en direct (plus vertical = plus haut, moins loin).',
+    title: 'Firing angle',
+    text: 'Tilt the rocket: the ballistic trajectory redraws live (more vertical = higher, shorter range).',
   },
   {
     selector: '[data-guide="add"]',
-    title: 'Composez le scénario',
-    text: 'Ajoutez d’autres Mesanges pour combiner menace et leurres.',
+    title: 'Build the scenario',
+    text: 'Add more Mesanges to combine threat and decoys.',
   },
 ]
 
@@ -93,7 +93,7 @@ export function MesangeGuide({ onClose }: MesangeGuideProps) {
             onClick={onClose}
             className="text-xs font-medium text-ink-faint transition-colors hover:text-ink"
           >
-            Passer
+            Skip
           </button>
         </div>
 
@@ -107,14 +107,14 @@ export function MesangeGuide({ onClose }: MesangeGuideProps) {
             disabled={index === 0}
             className="text-xs font-medium text-ink-dim transition-colors hover:text-ink disabled:opacity-0"
           >
-            ← Précédent
+            ← Back
           </button>
           <button
             type="button"
             onClick={() => (isLast ? onClose() : setIndex((i) => i + 1))}
             className="rounded-full bg-accent px-5 py-2 text-xs font-semibold text-bg transition-colors hover:bg-accent-bright"
           >
-            {isLast ? 'Compris' : 'Suivant →'}
+            {isLast ? 'Got it' : 'Next →'}
           </button>
         </div>
       </div>

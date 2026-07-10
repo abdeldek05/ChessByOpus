@@ -58,7 +58,11 @@ export function useLawnTexture(repeat: number): LawnTextures {
     const dark = hexToRgb(LAWN.colorDark)
     const mid = hexToRgb(LAWN.colorMid)
     const light = hexToRgb(LAWN.colorLight)
+    const yellow = hexToRgb(LAWN.colorYellow)
     const dry = hexToRgb(LAWN.colorDry)
+    // Bruit basse fréquence supplémentaire : grandes plages de teinte (une zone
+    // plutôt verte, une autre plutôt jaunie) — casse l'uniformité du champ.
+    const zoneNoise = createValueNoise2D(LAWN_TEXTURE_SEED + 211, Math.max(3, Math.round(LAWN_NOISE_GRID / 4)))
 
     // --- Champ de hauteur (pour normal + roughness) ---
     const height = new Float32Array(S * S)
@@ -92,16 +96,19 @@ export function useLawnTexture(repeat: number): LawnTextures {
         const u = (x / S) * LAWN_NOISE_GRID
         const v = (y / S) * LAWN_NOISE_GRID
 
-        // Mottling de couleur : bruit doux pour zones claires/foncées.
+        // Mottling de couleur : bruits à plusieurs échelles.
         const shade = colorNoise.fbm(u, v, 4)
         const detail = detailNoise.fbm(u * 2, v * 2, 3)
-        const patch = patchNoise.fbm(u, v, 2) // grandes zones sèches
+        const patch = patchNoise.fbm(u, v, 2) // taches sèches localisées
+        const zone = zoneNoise.fbm(u, v, 2) // grandes plages vert/jaune
 
-        // Base : sombre → clair selon le mottling.
-        let col = mix(dark, mid, THREE.MathUtils.clamp(shade * 1.3, 0, 1))
-        col = mix(col, light, THREE.MathUtils.clamp((detail - 0.5) * 1.4, 0, 1))
-        // Taches sèches jaunies là où le grand bruit est haut.
-        col = mix(col, dry, THREE.MathUtils.clamp((patch - 0.62) * 2.2, 0, 1) * 0.6)
+        // Base : vert foncé → vert moyen → vert clair selon les bruits.
+        let col = mix(dark, mid, THREE.MathUtils.clamp(shade * 1.4, 0, 1))
+        col = mix(col, light, THREE.MathUtils.clamp((detail - 0.45) * 1.6, 0, 1))
+        // Grandes plages jaunies (herbe qui jaunit par endroits) via le zoneNoise.
+        col = mix(col, yellow, THREE.MathUtils.clamp((zone - 0.55) * 2.0, 0, 1) * 0.7)
+        // Taches sèches / paille bien marquées là où le patch est haut.
+        col = mix(col, dry, THREE.MathUtils.clamp((patch - 0.58) * 2.6, 0, 1) * 0.85)
 
         const p = idx * 4
         colorImg.data[p] = col.r

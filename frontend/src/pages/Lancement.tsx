@@ -58,8 +58,9 @@ function LancementScene({ state }: LancementSceneProps) {
   const primary = state.mesangeConfigs.find((m) => m.role === 'KING') ?? state.mesangeConfigs[0]
 
   const sequence = useLaunchSequence({
-    scenarioId: state.scenarioId,
-    radarPosition: primaryPosition,
+    site: state.site,
+    radars: state.radars,
+    mesangeConfigs: state.mesangeConfigs,
   })
 
   return (
@@ -70,6 +71,7 @@ function LancementScene({ state }: LancementSceneProps) {
         onLaunch={sequence.launch}
         inclinationDeg={primary?.inclinationDeg ?? 80}
         azimuthDeg={primary?.azimuthDeg ?? 0}
+        flying={sequence.phase === 'igniting' || sequence.phase === 'running'}
         className="h-full w-full"
       />
 

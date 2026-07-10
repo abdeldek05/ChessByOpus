@@ -12,10 +12,10 @@ const EARTH_RADIUS_M = 6371000
 //
 //   rayon_scène = FACTEUR × √km
 //
-//   5 km → 72u · 20 km → 143u · 60 km → 248u · 150 km → 392u · 300 km → 554u
-// Facteur relevé : à 60 km le radar est franchement éloigné (le sol s'étend en
-// conséquence, cf. LawnGround dans LaunchSceneCanvas).
-const SCENE_RADIUS_PER_SQRT_KM = 32
+//   5 km → 107u · 20 km → 215u · 60 km → 372u · 150 km → 588u · 300 km → 831u
+// Facteur relevé fort : le radar est nettement éloigné du pas de tir (le sol
+// s'étend en conséquence, cf. LawnGround dans LaunchSceneCanvas).
+const SCENE_RADIUS_PER_SQRT_KM = 48
 // Plancher : le radar ne se colle jamais physiquement sur le banc de tir.
 const MIN_RADAR_SCENE_RADIUS = 30
 

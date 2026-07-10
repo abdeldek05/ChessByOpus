@@ -68,7 +68,7 @@ export function MissionConsole({ site, missionId }: MissionConsoleProps) {
       <header className="flex flex-col gap-5 px-6 py-6 md:flex-row md:items-center md:justify-between md:px-10">
         <div>
           <p className="text-[10px] font-semibold tracking-[0.28em] text-accent uppercase">
-            Exercice de détection
+            Detection exercise
           </p>
           <h1 className="mt-1 text-xl font-semibold text-ink">{site.name}</h1>
         </div>
@@ -123,7 +123,7 @@ export function MissionConsole({ site, missionId }: MissionConsoleProps) {
             className="group flex items-center gap-2 rounded-full px-4 py-2.5 text-xs font-medium tracking-wide text-ink-dim transition-colors hover:bg-surface hover:text-ink disabled:pointer-events-none disabled:opacity-0"
           >
             <span className="transition-transform duration-300 group-hover:-translate-x-1">←</span>
-            Précédent
+            Back
           </button>
           <button
             type="button"
@@ -131,7 +131,7 @@ export function MissionConsole({ site, missionId }: MissionConsoleProps) {
             disabled={!canProceed}
             className="group flex items-center gap-2 rounded-full bg-accent px-8 py-3 text-xs font-semibold tracking-wide text-bg shadow-lg shadow-black/30 transition-all duration-200 hover:-translate-y-0.5 hover:bg-accent-bright hover:shadow-xl active:translate-y-0 disabled:pointer-events-none disabled:opacity-30 disabled:shadow-none"
           >
-            Continuer
+            Continue
             <span className="transition-transform duration-300 group-hover:translate-x-1">→</span>
           </button>
         </footer>

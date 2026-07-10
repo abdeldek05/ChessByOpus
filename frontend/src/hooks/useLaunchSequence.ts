@@ -1,13 +1,17 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { launchSimulation } from '@/lib/api'
-import type { RadarPosition } from '@/types/mission.types'
+import { BALLISTIC_FLIGHT_DURATION_SEC, BALLISTIC_DEBRIS_LINGER_SEC } from '@/lib/ballisticTrajectory'
+import { computeDetection } from '@/lib/computeDetection'
+import type { RadarConfig } from '@/types/radar.types'
+import type { RadarPosition, MesangeLaunchConfig } from '@/types/mission.types'
+import type { LaunchSite } from '@/types/simulation.types'
 import type { MissionResult } from '@/types/missionResult.types'
 
 export type LaunchPhase = 'armed' | 'countdown' | 'igniting' | 'running' | 'done' | 'error'
 
 interface UseLaunchSequenceParams {
-  scenarioId: number
-  radarPosition: RadarPosition
+  site: LaunchSite
+  radars: { config: RadarConfig; position: RadarPosition | null }[]
+  mesangeConfigs: MesangeLaunchConfig[]
 }
 
 interface UseLaunchSequenceResult {
@@ -30,7 +34,7 @@ const COUNTDOWN_START = 3
  * (modèle radar JS) viendront du back, et alimenteront le bilan. `replay`
  * réarme tout.
  */
-export function useLaunchSequence({ scenarioId, radarPosition }: UseLaunchSequenceParams): UseLaunchSequenceResult {
+export function useLaunchSequence({ site, radars, mesangeConfigs }: UseLaunchSequenceParams): UseLaunchSequenceResult {
   const [phase, setPhase] = useState<LaunchPhase>('armed')
   const [countdown, setCountdown] = useState(COUNTDOWN_START)
   const [message, setMessage] = useState('')
@@ -48,23 +52,18 @@ export function useLaunchSequence({ scenarioId, radarPosition }: UseLaunchSequen
 
   const runSimulation = useCallback(() => {
     setPhase('running')
-    setMessage('Simulation en cours…')
-    launchSimulation({ scenarioId, radarPosition })
-      .then((sim) => {
-        if (sim.status === 'failed') {
-          setPhase('error')
-          setMessage(sim.error ?? 'Échec de la simulation')
-        } else {
-          setResult(sim.mission)
-          setPhase('done')
-          setMessage(sim.status === 'ready' ? 'Résultats disponibles' : 'Moteur de simulation à venir')
-        }
-      })
-      .catch(() => {
-        setPhase('error')
-        setMessage('Serveur de simulation injoignable')
-      })
-  }, [scenarioId, radarPosition])
+    setMessage('Simulation in progress…')
+    // Verdict calculé CÔTÉ FRONT (modèle de détection autonome, pas de backend) :
+    // détecté / trop tard / manqué selon portée, plafond et seuil des radars.
+    // On laisse l'animation de vol + impact + débris se jouer avant d'afficher.
+    const animMs = (BALLISTIC_FLIGHT_DURATION_SEC + BALLISTIC_DEBRIS_LINGER_SEC) * 1000
+    igniteTimer.current = setTimeout(() => {
+      const mission = computeDetection(site, radars, mesangeConfigs)
+      setResult(mission)
+      setPhase('done')
+      setMessage('Results available')
+    }, animMs)
+  }, [site, radars, mesangeConfigs])
 
   const launch = useCallback(() => {
     if (phase !== 'armed') return

@@ -128,7 +128,7 @@ export function useMissionPlacementMap({
     map.addControl(new maplibregl.ScaleControl({ unit: 'metric' }), 'bottom-left')
 
     // Pas de tir FIXE = le site (repère de référence pour poser les radars).
-    createLabeledMarker(map, [site.longitude, site.latitude], 'launch-marker launch-marker--origin', 'Pas de tir')
+    createLabeledMarker(map, [site.longitude, site.latitude], 'launch-marker launch-marker--origin', 'Launch pad')
 
     map.on('click', (event) => {
       placeRef.current(activeIdRef.current, { latitude: event.lngLat.lat, longitude: event.lngLat.lng })

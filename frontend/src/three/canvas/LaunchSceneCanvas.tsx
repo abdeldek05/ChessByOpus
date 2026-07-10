@@ -8,11 +8,29 @@ import { OutdoorEnvironment } from './OutdoorEnvironment'
 import { FreezeShadows } from './FreezeShadows'
 import { PostFX } from './PostFX'
 import { LawnGround } from '@/three/models/LawnGround'
+import { GrassField } from '@/three/models/GrassField'
+import { RockField } from '@/three/models/RockField'
+import { TreeField } from '@/three/models/TreeField'
+import { LaunchComplex } from '@/three/models/LaunchComplex'
+import { PAD_TOP_Y } from '@/three/constants/launchComplex'
+import { AtmosphereParticles } from '@/three/models/AtmosphereParticles'
 import { LaunchRail } from '@/three/models/LaunchRail'
 import { SceneRadar } from '@/three/models/SceneRadar'
 import { ControlConsole } from '@/three/models/ControlConsole'
-import { DAYLIGHT_EXPOSURE, DAYLIGHT_BACKGROUND } from '@/three/constants/launchDaylight'
-import { LAUNCH_CENTER, CAMERA_POSITION, CAMERA_TARGET } from '@/three/constants/sceneLayout'
+import { FlyingMesange } from '@/three/models/FlyingMesange'
+import {
+  DAYLIGHT_EXPOSURE,
+  DAYLIGHT_BACKGROUND,
+  FOG_COLOR,
+  FOG_NEAR_FRAC,
+  FOG_FAR_FRAC,
+} from '@/three/constants/launchDaylight'
+import {
+  LAUNCH_CENTER,
+  CAMERA_POSITION,
+  CAMERA_TARGET,
+  TERRAIN_EDGE_RADIUS,
+} from '@/three/constants/sceneLayout'
 import type { RadarConfig } from '@/types/radar.types'
 import type { SceneOffset } from '@/lib/computeRadarSceneOffset'
 
@@ -31,12 +49,11 @@ interface LaunchSceneCanvasProps {
   /** Menace principale (Roi) : incline la rampe et l'oriente. */
   inclinationDeg: number
   azimuthDeg: number
+  /** Vol en cours : la Mesange quitte la rampe et suit sa trajectoire. */
+  flying: boolean
   className?: string
 }
 
-// Pelouse minimale (radar proche). Au-delà, le sol s'étend pour englober le
-// radar le plus éloigné (échelle √ relevée, cf. computeRadarSceneOffset).
-const MIN_LAWN_SIZE = 900
 // Recul caméra initial = une fraction de la distance du radar le plus loin, pour
 // cadrer l'ENSEMBLE pas-de-tir + radars sans coller à la base ni partir trop loin.
 const CAMERA_PULLBACK_FACTOR = 0.75
@@ -47,13 +64,22 @@ export function LaunchSceneCanvas({
   onLaunch,
   inclinationDeg,
   azimuthDeg,
+  flying,
   className,
 }: LaunchSceneCanvasProps) {
-  // Distance scène du radar le plus éloigné : cadre la caméra, le sol, sa portée.
+  // Relèvement de la zone de lancement (plateforme + rampe) au-dessus du relief.
+  // Paramètres balistiques du vol placeholder : départ ~sommet de rampe.
+  const flightParams = {
+    azimuthDeg,
+    inclinationDeg,
+    origin: new THREE.Vector3(0, 4, 0),
+  }
+  // Distance scène du radar le plus éloigné : cadre la caméra et sa portée.
   const radarDistance = Math.max(0, ...radars.map((r) => r.offset.sceneRadius))
-  // Sol qui englobe toujours le radar le plus loin, avec marge.
-  const lawnSize = Math.max(MIN_LAWN_SIZE, (radarDistance + 200) * 2)
-  const cameraFar = Math.max(2200, lawnSize * 2)
+  // Taille du terrain : couvre le rayon utile + le radar le plus loin, avec marge.
+  const terrainSize = Math.max(TERRAIN_EDGE_RADIUS * 2, (radarDistance + 200) * 2)
+  const halfLawn = terrainSize / 2
+  const cameraFar = Math.max(2200, terrainSize * 2)
   // Position caméra reculée le long de la direction par défaut, pour englober
   // le radar le plus loin tout en gardant le pas de tir lisible.
   const camDir = new THREE.Vector3(...CAMERA_POSITION).normalize()
@@ -77,19 +103,36 @@ export function LaunchSceneCanvas({
       }}
     >
       <Suspense fallback={<color attach="background" args={[DAYLIGHT_BACKGROUND]} />}>
-        {/* Brouillard nuit subtil : donne de la profondeur et fond l'horizon
-            désert. Démarre au-delà du radar le plus loin pour ne pas le noyer. */}
-        <fog attach="fog" args={[DAYLIGHT_BACKGROUND, radarDistance + 120, radarDistance + 520]} />
+        {/* Brume atmosphérique golden hour : fond l'horizon dans une teinte
+            dorée (profondeur + échelle), proportionnelle à la taille du terrain. */}
+        <fog attach="fog" args={[FOG_COLOR, halfLawn * FOG_NEAR_FRAC, halfLawn * FOG_FAR_FRAC]} />
         <FreezeShadows />
         <DaylightSky />
-        <SunLight />
+        <SunLight shadowRadius={Math.max(60, radarDistance + 30)} />
         <OutdoorEnvironment />
 
-        <LawnGround size={lawnSize} />
+        {/* Terrain plein (pas d'eau dans la scène). */}
+        <LawnGround size={terrainSize} />
+        {/* Herbe instanciée sur le terrain (rayon = demi-terrain). */}
+        <GrassField radius={terrainSize / 2} />
+        {/* Arbres en bosquets (rayon = bord du terrain). */}
+        <TreeField radius={terrainSize / 2} />
+        {/* Rochers épars dans le champ. */}
+        <RockField />
+        {/* Poussière/pollen doré flottant dans l'air (golden hour). */}
+        <AtmosphereParticles />
 
         <group position={LAUNCH_CENTER}>
-          <LaunchRail inclinationDeg={inclinationDeg} azimuthDeg={azimuthDeg} />
-          <ControlConsole launchEnabled={launchEnabled} onLaunch={onLaunch} />
+          {/* Zone de lancement en béton (plateforme à gradins + voies + annexes). */}
+          <LaunchComplex />
+
+          {/* Rampe, console et vol posés SUR le plateau supérieur de la dalle. */}
+          <group position={[0, PAD_TOP_Y, 0]}>
+            <LaunchRail inclinationDeg={inclinationDeg} azimuthDeg={azimuthDeg} launched={flying} />
+            <ControlConsole launchEnabled={launchEnabled} onLaunch={onLaunch} />
+            {/* Vol placeholder : la Mesange décolle, suit sa parabole, se brise. */}
+            <FlyingMesange params={flightParams} active={flying} />
+          </group>
 
           {radars.map((radar) => (
             <SceneRadar key={radar.id} config={radar.config} offset={radar.offset} />

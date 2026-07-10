@@ -67,7 +67,7 @@ export function useLaunchTacticalMap({
       container: containerRef.current,
       style: TACTICAL_MAP_STYLE,
       bounds,
-      fitBoundsOptions: { padding: { top: 30, right: 30, bottom: 120, left: 150 }, maxZoom: 11 },
+      fitBoundsOptions: { padding: { top: 25, right: 25, bottom: 150, left: 210 }, maxZoom: 11 },
       interactive: false, // navigation togglée ensuite selon `expanded`
       attributionControl: false,
     })
@@ -141,7 +141,7 @@ export function useLaunchTacticalMap({
         createLabeledMarker(map, [rLng, rLat], 'radar-marker', label)
       })
 
-      createLabeledMarker(map, [site.longitude, site.latitude], 'launch-marker launch-marker--origin', 'Pas de tir')
+      createLabeledMarker(map, [site.longitude, site.latitude], 'launch-marker launch-marker--origin', 'Launch pad')
     }
 
     if (map.isStyleLoaded()) draw()

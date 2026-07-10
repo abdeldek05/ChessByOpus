@@ -1,9 +1,9 @@
-import { useRef, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 import {
   ballisticStateAt,
-  BALLISTIC_FLIGHT_DURATION_SEC,
+  computeFlightDuration,
   type BallisticParams,
 } from '@/lib/ballisticTrajectory'
 
@@ -17,11 +17,15 @@ interface UseMesangeFlightParams {
   params: BallisticParams
   /** Démarre le vol quand true ; le remettre à false réarme (retour rampe). */
   active: boolean
+  /** Appelé à chaque frame en vol avec la position monde (caméra de suivi, etc.). */
+  onFlightFrame?: (position: THREE.Vector3, progress: number) => void
 }
 
 interface UseMesangeFlightResult {
   groupRef: React.RefObject<THREE.Group | null>
   phase: FlightPhase
+  /** Moteur en poussée (pilote l'affichage des flammes). */
+  thrusting: React.RefObject<boolean>
   /** Temps écoulé depuis l'impact (s) — pilote la dispersion des fragments. */
   brokenElapsed: React.RefObject<number>
 }
@@ -32,11 +36,19 @@ interface UseMesangeFlightResult {
  * l'atterrissage (progress = 1), bascule en phase 'broken' : le rendu prend
  * alors le relais pour disperser des fragments. Aucune donnée back — placeholder.
  */
-export function useMesangeFlight({ params, active }: UseMesangeFlightParams): UseMesangeFlightResult {
+export function useMesangeFlight({
+  params,
+  active,
+  onFlightFrame,
+}: UseMesangeFlightParams): UseMesangeFlightResult {
   const groupRef = useRef<THREE.Group>(null)
   const elapsed = useRef(0)
   const brokenElapsed = useRef(0)
+  const thrusting = useRef(true)
   const [phase, setPhase] = useState<FlightPhase>('flying')
+
+  // Durée réelle du vol (dépend de l'élévation), recalculée si les params changent.
+  const duration = useMemo(() => computeFlightDuration(params), [params])
 
   useFrame((_, delta) => {
     const group = groupRef.current
@@ -46,15 +58,15 @@ export function useMesangeFlight({ params, active }: UseMesangeFlightParams): Us
       elapsed.current += delta
       const state = ballisticStateAt(elapsed.current, params)
       group.position.copy(state.position)
-
-      // Oriente l'axe +Y du modèle le long de la tangente de vol.
       group.quaternion.setFromUnitVectors(MODEL_UP, state.heading)
+      thrusting.current = state.thrusting
+      onFlightFrame?.(state.position, state.progress)
 
-      if (elapsed.current >= BALLISTIC_FLIGHT_DURATION_SEC) setPhase('broken')
+      if (elapsed.current >= duration) setPhase('broken')
     } else {
       brokenElapsed.current += delta
     }
   })
 
-  return { groupRef, phase, brokenElapsed }
+  return { groupRef, phase, thrusting, brokenElapsed }
 }

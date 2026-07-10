@@ -2,12 +2,15 @@
 // `unitsPerRepeat` : combien d'unités de scène couvre une tuile de texture.
 
 export const LAWN = {
-  // Palette d'herbe lisible sous clair de lune : du sombre au clair + touche sèche.
-  colorDark: '#24361a',
-  colorMid: '#375223',
-  colorLight: '#4d6f30',
-  colorDry: '#6b6a3a',
-  unitsPerRepeat: 6,
+  // Palette d'herbe RÉALISTE et variée (golden hour) : du vert foncé humide au
+  // vert clair, puis jaune-vert et taches sèches jaunies/brunies — un vrai champ
+  // n'est jamais d'un vert uniforme.
+  colorDark: '#33421f', // vert foncé (creux humides)
+  colorMid: '#556b2c', // vert moyen dominant
+  colorLight: '#7c8f3e', // vert clair (crêtes exposées)
+  colorYellow: '#a8a24e', // jaune-vert (herbe qui jaunit)
+  colorDry: '#9c8348', // sec / paille (patchs)
+  unitsPerRepeat: 5,
 }
 
 // Résolution de la texture générée (albédo/normal/rugosité). 512 suffit une

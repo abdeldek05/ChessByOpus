@@ -1,25 +1,12 @@
-import { Environment, Lightformer } from '@react-three/drei'
-import { IBL_PANELS, IBL_RESOLUTION } from '@/three/constants/launchDaylight'
+import { Environment } from '@react-three/drei'
+import { ENVIRONMENT_PRESET, ENVIRONMENT_INTENSITY } from '@/three/constants/launchDaylight'
 
 /**
- * Environnement d'extérieur baké une seule fois (frames={1}, donc gratuit en
- * continu) : sans lui, les matériaux métalliques de la fusée et du garde-corps
- * n'ont rien à réfléchir et rendent noirs. Même approche que StudioLighting
- * pour la vitrine, avec des panneaux « plein air » (ciel, soleil, herbe).
+ * Environnement image-based (IBL) : HDRI d'extérieur au coucher de soleil, pour
+ * des reflets chauds et réalistes sur les métaux (rampe, radar, Mesange) et,
+ * plus tard, sur l'eau. `background={false}` : on garde le ciel physique <Sky>
+ * en fond, l'HDRI ne sert qu'à l'éclairage/réflexion. Chargé une fois.
  */
 export function OutdoorEnvironment() {
-  return (
-    <Environment frames={1} resolution={IBL_RESOLUTION} background={false}>
-      {IBL_PANELS.map((panel, index) => (
-        <Lightformer
-          key={index}
-          form={panel.form}
-          intensity={panel.intensity}
-          position={panel.position}
-          scale={panel.scale}
-          color={panel.color}
-        />
-      ))}
-    </Environment>
-  )
+  return <Environment preset={ENVIRONMENT_PRESET} environmentIntensity={ENVIRONMENT_INTENSITY} background={false} />
 }
