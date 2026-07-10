@@ -48,7 +48,7 @@ export function LaunchButton3D({ enabled, onLaunch }: LaunchButton3DProps) {
         anchorY="middle"
         letterSpacing={0.15}
       >
-        {enabled ? 'LANCER' : 'VERROUILLÉ'}
+        {enabled ? 'LAUNCH' : 'LOCKED'}
       </Text>
     </group>
   )

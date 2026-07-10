@@ -18,7 +18,7 @@ export function HudOverlay() {
           Opus Aerospace · CHESS
         </p>
         <h1 className="mt-1 font-display text-2xl leading-tight font-medium text-ink">
-          Campagne de tir
+          Fire campaign
         </h1>
       </div>
     </div>

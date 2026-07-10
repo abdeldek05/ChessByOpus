@@ -16,13 +16,13 @@ export function InclinationControl({ value, onChange }: InclinationControlProps)
   return (
     <div data-guide="inclination" className="space-y-2">
       <div className="flex items-baseline justify-between">
-        <span className="text-sm font-medium text-ink-dim">Élévation</span>
+        <span className="text-sm font-medium text-ink-dim">Elevation</span>
         <span className="text-sm font-semibold text-accent-bright">
           {value.toFixed(1).replace('.', ',')} <span className="font-normal text-ink-faint">°</span>
         </span>
       </div>
 
-      <p className="text-[11px] text-ink-faint">Saisissez la fusée — {INCLINATION_MIN}–{INCLINATION_MAX}°</p>
+      <p className="text-[11px] text-ink-faint">Grab the rocket — {INCLINATION_MIN}–{INCLINATION_MAX}°</p>
 
       <InclinationDial value={value} onChange={onChange} />
     </div>

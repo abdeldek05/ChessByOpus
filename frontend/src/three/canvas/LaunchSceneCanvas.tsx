@@ -1,4 +1,4 @@
-import { Suspense } from 'react'
+import { Suspense, useRef } from 'react'
 import { Canvas } from '@react-three/fiber'
 import { OrbitControls } from '@react-three/drei'
 import * as THREE from 'three'
@@ -6,6 +6,7 @@ import { DaylightSky } from './DaylightSky'
 import { SunLight } from './SunLight'
 import { OutdoorEnvironment } from './OutdoorEnvironment'
 import { FreezeShadows } from './FreezeShadows'
+import { FollowCamera } from './FollowCamera'
 import { PostFX } from './PostFX'
 import { LawnGround } from '@/three/models/LawnGround'
 import { GrassField } from '@/three/models/GrassField'
@@ -15,6 +16,7 @@ import { LaunchComplex } from '@/three/models/LaunchComplex'
 import { PAD_TOP_Y } from '@/three/constants/launchComplex'
 import { AtmosphereParticles } from '@/three/models/AtmosphereParticles'
 import { LaunchRail } from '@/three/models/LaunchRail'
+import { ScorchDecal } from '@/three/models/ScorchDecal'
 import { SceneRadar } from '@/three/models/SceneRadar'
 import { ControlConsole } from '@/three/models/ControlConsole'
 import { FlyingMesange } from '@/three/models/FlyingMesange'
@@ -33,6 +35,7 @@ import {
 } from '@/three/constants/sceneLayout'
 import type { RadarConfig } from '@/types/radar.types'
 import type { SceneOffset } from '@/lib/computeRadarSceneOffset'
+import type { FlightData } from '@/lib/api'
 
 /** Un radar à afficher dans la scène : sa config + son décalage scène calculé. */
 export interface RadarInScene {
@@ -51,6 +54,8 @@ interface LaunchSceneCanvasProps {
   azimuthDeg: number
   /** Vol en cours : la Mesange quitte la rampe et suit sa trajectoire. */
   flying: boolean
+  /** Vraie trajectoire RocketPy à rejouer (null tant que non calculée). */
+  flight: FlightData | null
   className?: string
 }
 
@@ -65,15 +70,15 @@ export function LaunchSceneCanvas({
   inclinationDeg,
   azimuthDeg,
   flying,
+  flight,
   className,
 }: LaunchSceneCanvasProps) {
-  // Relèvement de la zone de lancement (plateforme + rampe) au-dessus du relief.
-  // Paramètres balistiques du vol placeholder : départ ~sommet de rampe.
-  const flightParams = {
-    azimuthDeg,
-    inclinationDeg,
-    origin: new THREE.Vector3(0, 4, 0),
-  }
+  // Origine du vol = sommet de rampe, LOCALE au groupe surélevé (déjà décalé de
+  // PAD_TOP_Y) → juste +4. La trajectoire RocketPy est rejouée à partir de là.
+  const flightOrigin = new THREE.Vector3(0, 4, 0)
+  // Position monde de la fusée en vol, partagée avec la caméra de suivi. Le vol
+  // écrit dedans à chaque frame ; la FollowCamera la lit pour poursuivre.
+  const rocketPos = useRef<THREE.Vector3 | null>(null)
   // Distance scène du radar le plus éloigné : cadre la caméra et sa portée.
   const radarDistance = Math.max(0, ...radars.map((r) => r.offset.sceneRadius))
   // Taille du terrain : couvre le rayon utile + le radar le plus loin, avec marge.
@@ -128,10 +133,23 @@ export function LaunchSceneCanvas({
 
           {/* Rampe, console et vol posés SUR le plateau supérieur de la dalle. */}
           <group position={[0, PAD_TOP_Y, 0]}>
+            {/* Trace de brûlure/suie au sol autour de la rampe (apparaît au tir). */}
+            <ScorchDecal launched={flying} />
             <LaunchRail inclinationDeg={inclinationDeg} azimuthDeg={azimuthDeg} launched={flying} />
             <ControlConsole launchEnabled={launchEnabled} onLaunch={onLaunch} />
-            {/* Vol placeholder : la Mesange décolle, suit sa parabole, se brise. */}
-            <FlyingMesange params={flightParams} active={flying} />
+            {/* Vol de la Mesange : rejoue la VRAIE trajectoire RocketPy, casse
+                à l'impact. Sa position alimente la caméra de suivi (rocketPos). */}
+            <FlyingMesange
+              flight={flight}
+              origin={flightOrigin}
+              active={flying}
+              onFlightFrame={(p) => {
+                // p est LOCAL au groupe surélevé : on ajoute PAD_TOP_Y pour la
+                // position MONDE attendue par la caméra de suivi.
+                if (!rocketPos.current) rocketPos.current = new THREE.Vector3()
+                rocketPos.current.set(p.x, p.y + PAD_TOP_Y, p.z)
+              }}
+            />
           </group>
 
           {radars.map((radar) => (
@@ -139,10 +157,14 @@ export function LaunchSceneCanvas({
           ))}
         </group>
 
-        {/* Caméra libre : rotation, zoom et pan à l'utilisateur. maxPolarAngle
-            bloqué juste au-dessus de l'horizon pour ne jamais passer SOUS le
-            sol (sinon on verrait la scène par en dessous). */}
+        {/* Caméra de poursuite pendant le vol : suit la fusée en douceur. */}
+        <FollowCamera targetRef={rocketPos} active={flying} />
+
+        {/* Caméra libre HORS vol : rotation, zoom et pan à l'utilisateur.
+            Désactivée pendant le vol (la FollowCamera prend la main).
+            maxPolarAngle bloqué juste au-dessus de l'horizon. */}
         <OrbitControls
+          enabled={!flying}
           target={CAMERA_TARGET}
           enableDamping
           dampingFactor={0.1}

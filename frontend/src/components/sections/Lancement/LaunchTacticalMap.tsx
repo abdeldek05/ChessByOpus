@@ -46,7 +46,7 @@ export function LaunchTacticalMap({ site, radars, azimuthDeg, distance }: Launch
       className={`pointer-events-auto absolute right-6 bottom-6 overflow-hidden rounded-2xl bg-bg/70 shadow-xl shadow-black/50 ring-1 ring-accent-bright/10 backdrop-blur-sm transition-all duration-300 ${PANEL_WIDTH[size]}`}
     >
       <div className="relative z-10 flex items-center justify-between px-3.5 py-2">
-        <span className="text-[10px] font-semibold tracking-[0.2em] text-ink-dim uppercase">Vue tactique</span>
+        <span className="text-[10px] font-semibold tracking-[0.2em] text-ink-dim uppercase">Tactical view</span>
         <div className="flex items-center gap-3">
           {size !== 'collapsed' && <span className="font-mono text-xs text-accent-bright">{distance}</span>}
           <div className="flex items-center gap-1">
@@ -54,7 +54,7 @@ export function LaunchTacticalMap({ site, radars, azimuthDeg, distance }: Launch
               type="button"
               onClick={shrink}
               disabled={size === 'collapsed'}
-              aria-label="Réduire la carte"
+              aria-label="Shrink map"
               className="flex h-6 w-6 items-center justify-center rounded-md text-base leading-none text-ink-dim transition-colors hover:bg-surface hover:text-accent-bright disabled:opacity-30"
             >
               −
@@ -63,7 +63,7 @@ export function LaunchTacticalMap({ site, radars, azimuthDeg, distance }: Launch
               type="button"
               onClick={grow}
               disabled={size === 'expanded'}
-              aria-label="Agrandir la carte"
+              aria-label="Expand map"
               className="flex h-6 w-6 items-center justify-center rounded-md text-base leading-none text-ink-dim transition-colors hover:bg-surface hover:text-accent-bright disabled:opacity-30"
             >
               +

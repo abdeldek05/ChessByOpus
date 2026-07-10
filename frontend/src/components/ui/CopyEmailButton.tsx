@@ -11,7 +11,7 @@ export function CopyEmailButton({ email }: CopyEmailButtonProps) {
   const magneticRef = useMagneticHover<HTMLButtonElement>()
 
   const label =
-    status === 'copied' ? 'Adresse copiée' : status === 'error' ? 'Échec de la copie' : "Copier l'adresse e-mail"
+    status === 'copied' ? 'Address copied' : status === 'error' ? 'Copy failed' : 'Copy email address'
 
   return (
     <button

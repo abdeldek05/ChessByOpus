@@ -48,7 +48,7 @@ export function validateScenario(input: ScenarioInput): ScenarioValidation {
   radars.forEach((radar, index) => {
     if (!radar.position) {
       const label = radars.length > 1 ? `Radar ${index + 1} : ` : ''
-      violations.push({ code: 'radar-unplaced', message: `${label}non positionné sur la carte.` })
+      violations.push({ code: 'radar-unplaced', message: `${label}not placed on the map.` })
     }
   })
 
@@ -61,11 +61,11 @@ export function validateScenario(input: ScenarioInput): ScenarioValidation {
       const maxKm = radar.config.rangeKm
       const label = radars.length > 1 ? `Radar ${index + 1} : ` : ''
       if (distanceKm < RADAR_MIN_DISTANCE_KM) {
-        violations.push({ code: 'radar-too-close', message: `${label}trop proche du pas de tir.` })
+        violations.push({ code: 'radar-too-close', message: `${label}too close to the launch pad.` })
       } else if (distanceKm > maxKm) {
         violations.push({
           code: 'radar-out-of-range',
-          message: `${label}hors de portée (${distanceKm.toFixed(2).replace('.', ',')} km > ${maxKm} km).`,
+          message: `${label}out of range (${distanceKm.toFixed(2).replace('.', ',')} km > ${maxKm} km).`,
         })
       }
     })
@@ -76,7 +76,7 @@ export function validateScenario(input: ScenarioInput): ScenarioValidation {
   if (!hasKing) {
     violations.push({
       code: 'no-king',
-      message: 'Le scénario doit comporter au moins une Mesange KING (menace principale).',
+      message: 'The scenario must include at least one KING Mesange (primary threat).',
     })
   }
 
@@ -84,16 +84,16 @@ export function validateScenario(input: ScenarioInput): ScenarioValidation {
   mesangeConfigs.forEach((m, index) => {
     const label = `Mesange #${index + 1}`
     if (m.azimuthDeg < AZIMUTH_MIN || m.azimuthDeg > AZIMUTH_MAX) {
-      violations.push({ code: 'azimuth-invalid', message: `${label} : azimut hors bornes (0–360°).` })
+      violations.push({ code: 'azimuth-invalid', message: `${label}: azimuth out of bounds (0–360°).` })
     }
     if (m.inclinationDeg < INCLINATION_MIN || m.inclinationDeg > INCLINATION_MAX) {
       violations.push({
         code: 'inclination-invalid',
-        message: `${label} : élévation hors bornes (${INCLINATION_MIN}–${INCLINATION_MAX}°).`,
+        message: `${label}: elevation out of bounds (${INCLINATION_MIN}–${INCLINATION_MAX}°).`,
       })
     }
     if (m.launchDelaySec < LAUNCH_DELAY_MIN || m.launchDelaySec > LAUNCH_DELAY_MAX) {
-      violations.push({ code: 'delay-invalid', message: `${label} : délai de tir hors bornes.` })
+      violations.push({ code: 'delay-invalid', message: `${label}: firing delay out of bounds.` })
     }
   })
 

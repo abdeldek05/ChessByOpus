@@ -24,7 +24,7 @@ export function MesangeConfigCard({ index, config, canRemove, onChange, onRemove
             onClick={onRemove}
             className="rounded-full px-3 py-1 text-xs font-medium text-ink-faint transition-colors hover:bg-surface-2 hover:text-alert"
           >
-            Supprimer
+            Remove
           </button>
         )}
       </div>
@@ -36,7 +36,7 @@ export function MesangeConfigCard({ index, config, canRemove, onChange, onRemove
       </div>
 
       <NumberStepper
-        label="Délai de tir"
+        label="Firing delay"
         value={config.launchDelaySec}
         min={0}
         max={120}

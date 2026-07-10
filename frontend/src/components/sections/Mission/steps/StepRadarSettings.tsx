@@ -21,11 +21,11 @@ export function StepRadarSettings({ radars, onUpdateConfig }: StepRadarSettingsP
   return (
     <div className="mx-auto flex h-full max-w-xl flex-col gap-6">
       <div>
-        <p className="text-[10px] font-semibold tracking-[0.24em] text-accent uppercase">Étape 2</p>
-        <h2 className="mt-1 text-lg font-semibold text-ink">Réglez chaque radar</h2>
+        <p className="text-[10px] font-semibold tracking-[0.24em] text-accent uppercase">Step 2</p>
+        <h2 className="mt-1 text-lg font-semibold text-ink">Configure each radar</h2>
         <p className="mt-1 text-xs leading-relaxed text-ink-dim">
-          Portée, plafond, mode de balayage et seuil de préavis — propres à chaque radar. Vous les
-          positionnerez sur la carte à l'étape suivante.
+          Range, ceiling, scan mode and lead-time threshold — specific to each radar. You will
+          position them on the map in the next step.
         </p>
       </div>
 

@@ -31,7 +31,7 @@ export function MissionThreatMap({
       <div ref={containerRef} className="h-full w-full" />
 
       <p className="pointer-events-none absolute top-3 left-3 rounded-lg bg-bg/70 px-2.5 py-1.5 text-[11px] font-medium tracking-wide text-ink-dim backdrop-blur-sm">
-        Cliquez dans la direction visée ou faites glisser le cône
+        Click in the target direction or drag the cone
       </p>
 
       <AzimuthTape azimuthDeg={azimuthDeg} />

@@ -12,6 +12,8 @@ from pathlib import Path
 from fastapi import FastAPI
 from pydantic import BaseModel
 
+from simulate import simulate
+
 DB_PATH = Path(__file__).parent / "missions.db"
 
 app = FastAPI()
@@ -155,6 +157,37 @@ def create_scenario(mission_id: int, payload: ScenarioPayload):
     connection.close()
 
     return {"id": scenario_id, "missionId": mission_id, "createdAt": created_at}
+
+
+class SimulatePayload(BaseModel):
+    latitude: float
+    longitude: float
+    elevationDeg: float  # angle de tir (90 = vertical)
+    azimuthDeg: float  # cap
+    siteElevationM: float = 0.0
+    temperatureC: float | None = None  # météo du site → densité de l'air
+
+
+@app.post("/simulate")
+def run_simulation(payload: SimulatePayload):
+    """Lance la vraie simulation de vol RocketPy et renvoie la trajectoire JSON.
+
+    Physique complète (poussée mesurée, masses/CD du prédesign, atmosphère du
+    site) : trajectoire échantillonnée + apogée, portée, vitesse max, temps de
+    vol. Utilisée par l'écran de lancement pour animer + calculer la détection.
+    """
+    try:
+        result = simulate(
+            latitude=payload.latitude,
+            longitude=payload.longitude,
+            elevation_deg=payload.elevationDeg,
+            azimuth_deg=payload.azimuthDeg,
+            site_elevation_m=payload.siteElevationM,
+            temperature_c=payload.temperatureC,
+        )
+        return {"status": "ready", "flight": result}
+    except Exception as error:  # noqa: BLE001 — on remonte l'échec proprement au front
+        return {"status": "failed", "error": str(error)}
 
 
 @app.get("/scenarios")

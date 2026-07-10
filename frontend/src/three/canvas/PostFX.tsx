@@ -13,12 +13,12 @@ export function PostFX() {
     <EffectComposer multisampling={0}>
       <Bloom
         mipmapBlur
-        intensity={1.1}
-        luminanceThreshold={0.55}
-        luminanceSmoothing={0.35}
-        radius={0.7}
+        intensity={1.25}
+        luminanceThreshold={0.5}
+        luminanceSmoothing={0.4}
+        radius={0.75}
       />
-      <Noise premultiply blendFunction={BlendFunction.OVERLAY} opacity={0.28} />
+      <Noise premultiply blendFunction={BlendFunction.OVERLAY} opacity={0.12} />
       <SMAA />
       <Vignette eskil={false} offset={0.2} darkness={0.7} />
     </EffectComposer>

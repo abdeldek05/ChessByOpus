@@ -47,7 +47,7 @@ export function StepRadar({
       <div className="w-full shrink-0 space-y-5 lg:w-80">
         {active && (
           <div>
-            <p className="mb-4 text-sm font-medium text-ink-dim">Modèle du radar {radars.indexOf(active) + 1}</p>
+            <p className="mb-4 text-sm font-medium text-ink-dim">Radar {radars.indexOf(active) + 1} model</p>
             <RadarSelector
               selectedTemplateId={active.config.templateId}
               onSelect={(template) => onSelectTemplate(active.id, template)}
@@ -58,7 +58,7 @@ export function StepRadar({
                 onClick={onAddRadar}
                 className="mt-3 w-full rounded-2xl bg-surface px-4 py-3.5 text-left text-sm font-medium text-accent-bright transition-colors hover:bg-surface-2"
               >
-                + Ajouter un radar
+                + Add a radar
               </button>
             )}
           </div>
@@ -82,7 +82,7 @@ export function StepRadar({
                   <span
                     role="button"
                     tabIndex={0}
-                    aria-label={`Retirer le radar ${index + 1}`}
+                    aria-label={`Remove radar ${index + 1}`}
                     onClick={(event) => {
                       event.stopPropagation()
                       onRemoveRadar(radar.id)

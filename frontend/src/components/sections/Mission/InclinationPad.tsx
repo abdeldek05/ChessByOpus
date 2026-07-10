@@ -66,7 +66,7 @@ export function InclinationPad({ value, onChange }: InclinationPadProps) {
         <circle cx={PX} cy={PY} r="4" fill="var(--color-ink)" />
       </svg>
 
-      <DialValueInput value={value} min={MIN} max={MAX} unit="°" label="inclinaison" onChange={onChange} />
+      <DialValueInput value={value} min={MIN} max={MAX} unit="°" label="inclination" onChange={onChange} />
     </div>
   )
 }

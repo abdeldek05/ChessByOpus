@@ -13,9 +13,9 @@ interface Spec {
 /** Étiquettes flottantes des specs radar — pastilles douces, sans trait de liaison. */
 export function RadarSpecCallouts({ config }: RadarSpecCalloutsProps) {
   const specs: Spec[] = [
-    { label: 'Portée', value: `${config.rangeKm} km`, position: 'top-6 left-6' },
-    { label: 'Plafond', value: `${config.ceilingM} m`, position: 'top-6 right-6 text-right' },
-    { label: 'Rotatif', value: config.rotating ? 'Oui' : 'Non', position: 'bottom-6 left-6' },
+    { label: 'Range', value: `${config.rangeKm} km`, position: 'top-6 left-6' },
+    { label: 'Ceiling', value: `${config.ceilingM} m`, position: 'top-6 right-6 text-right' },
+    { label: 'Rotating', value: config.rotating ? 'Yes' : 'No', position: 'bottom-6 left-6' },
   ]
 
   return (

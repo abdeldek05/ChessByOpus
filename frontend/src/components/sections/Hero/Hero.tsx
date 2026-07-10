@@ -7,18 +7,18 @@ export function Hero() {
       <div className="mx-auto grid w-full max-w-6xl grid-cols-1 items-center gap-12 px-6 lg:grid-cols-12">
         <div className="lg:col-span-5">
           <p className="font-mono text-xs tracking-[0.2em] text-ink-dim uppercase">
-            Opus Aerospace · Simulation de menaces aériennes
+            Opus Aerospace · Aerial Threat Simulation
           </p>
           <h1 className="mt-4 text-5xl leading-[1.05] font-bold text-ink lg:text-6xl">
             We anticipate every move before it happens.
           </h1>
           <p className="mt-6 max-w-md text-ink-dim">
-            CHESS simule, scénarise et valide des menaces aériennes réalistes
-            autour de la fusée Mesange.
+            CHESS simulates, scenarizes and validates realistic aerial threats
+            around the Mesange rocket.
           </p>
 
           <div className="mt-8">
-            <InteractiveCta href="/simulation">Lancer</InteractiveCta>
+            <InteractiveCta href="/simulation">Launch</InteractiveCta>
           </div>
         </div>
 

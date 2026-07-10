@@ -21,8 +21,8 @@ export function StepPosition({ site, radars, onPlaceRadar }: StepPositionProps) 
   return (
     <div className="mx-auto flex h-full max-w-5xl flex-col gap-4">
       <p className="text-sm font-medium text-ink-dim">
-        Placez {radars.length > 1 ? 'chaque radar' : 'le radar'} dans sa zone de portée — le cercle montre son
-        rayon d'action ({active?.config.rangeKm} km)
+        Place {radars.length > 1 ? 'each radar' : 'the radar'} within its coverage zone — the circle shows its
+        operating radius ({active?.config.rangeKm} km)
       </p>
       <div className="min-h-[52vh] flex-1 overflow-hidden rounded-3xl bg-surface shadow-xl shadow-black/30">
         <MissionPlacementMap

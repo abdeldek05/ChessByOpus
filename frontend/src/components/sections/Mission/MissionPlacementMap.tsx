@@ -38,7 +38,7 @@ export function MissionPlacementMap({
     const index = radars.findIndex((radar) => radar.id === excess.id)
     return {
       id: excess.id,
-      text: `Radar ${index + 1} hors de portée — ${excess.distanceKm.toFixed(2).replace('.', ',')} km mesurés / ${excess.maxKm} km de portée`,
+      text: `Radar ${index + 1} out of range — ${excess.distanceKm.toFixed(2).replace('.', ',')} km measured / ${excess.maxKm} km range`,
     }
   })
 
@@ -68,7 +68,7 @@ export function MissionPlacementMap({
           radars.length > 1 ? 'top-14' : 'top-3'
         }`}
       >
-        Cliquez sur la carte pour placer {radars.length > 1 ? `le radar ${radars.indexOf(active!) + 1}` : 'le radar'}
+        Click the map to place {radars.length > 1 ? `radar ${radars.indexOf(active!) + 1}` : 'the radar'}
       </p>
 
       {outOfRangeLines.length > 0 && (

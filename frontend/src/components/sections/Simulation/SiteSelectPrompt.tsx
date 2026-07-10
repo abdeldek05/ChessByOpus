@@ -34,10 +34,10 @@ export function SiteSelectPrompt({ siteCount, visible }: SiteSelectPromptProps) 
           </span>
 
           <div className="pr-1">
-            <p className="font-display text-sm font-medium text-ink">Choisissez un site de lancement</p>
+            <p className="font-display text-sm font-medium text-ink">Choose a launch site</p>
             <p className="mt-0.5 font-display text-[11px] tracking-[0.04em] text-ink-dim">
-              <span className="tabular-nums text-accent">{count}</span> bases disponibles · touchez un repère
-              sur la carte
+              <span className="tabular-nums text-accent">{count}</span> bases available · tap a marker
+              on the map
             </p>
           </div>
         </div>

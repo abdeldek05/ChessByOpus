@@ -34,12 +34,12 @@ export function StepThreats({ site, radars, king, onSetAzimut, onChange }: StepT
 
       <div className="w-full shrink-0 space-y-4 lg:w-72">
         <div className="rounded-3xl bg-surface p-6">
-          <p className="mb-1 text-[10px] font-semibold tracking-[0.22em] text-danger uppercase">Roi</p>
-          <p className="mb-5 text-sm text-ink-dim">Menace principale</p>
+          <p className="mb-1 text-[10px] font-semibold tracking-[0.22em] text-danger uppercase">King</p>
+          <p className="mb-5 text-sm text-ink-dim">Main threat</p>
 
           <div className="space-y-6">
             <HudRange
-              label="Azimut"
+              label="Azimuth"
               value={king.azimuthDeg}
               min={0}
               max={360}
@@ -51,7 +51,7 @@ export function StepThreats({ site, radars, king, onSetAzimut, onChange }: StepT
               onChange={(v) => onChange({ inclinationDeg: v })}
             />
             <HudRange
-              label="Délai de tir"
+              label="Firing delay"
               value={king.launchDelaySec}
               min={0}
               max={120}

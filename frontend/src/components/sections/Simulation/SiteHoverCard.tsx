@@ -37,7 +37,7 @@ export function SiteHoverCard({ site, weather }: SiteHoverCardProps) {
         </div>
       ) : (
         <p className="mt-3 font-display text-[10px] tracking-[0.1em] text-ink-faint uppercase">
-          Météo indisponible
+          Weather unavailable
         </p>
       )}
     </div>

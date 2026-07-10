@@ -6,10 +6,10 @@ interface SiteInfoPanelProps {
 }
 
 const BUTTON_LABEL = {
-  idle: 'Confirmer le site',
-  saving: 'Enregistrement',
-  saved: 'Site confirmé',
-  error: 'Échec — réessayer',
+  idle: 'Confirm site',
+  saving: 'Saving',
+  saved: 'Site confirmed',
+  error: 'Failed — retry',
 } as const
 
 export function SiteInfoPanel({ site }: SiteInfoPanelProps) {
@@ -22,13 +22,13 @@ export function SiteInfoPanel({ site }: SiteInfoPanelProps) {
   return (
     <div className="absolute bottom-6 left-6 w-80 rounded-2xl bg-surface/90 p-6 shadow-2xl shadow-black/50 backdrop-blur-md">
       <p className="font-display text-[10px] font-semibold tracking-[0.22em] text-accent uppercase">
-        Site de lancement · {site.country}
+        Launch site · {site.country}
       </p>
       <h2 className="mt-1 font-display text-2xl leading-tight font-semibold text-ink">{site.name}</h2>
 
       <dl className="mt-5 space-y-2.5 font-display text-xs">
         <div className="flex items-baseline justify-between gap-4">
-          <dt className="text-ink-faint">Opérateur</dt>
+          <dt className="text-ink-faint">Operator</dt>
           <dd className="text-right text-ink-dim">{site.operator}</dd>
         </div>
         <div className="flex items-baseline justify-between gap-4">
@@ -38,7 +38,7 @@ export function SiteInfoPanel({ site }: SiteInfoPanelProps) {
           </dd>
         </div>
         <div className="flex items-baseline justify-between gap-4">
-          <dt className="text-ink-faint">Élévation</dt>
+          <dt className="text-ink-faint">Elevation</dt>
           <dd className="text-right text-ink tabular-nums">{site.elevation} m</dd>
         </div>
       </dl>

@@ -9,7 +9,7 @@ interface RoleOption {
 }
 
 export const MESANGE_ROLES: RoleOption[] = [
-  { id: 'KING', label: 'Roi', hint: 'Menace principale', rank: 3 },
-  { id: 'QUEEN', label: 'Dame', hint: 'Leurre principal', rank: 2 },
-  { id: 'PAWN', label: 'Pion', hint: 'Leurre de saturation', rank: 1 },
+  { id: 'KING', label: 'King', hint: 'Primary threat', rank: 3 },
+  { id: 'QUEEN', label: 'Queen', hint: 'Primary decoy', rank: 2 },
+  { id: 'PAWN', label: 'Pawn', hint: 'Saturation decoy', rank: 1 },
 ]

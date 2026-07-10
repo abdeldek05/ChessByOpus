@@ -4,7 +4,7 @@ export const launchSites: LaunchSite[] = [
   {
     id: "ile-du-levant",
     name: "Île du Levant",
-    operator: "DGA Essais de Missiles",
+    operator: "DGA Missile Testing",
     country: "FR",
     latitude: 43.046386,
     longitude: 6.510068,
@@ -15,7 +15,7 @@ export const launchSites: LaunchSite[] = [
   {
     id: "biscarrosse",
     name: "Biscarrosse",
-    operator: "DGA Essais en Vol",
+    operator: "DGA Flight Testing",
     country: "FR",
     latitude: 44.36724,
     longitude: -1.26011,
@@ -36,7 +36,7 @@ export const launchSites: LaunchSite[] = [
   },
   {
     id: "saxavord",
-    name: "Saxavord (Écosse)",
+    name: "Saxavord (Scotland)",
     operator: "SaxaVord Spaceport",
     country: "GB",
     latitude: 60.816948,

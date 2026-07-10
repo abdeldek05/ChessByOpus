@@ -29,20 +29,20 @@ export function StepTrajectories({ configs, canAdd, onAdd, onRemove, onChange }:
 
       <div className="flex items-center justify-between">
         <p className="text-sm font-medium text-ink-dim">
-          {configs.length} Mesange{configs.length > 1 ? 's' : ''} dans le scénario
+          {configs.length} Mesange{configs.length > 1 ? 's' : ''} in the scenario
         </p>
         <button
           type="button"
           onClick={() => setShowGuide(true)}
           className="text-xs font-medium text-ink-faint transition-colors hover:text-accent-bright"
         >
-          Revoir le guide
+          Review the guide
         </button>
       </div>
 
       {kingCount > 1 && (
         <div className="rounded-2xl bg-alert/15 px-4 py-3 text-sm text-alert">
-          Il ne peut y avoir qu'un seul Roi — repassez les autres en Dame ou Pion.
+          There can be only one King — switch the others back to Queen or Pawn.
         </div>
       )}
 
@@ -71,7 +71,7 @@ export function StepTrajectories({ configs, canAdd, onAdd, onRemove, onChange }:
           className="h-8 text-accent-bright transition-transform duration-300 ease-out group-hover:-translate-y-1.5"
         />
         <span className="text-sm font-semibold text-accent-bright">
-          {canAdd ? 'Déployer une Mesange' : 'Maximum atteint (5)'}
+          {canAdd ? 'Deploy a Mesange' : 'Maximum reached (5)'}
         </span>
       </button>
     </div>

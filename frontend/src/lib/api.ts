@@ -1,8 +1,7 @@
 import type { LaunchSite } from '@/types/simulation.types'
 import type { RadarConfig } from '@/types/radar.types'
-import type { MesangeLaunchConfig, RadarPosition } from '@/types/mission.types'
+import type { MesangeLaunchConfig } from '@/types/mission.types'
 import type { ScenarioRecord } from '@/types/scenario.types'
-import type { MissionResult } from '@/types/missionResult.types'
 
 // Client HTTP centralisé pour le back-end (FastAPI, proxifié sous /api).
 // Un seul endroit sait comment parler au serveur : les hooks/UI passent par
@@ -101,44 +100,57 @@ export function listScenarios(): Promise<ScenarioRecord[]> {
   return request<ScenarioRecord[]>('/scenarios')
 }
 
-// --- Contrat de simulation (back RocketPy à venir) ---------------------------
-// Le back calcule la trajectoire au moment de l'enregistrement du scénario ;
-// le lancement récupère le résultat prêt. Cette forme est volontairement
-// explicite pour que le back n'ait qu'à la remplir.
+// --- Contrat de simulation de vol (backend RocketPy) -------------------------
+// Le backend lance RocketPy (POST /simulate) avec l'azimut, l'élévation, le site
+// et sa météo, et renvoie la trajectoire échantillonnée + les métriques réelles.
 
-export interface LaunchRequest {
-  scenarioId: number
-  radarPosition: RadarPosition
+export interface SimulateRequest {
+  latitude: number
+  longitude: number
+  /** Angle de tir (deg, 90 = vertical). */
+  elevationDeg: number
+  /** Cap / azimut (deg). */
+  azimuthDeg: number
+  /** Altitude du site (m). */
+  siteElevationM?: number
+  /** Température au sol (°C) : influe sur la densité de l'air (traînée). */
+  temperatureC?: number
 }
 
-export type SimulationStatus = 'pending' | 'ready' | 'failed'
+/** Un point de trajectoire : temps, position ENU (m) et vitesse (m/s). */
+export interface TrajectoryPoint {
+  t: number
+  x: number // est (m)
+  y: number // nord (m)
+  z: number // altitude sol (m)
+  v: number // vitesse (m/s)
+}
 
-export interface SimulationResult {
-  scenarioId: number
+export interface FlightData {
+  trajectory: TrajectoryPoint[]
+  apogeeM: number
+  apogeeTimeSec: number
+  rangeM: number
+  maxSpeedMs: number
+  flightTimeSec: number
+}
+
+export type SimulationStatus = 'ready' | 'failed'
+
+export interface SimulationResponse {
   status: SimulationStatus
-  /** Trajectoires calculées par le back (vide tant que le calcul n'est pas prêt). */
-  trajectories: unknown[]
-  /** Bilan de mission (verdict + diagnostic) ; null tant que le moteur radar n'existe pas. */
-  mission: MissionResult | null
-  /** Message d'erreur éventuel si status = 'failed'. */
+  flight?: FlightData
   error?: string
 }
 
 /**
- * Déclenche/récupère la simulation d'un scénario enregistré. Tant que
- * l'endpoint n'existe pas côté back (404), on renvoie un résultat `pending`
- * plutôt que de faire échouer l'UI — le front est prêt, le back se branchera.
+ * Lance la simulation de vol RocketPy pour un tir donné et renvoie la vraie
+ * trajectoire (échantillonnée) + les métriques. Le calcul prend quelques
+ * secondes côté back ; l'appel est donc synchrone et l'UI attend le résultat.
  */
-export async function launchSimulation(payload: LaunchRequest): Promise<SimulationResult> {
-  try {
-    return await request<SimulationResult>(`/scenarios/${payload.scenarioId}/simulate`, {
-      method: 'POST',
-      body: JSON.stringify({ radarPosition: payload.radarPosition }),
-    })
-  } catch (error) {
-    if (error instanceof ApiError && error.status === 404) {
-      return { scenarioId: payload.scenarioId, status: 'pending', trajectories: [], mission: null }
-    }
-    throw error
-  }
+export async function simulateFlight(payload: SimulateRequest): Promise<SimulationResponse> {
+  return request<SimulationResponse>('/simulate', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  })
 }

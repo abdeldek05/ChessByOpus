@@ -93,7 +93,7 @@ export function ControlConsole({ launchEnabled, onLaunch }: ControlConsoleProps)
           anchorY="middle"
           letterSpacing={0.18}
         >
-          CHESS · CONTRÔLE TIR
+          CHESS · FIRE CONTROL
         </Text>
 
         <LaunchButton3D enabled={launchEnabled} onLaunch={onLaunch} />

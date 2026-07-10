@@ -24,10 +24,10 @@ interface RecapRow {
 }
 
 const SAVE_LABEL: Record<SaveStatus, string> = {
-  idle: 'Enregistrer le scénario',
-  saving: 'Enregistrement…',
-  saved: 'Scénario enregistré ✓',
-  error: 'Échec — réessayer',
+  idle: 'Save scenario',
+  saving: 'Saving…',
+  saved: 'Scenario saved ✓',
+  error: 'Failed — retry',
 }
 
 export function StepLaunch({
@@ -49,14 +49,14 @@ export function StepLaunch({
     const distance = radar.position ? formatDistance(computeDistanceKm(site, radar.position)) : '—'
     return [
       { label: prefix, value: `${radar.config.name} · ${radar.config.rangeKm} km`, accent: false },
-      { label: `Distance ${prefix.toLowerCase()}`, value: distance, accent: true },
+      { label: `${prefix} distance`, value: distance, accent: true },
     ]
   })
 
   const rows: RecapRow[] = [
-    { label: 'Base de lancement', value: site.name, accent: false },
+    { label: 'Launch base', value: site.name, accent: false },
     ...radarRows,
-    { label: 'Mesange engagées', value: String(mesangeConfigs.length), accent: false },
+    { label: 'Mesange engaged', value: String(mesangeConfigs.length), accent: false },
   ]
 
   const blocked = violations.length > 0
@@ -65,7 +65,7 @@ export function StepLaunch({
   return (
     <div className="mx-auto flex h-full w-full max-w-lg flex-col justify-center gap-6">
       <p className="text-[10px] font-semibold tracking-[0.24em] text-ink-dim uppercase">
-        Récapitulatif de mission
+        Mission summary
       </p>
 
       <dl className="overflow-hidden rounded-3xl bg-surface">
@@ -93,8 +93,8 @@ export function StepLaunch({
 
       {savedButNotLaunchable && (
         <p className="rounded-2xl bg-surface px-5 py-3 text-xs text-ink-dim">
-          Enregistre le scénario avant de lancer — le calcul de trajectoire est effectué à
-          l’enregistrement.
+          Save the scenario before launching — the trajectory is computed on
+          save.
         </p>
       )}
 
@@ -113,7 +113,7 @@ export function StepLaunch({
           disabled={!canLaunch}
           className="group flex w-full items-center justify-center gap-2 rounded-full bg-accent px-4 py-3.5 text-xs font-semibold tracking-wide text-bg shadow-lg shadow-black/30 transition-all duration-200 hover:-translate-y-0.5 hover:bg-accent-bright hover:shadow-xl active:translate-y-0 disabled:pointer-events-none disabled:opacity-30 disabled:shadow-none"
         >
-          Lancer la mission
+          Launch mission
           <span className="transition-transform duration-300 group-hover:translate-x-1">→</span>
         </button>
       </div>

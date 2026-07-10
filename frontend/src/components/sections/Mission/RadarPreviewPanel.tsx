@@ -11,7 +11,7 @@ export function RadarPreviewPanel({ config }: RadarPreviewPanelProps) {
     return (
       <div className="flex h-full items-center justify-center">
         <p className="font-mono text-xs tracking-[0.15em] text-ink-faint uppercase">
-          Sélectionnez un radar
+          Select a radar
         </p>
       </div>
     )

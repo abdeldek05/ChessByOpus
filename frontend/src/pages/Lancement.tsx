@@ -61,6 +61,7 @@ function LancementScene({ state }: LancementSceneProps) {
     site: state.site,
     radars: state.radars,
     mesangeConfigs: state.mesangeConfigs,
+    king: primary,
   })
 
   return (
@@ -71,7 +72,8 @@ function LancementScene({ state }: LancementSceneProps) {
         onLaunch={sequence.launch}
         inclinationDeg={primary?.inclinationDeg ?? 80}
         azimuthDeg={primary?.azimuthDeg ?? 0}
-        flying={sequence.phase === 'igniting' || sequence.phase === 'running'}
+        flying={sequence.phase === 'running'}
+        flight={sequence.flight}
         className="h-full w-full"
       />
 
@@ -96,6 +98,7 @@ function LancementScene({ state }: LancementSceneProps) {
         radarName={radarName}
         phase={sequence.phase}
         countdown={sequence.countdown}
+        onLaunch={sequence.launch}
         onReplay={sequence.replay}
       />
     </div>

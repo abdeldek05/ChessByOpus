@@ -1,76 +1,50 @@
-import { useRef } from 'react'
-import { useFrame } from '@react-three/fiber'
+import { useMemo } from 'react'
 import * as THREE from 'three'
 import { MesangeStatic } from './MesangeStatic'
 import { MesangeDebris } from './MesangeDebris'
-import { useMesangeFlight } from '@/three/hooks/useMesangeFlight'
-import { ballisticStateAt, computeFlightDuration } from '@/lib/ballisticTrajectory'
-import type { BallisticParams } from '@/lib/ballisticTrajectory'
+// import { ExhaustPlume } from './ExhaustPlume' // désactivé le temps de régler la trajectoire
+import { useTrajectoryPlayback } from '@/three/hooks/useTrajectoryPlayback'
+import { FLYING_ROCKET_SCALE } from '@/three/constants/flightPlayback'
+import type { FlightData } from '@/lib/api'
 
 interface FlyingMesangeProps {
-  params: BallisticParams
+  /** Vraie trajectoire RocketPy à rejouer (null = rien à animer). */
+  flight: FlightData | null
+  /** Origine scène (sommet de rampe) où démarre la trajectoire. */
+  origin: THREE.Vector3
   /** Vol en cours : anime le tir ; false = rien affiché. */
   active: boolean
-  /** Position monde de la fusée à chaque frame (caméra de suivi + détection). */
+  /** Position monde de la fusée à chaque frame (caméra de suivi). */
   onFlightFrame?: (position: THREE.Vector3, progress: number) => void
 }
 
-/** Panache de flamme sous la fusée : cône émissif qui vacille, visible en poussée. */
-function Flame({ thrustingRef }: { thrustingRef: React.RefObject<boolean> }) {
-  const ref = useRef<THREE.Group>(null)
-  useFrame((_, delta) => {
-    const g = ref.current
-    if (!g) return
-    const on = thrustingRef.current
-    g.visible = on
-    if (on) {
-      // Vacillement : longueur + largeur oscillent légèrement.
-      const flick = 0.85 + Math.random() * 0.3
-      g.scale.set(flick, 0.8 + Math.random() * 0.5, flick)
-      g.rotation.y += delta * 4
-    }
-  })
-  // La Mesange est dressée sur +Y, base vers le bas → flamme sous la base.
-  return (
-    <group ref={ref} position={[0, -3.2, 0]}>
-      {/* Cœur clair */}
-      <mesh rotation={[Math.PI, 0, 0]}>
-        <coneGeometry args={[0.5, 2.6, 12]} />
-        <meshStandardMaterial color="#fff2b0" emissive="#ffcf5a" emissiveIntensity={3} transparent opacity={0.95} />
-      </mesh>
-      {/* Halo externe orangé */}
-      <mesh rotation={[Math.PI, 0, 0]} position={[0, 0.4, 0]}>
-        <coneGeometry args={[0.85, 3.8, 12]} />
-        <meshStandardMaterial color="#ff8a2a" emissive="#ff5a1a" emissiveIntensity={2} transparent opacity={0.5} />
-      </mesh>
-    </group>
-  )
-}
-
 /**
- * Mesange en vol pendant la séquence de lancement : suit la trajectoire (poussée
- * → coast → chute), avec des FLAMMES sous la fusée pendant la poussée, puis se
- * BRISE au sol en fragments. Orchestre le modèle en vol, la flamme et les
- * débris ; la mécanique vit dans le hook. Remonte la position (caméra/détection).
+ * Mesange en vol : rejoue la VRAIE trajectoire RocketPy à un rythme visible
+ * (décollage ralenti), AGRANDIE pour rester lisible à distance, avec un PANACHE
+ * d'échappement en particules (flamme + fumée), puis se BRISE au sol à l'impact.
+ * Orchestre le modèle, le panache et les débris ; l'interpolation vit dans le
+ * hook. Remonte la position monde (caméra de suivi).
  */
-export function FlyingMesange({ params, active, onFlightFrame }: FlyingMesangeProps) {
-  const { groupRef, phase, thrusting, brokenElapsed } = useMesangeFlight({
-    params,
+export function FlyingMesange({ flight, origin, active, onFlightFrame }: FlyingMesangeProps) {
+  // Stabilise l'origine (évite un nouveau Vector3 à chaque render → reset hook).
+  const originStable = useMemo(() => origin.clone(), [origin.x, origin.y, origin.z])
+
+  const { groupRef, phase, thrusting, brokenElapsed, impact } = useTrajectoryPlayback({
+    flight,
     active,
-    onFlightFrame,
+    origin: originStable,
+    onFrame: onFlightFrame,
   })
 
-  if (!active) return null
-
-  // Point d'impact = position finale de la trajectoire (retour au sol).
-  const impact = ballisticStateAt(computeFlightDuration(params), params).position
+  if (!active || !flight) return null
 
   return (
     <>
       {phase === 'flying' && (
-        <group ref={groupRef}>
+        <group ref={groupRef} scale={FLYING_ROCKET_SCALE}>
           <MesangeStatic />
-          <Flame thrustingRef={thrusting} />
+          {/* Panache d'échappement désactivé le temps de régler la trajectoire. */}
+          {/* <ExhaustPlume thrustingRef={thrusting} /> */}
         </group>
       )}
       {phase === 'broken' && (

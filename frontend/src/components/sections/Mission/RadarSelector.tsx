@@ -40,10 +40,10 @@ export function RadarSelector({ selectedTemplateId, onSelect }: RadarSelectorPro
 
             <div className="mt-3 flex gap-5 text-xs text-ink-dim">
               <span>
-                Portée <span className="font-semibold text-ink">{template.rangeKm} km</span>
+                Range <span className="font-semibold text-ink">{template.rangeKm} km</span>
               </span>
               <span>
-                Plafond <span className="font-semibold text-ink">{template.ceilingM} m</span>
+                Ceiling <span className="font-semibold text-ink">{template.ceilingM} m</span>
               </span>
             </div>
           </button>
