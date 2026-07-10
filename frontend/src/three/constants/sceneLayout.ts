@@ -14,5 +14,6 @@ export const CAMERA_POSITION: [number, number, number] = [14, 6, 20]
 export const CAMERA_TARGET: [number, number, number] = [0, 3.4, -4]
 
 // Rayon du terrain autour du pas de tir : herbe et rochers se répartissent
-// jusque-là. (Sert de référence de taille pour la scène.)
-export const TERRAIN_EDGE_RADIUS = 240
+// jusque-là. Dimensionné pour COUVRIR le vol entier (portée normalisée ~320 u,
+// cf. TARGET_FLIGHT_EXTENT) : la fusée atterrit toujours SUR la map.
+export const TERRAIN_EDGE_RADIUS = 420

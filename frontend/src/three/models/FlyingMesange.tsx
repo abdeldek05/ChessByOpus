@@ -2,6 +2,7 @@ import { useMemo } from 'react'
 import * as THREE from 'three'
 import { MesangeStatic } from './MesangeStatic'
 import { MesangeDebris } from './MesangeDebris'
+import { ImpactBurst } from './ImpactBurst'
 // import { ExhaustPlume } from './ExhaustPlume' // désactivé le temps de régler la trajectoire
 import { useTrajectoryPlayback } from '@/three/hooks/useTrajectoryPlayback'
 import { FLYING_ROCKET_SCALE } from '@/three/constants/flightPlayback'
@@ -49,7 +50,9 @@ export function FlyingMesange({ flight, origin, active, onFlightFrame }: FlyingM
       )}
       {phase === 'broken' && (
         <group position={impact}>
+          {/* Fragments physiques (rebonds) + flash/poussière/fumée d'impact. */}
           <MesangeDebris elapsedRef={brokenElapsed} />
+          <ImpactBurst elapsedRef={brokenElapsed} />
         </group>
       )}
     </>

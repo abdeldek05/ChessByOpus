@@ -9,6 +9,7 @@ import { FreezeShadows } from './FreezeShadows'
 import { LaunchCameraControls } from './LaunchCameraControls'
 import { PostFX } from './PostFX'
 import { LawnGround } from '@/three/models/LawnGround'
+import { CloudLayer } from '@/three/models/CloudLayer'
 import { GrassField } from '@/three/models/GrassField'
 import { RockField } from '@/three/models/RockField'
 import { TreeField } from '@/three/models/TreeField'
@@ -125,6 +126,8 @@ export function LaunchSceneCanvas({
         <RockField />
         {/* Poussière/pollen doré flottant dans l'air (golden hour). */}
         <AtmosphereParticles />
+        {/* Nuages golden hour à l'horizon (dérive très lente, quasi statiques). */}
+        <CloudLayer />
 
         <group position={LAUNCH_CENTER}>
           {/* Zone de lancement en béton (plateforme à gradins + voies + annexes). */}

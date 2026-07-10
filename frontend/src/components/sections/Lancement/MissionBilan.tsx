@@ -8,6 +8,8 @@ interface MissionBilanProps {
   radarName: string
   /** Seuil de préavis de détection requis (s), fixé par le client au scénario. */
   requiredLeadSec: number
+  /** Relance le scénario avec la MÊME configuration (réarme la séquence). */
+  onReplay: () => void
 }
 
 const ROLE_LABEL: Record<MesangeRole, string> = { KING: 'King', QUEEN: 'Queen', PAWN: 'Pawns' }
@@ -32,7 +34,7 @@ const CLIP = 'polygon(12px 0, 100% 0, 100% calc(100% - 12px), calc(100% - 12px) 
  * et le DIAGNOSTIC (coût des leurres, cause). Tant que le moteur radar n'existe
  * pas, `result` est null et tout s'affiche « — » avec la mention correspondante.
  */
-export function MissionBilan({ result, siteName, radarName, requiredLeadSec }: MissionBilanProps) {
+export function MissionBilan({ result, siteName, radarName, requiredLeadSec, onReplay }: MissionBilanProps) {
   const verdict = result?.verdict ?? 'unknown'
   const display = VERDICT_DISPLAY[verdict]
 
@@ -95,6 +97,16 @@ export function MissionBilan({ result, siteName, radarName, requiredLeadSec }: M
           </p>
         </div>
       </section>
+
+      {/* Relance avec la MÊME configuration (site, radars, menaces inchangés). */}
+      <button
+        type="button"
+        onClick={onReplay}
+        className="pointer-events-auto mt-auto flex items-center justify-center gap-2 border border-accent-bright/40 bg-accent-bright/10 py-3 text-[11px] font-bold tracking-[0.24em] text-accent-bright uppercase transition-colors hover:bg-accent-bright/20"
+        style={{ clipPath: CLIP }}
+      >
+        ⟳ Relaunch — same scenario
+      </button>
     </aside>
   )
 }

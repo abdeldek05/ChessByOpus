@@ -83,6 +83,7 @@ function LancementScene({ state }: LancementSceneProps) {
           siteName={state.site.name}
           radarName={radarName}
           requiredLeadSec={state.detectionThresholdSec ?? 30}
+          onReplay={sequence.replay}
         />
       )}
 

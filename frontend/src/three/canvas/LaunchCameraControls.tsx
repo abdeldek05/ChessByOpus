@@ -3,6 +3,7 @@ import { OrbitControls } from '@react-three/drei'
 import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib'
 import * as THREE from 'three'
 import { useOrbitTargetFollow } from '@/three/hooks/useOrbitTargetFollow'
+import { useCameraGroundClamp } from '@/three/hooks/useCameraGroundClamp'
 import { CAMERA_TARGET } from '@/three/constants/sceneLayout'
 
 interface LaunchCameraControlsProps {
@@ -24,6 +25,8 @@ interface LaunchCameraControlsProps {
 export function LaunchCameraControls({ rocketRef, flying, maxDistance }: LaunchCameraControlsProps) {
   const controlsRef = useRef<OrbitControlsImpl>(null)
   useOrbitTargetFollow({ controlsRef, rocketRef, flying })
+  // Verrou : caméra et cible ne passent JAMAIS sous le relief de la map.
+  useCameraGroundClamp({ controlsRef })
 
   return (
     <OrbitControls
