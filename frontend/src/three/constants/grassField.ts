@@ -30,3 +30,8 @@ export const GRASS_COLORS = {
 // Résolution de la texture de touffe (alpha) et graine du semis.
 export const GRASS_TEXTURE_SIZE = 128
 export const GRASS_SEED = 7
+
+// Nombre de SECTEURS angulaires du champ d'herbe : chaque secteur est un
+// InstancedMesh séparé avec sa propre bounding sphere → le frustum culling ne
+// dessine que ce que la caméra regarde (gain perf, rendu identique).
+export const GRASS_CHUNKS = 14

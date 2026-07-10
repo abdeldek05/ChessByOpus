@@ -1,12 +1,12 @@
 import { Suspense, useRef } from 'react'
 import { Canvas } from '@react-three/fiber'
-import { OrbitControls } from '@react-three/drei'
+import { Stats } from '@react-three/drei'
 import * as THREE from 'three'
 import { DaylightSky } from './DaylightSky'
 import { SunLight } from './SunLight'
 import { OutdoorEnvironment } from './OutdoorEnvironment'
 import { FreezeShadows } from './FreezeShadows'
-import { FollowCamera } from './FollowCamera'
+import { LaunchCameraControls } from './LaunchCameraControls'
 import { PostFX } from './PostFX'
 import { LawnGround } from '@/three/models/LawnGround'
 import { GrassField } from '@/three/models/GrassField'
@@ -30,7 +30,6 @@ import {
 import {
   LAUNCH_CENTER,
   CAMERA_POSITION,
-  CAMERA_TARGET,
   TERRAIN_EDGE_RADIUS,
 } from '@/three/constants/sceneLayout'
 import type { RadarConfig } from '@/types/radar.types'
@@ -77,7 +76,7 @@ export function LaunchSceneCanvas({
   // PAD_TOP_Y) → juste +4. La trajectoire RocketPy est rejouée à partir de là.
   const flightOrigin = new THREE.Vector3(0, 4, 0)
   // Position monde de la fusée en vol, partagée avec la caméra de suivi. Le vol
-  // écrit dedans à chaque frame ; la FollowCamera la lit pour poursuivre.
+  // écrit dedans à chaque frame ; les contrôles caméra la suivent (cible orbite).
   const rocketPos = useRef<THREE.Vector3 | null>(null)
   // Distance scène du radar le plus éloigné : cadre la caméra et sa portée.
   const radarDistance = Math.max(0, ...radars.map((r) => r.offset.sceneRadius))
@@ -157,24 +156,19 @@ export function LaunchSceneCanvas({
           ))}
         </group>
 
-        {/* Caméra de poursuite pendant le vol : suit la fusée en douceur. */}
-        <FollowCamera targetRef={rocketPos} active={flying} />
-
-        {/* Caméra libre HORS vol : rotation, zoom et pan à l'utilisateur.
-            Désactivée pendant le vol (la FollowCamera prend la main).
-            maxPolarAngle bloqué juste au-dessus de l'horizon. */}
-        <OrbitControls
-          enabled={!flying}
-          target={CAMERA_TARGET}
-          enableDamping
-          dampingFactor={0.1}
-          minDistance={5}
+        {/* Caméra UNIQUE : orbite libre en permanence (même en vol). Pendant le
+            vol, la cible suit la fusée ; à la fin, retour doux vers le pad. */}
+        <LaunchCameraControls
+          rocketRef={rocketPos}
+          flying={flying}
           maxDistance={Math.max(600, radarDistance * 2.5)}
-          maxPolarAngle={Math.PI / 2 - 0.05}
         />
 
         <PostFX />
       </Suspense>
+
+      {/* Compteur FPS (développement uniquement) : mesure avant/après réglages. */}
+      {import.meta.env.DEV && <Stats />}
     </Canvas>
   )
 }

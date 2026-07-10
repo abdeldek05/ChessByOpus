@@ -1,8 +1,9 @@
-import { useEffect, useMemo, useRef } from 'react'
+import { useEffect, useMemo } from 'react'
 import * as THREE from 'three'
 import { mergeBufferGeometries } from 'three-stdlib'
 import { createGrassTexture } from '@/lib/createGrassTexture'
 import { useGrassInstances } from '@/three/hooks/useGrassInstances'
+import { GrassChunk } from './GrassChunk'
 
 interface GrassFieldProps {
   /** Rayon de semis (= tout le terrain visible) — l'herbe couvre toute la map. */
@@ -10,15 +11,14 @@ interface GrassFieldProps {
 }
 
 /**
- * Champ d'herbe instancié couvrant TOUT le terrain visible : chaque touffe est
- * un billboard en PLANS CROISÉS (deux quads perpendiculaires) texturé d'une
- * touffe alpha, ce qui donne du volume sous n'importe quel angle. Un seul draw
- * call pour des dizaines de milliers de touffes (InstancedMesh). Placement dans
- * le hook (densité constante sur le disque de rayon `radius`).
+ * Champ d'herbe instancié couvrant TOUT le terrain : touffes en plans croisés
+ * texturés alpha, découpées en SECTEURS frustum-cullés (GrassChunk) — seuls les
+ * secteurs dans le champ de la caméra sont dessinés. Matériau en passe OPAQUE
+ * (alphaTest seul, pas de tri de transparence) : rendu identique, GPU soulagé.
+ * Géométrie et matériau partagés entre tous les secteurs, possédés ici.
  */
 export function GrassField({ radius }: GrassFieldProps) {
-  const matrices = useGrassInstances(radius)
-  const meshRef = useRef<THREE.InstancedMesh>(null)
+  const chunks = useGrassInstances(radius)
   const texture = useMemo(() => createGrassTexture(), [])
 
   // Géométrie : deux plans perpendiculaires, pivot ramené à la base (y ∈ [0,1]).
@@ -28,34 +28,36 @@ export function GrassField({ radius }: GrassFieldProps) {
     return mergeBufferGeometries([a, b])!
   }, [])
 
-  useEffect(() => {
-    const mesh = meshRef.current
-    if (!mesh) return
-    matrices.forEach((m, i) => mesh.setMatrixAt(i, m))
-    mesh.instanceMatrix.needsUpdate = true
-  }, [matrices])
+  // Matériau partagé : PAS de `transparent` → l'herbe passe dans la passe
+  // opaque (alphaTest découpe les contours) : plus de tri par frame.
+  const material = useMemo(
+    () =>
+      new THREE.MeshStandardMaterial({
+        map: texture,
+        alphaTest: 0.4,
+        side: THREE.DoubleSide,
+        roughness: 0.9,
+        metalness: 0,
+      }),
+    [texture],
+  )
 
-  useEffect(() => () => {
-    geometry.dispose()
-    texture.dispose()
-  }, [geometry, texture])
+  useEffect(
+    () => () => {
+      geometry.dispose()
+      material.dispose()
+      texture.dispose()
+    },
+    [geometry, material, texture],
+  )
 
   return (
-    <instancedMesh
-      key={matrices.length}
-      ref={meshRef}
-      args={[geometry, undefined, matrices.length]}
-      castShadow
-      receiveShadow
-    >
-      <meshStandardMaterial
-        map={texture}
-        transparent
-        alphaTest={0.4}
-        side={THREE.DoubleSide}
-        roughness={0.9}
-        metalness={0}
-      />
-    </instancedMesh>
+    <>
+      {chunks.map((matrices, index) =>
+        matrices.length > 0 ? (
+          <GrassChunk key={index} matrices={matrices} geometry={geometry} material={material} />
+        ) : null,
+      )}
+    </>
   )
 }

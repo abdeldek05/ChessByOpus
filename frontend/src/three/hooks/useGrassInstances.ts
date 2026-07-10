@@ -9,6 +9,7 @@ import {
   GRASS_WIDTH,
   GRASS_SIZE_JITTER,
   GRASS_SEED,
+  GRASS_CHUNKS,
 } from '@/three/constants/grassField'
 
 /** Générateur pseudo-aléatoire déterministe (mulberry32) — semis reproductible. */
@@ -24,24 +25,26 @@ function makeRng(seed: number) {
 }
 
 /**
- * Matrices de transformation des touffes d'herbe, calculées une fois pour un
- * RAYON donné (= tout le terrain visible). Le nombre d'instances suit la surface
- * (densité constante), plafonné pour les perfs. Semis UNIFORME sur le disque
- * (herbe partout, pas juste au centre), chaque touffe posée au ras du relief,
- * tournée et redimensionnée aléatoirement. L'étang est laissé libre.
+ * Matrices des touffes d'herbe pour un RAYON donné, GROUPÉES PAR SECTEUR
+ * angulaire (GRASS_CHUNKS parts de camembert) : chaque secteur devient un
+ * InstancedMesh frustum-cullable — on ne dessine que ce que la caméra regarde.
+ * Semis identique à avant (même graine, même densité, même plafond) : le rendu
+ * ne change pas, seul le découpage change. Chaque touffe est posée au ras du
+ * relief, tournée et redimensionnée aléatoirement.
  */
-export function useGrassInstances(radius: number): THREE.Matrix4[] {
+export function useGrassInstances(radius: number): THREE.Matrix4[][] {
   return useMemo(() => {
     // Nombre d'instances par la surface couverte × densité, plafonné.
     const area = Math.PI * (radius * radius - GRASS_INNER_RADIUS * GRASS_INNER_RADIUS)
     const count = Math.min(GRASS_MAX_COUNT, Math.floor(area * GRASS_DENSITY))
 
     const rng = makeRng(GRASS_SEED)
-    const matrices: THREE.Matrix4[] = []
+    const chunks: THREE.Matrix4[][] = Array.from({ length: GRASS_CHUNKS }, () => [])
     const position = new THREE.Vector3()
     const quaternion = new THREE.Quaternion()
     const scale = new THREE.Vector3()
     const up = new THREE.Vector3(0, 1, 0)
+    const sectorSize = (Math.PI * 2) / GRASS_CHUNKS
 
     for (let i = 0; i < count; i++) {
       // Semis UNIFORME sur le disque (r ∝ √u pour une densité surfacique égale).
@@ -58,8 +61,10 @@ export function useGrassInstances(radius: number): THREE.Matrix4[] {
       const jitter = 1 + (rng() - 0.5) * 2 * GRASS_SIZE_JITTER
       scale.set(GRASS_WIDTH * jitter, GRASS_HEIGHT * jitter, GRASS_WIDTH * jitter)
 
-      matrices.push(new THREE.Matrix4().compose(position, quaternion, scale))
+      // Secteur angulaire de la touffe → son chunk frustum-cullable.
+      const sector = Math.min(GRASS_CHUNKS - 1, Math.floor(angle / sectorSize))
+      chunks[sector].push(new THREE.Matrix4().compose(position, quaternion, scale))
     }
-    return matrices
+    return chunks
   }, [radius])
 }
