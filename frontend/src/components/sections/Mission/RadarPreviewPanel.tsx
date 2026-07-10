@@ -19,8 +19,12 @@ export function RadarPreviewPanel({ config }: RadarPreviewPanelProps) {
 
   return (
     <div className="relative h-full w-full">
+      {/* Pas de `key` sur le Canvas : le remonter à chaque changement de radar
+          recréait un contexte WebGL à chaque fois → saturation (context lost,
+          écran noir) après quelques sélections. On garde UN seul canvas monté ;
+          seul le modelPath change à l'intérieur (le GLB se recharge sans
+          recréer le contexte). */}
       <RadarPreviewCanvas
-        key={config.templateId}
         modelPath={config.modelPath}
         tintColor={config.tintColor}
         className="h-full w-full"

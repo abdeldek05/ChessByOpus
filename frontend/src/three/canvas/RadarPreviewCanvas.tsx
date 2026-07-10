@@ -23,9 +23,11 @@ function RadarPreviewCanvasComponent({ modelPath, tintColor, className }: RadarP
     <Canvas
       className={className}
       camera={{ position: [0, 0, 16], fov: 32 }}
-      gl={{ alpha: true, antialias: true, powerPreference: 'high-performance' }}
-      shadows="soft"
-      dpr={[1, 1.5]}
+      // Aperçu allégé : pas d'ombres, dpr plafonné, powerPreference par défaut —
+      // évite de saturer WebGL (context lost) quand on change de radar, surtout
+      // à côté du canvas de la scène de lancement.
+      gl={{ alpha: true, antialias: true, powerPreference: 'default' }}
+      dpr={[1, 1.25]}
       onCreated={({ gl }) => {
         gl.toneMapping = THREE.ACESFilmicToneMapping
         gl.toneMappingExposure = 1.1
