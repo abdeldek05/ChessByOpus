@@ -2,7 +2,17 @@ import type { RadarConfig } from '@/types/radar.types'
 import type { RadarPosition, MesangeLaunchConfig } from '@/types/mission.types'
 import type { LaunchSite } from '@/types/simulation.types'
 import type { MissionResult, MissionVerdict } from '@/types/missionResult.types'
-import { computeDistanceKm } from '@/lib/computeDistanceKm'
+
+/** Distance haversine (km) entre deux points lat/lng. */
+function distanceKm(a: { latitude: number; longitude: number }, b: { latitude: number; longitude: number }): number {
+  const R = 6371
+  const dLat = ((b.latitude - a.latitude) * Math.PI) / 180
+  const dLng = ((b.longitude - a.longitude) * Math.PI) / 180
+  const lat1 = (a.latitude * Math.PI) / 180
+  const lat2 = (b.latitude * Math.PI) / 180
+  const h = Math.sin(dLat / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2
+  return 2 * R * Math.asin(Math.sqrt(h))
+}
 
 // Modèle de détection SIMPLE et autonome (km réels, indépendant du rendu). La
 // Mesange suit une trajectoire balistique estimée en km à partir de son azimut
@@ -87,7 +97,7 @@ export function computeDetection(
       // Sous le plafond radar ?
       if (altKm * 1000 > radar.config.ceilingM) continue
       // Distance horizontale radar → fusée.
-      const distKm = computeDistanceKm(pos, { latitude: lat, longitude: lng })
+      const distKm = distanceKm(pos, { latitude: lat, longitude: lng })
       // Dans la portée (avec pénalité RCS : petite cible = portée effective réduite).
       const rcsFactor = Math.min(1, Math.max(0.4, king ? 1 : 1)) // placeholder RCS neutre
       const effRange = radar.config.rangeKm * rcsFactor
