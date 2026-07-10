@@ -29,7 +29,7 @@ export function FlyingMesange({ flight, origin, active, onFlightFrame }: FlyingM
   // Stabilise l'origine (évite un nouveau Vector3 à chaque render → reset hook).
   const originStable = useMemo(() => origin.clone(), [origin.x, origin.y, origin.z])
 
-  const { groupRef, phase, thrusting, brokenElapsed, impact } = useTrajectoryPlayback({
+  const { groupRef, phase, brokenElapsed, impact } = useTrajectoryPlayback({
     flight,
     active,
     origin: originStable,
