@@ -27,6 +27,7 @@ export function RadarPreviewPanel({ config }: RadarPreviewPanelProps) {
       <RadarPreviewCanvas
         modelPath={config.modelPath}
         tintColor={config.tintColor}
+        resetKey={config.templateId}
         className="h-full w-full"
       />
       <RadarSpecCallouts config={config} />

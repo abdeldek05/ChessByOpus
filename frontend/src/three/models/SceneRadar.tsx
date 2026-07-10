@@ -10,9 +10,9 @@ interface SceneRadarProps {
 }
 
 // Taille apparente des radars dans la scène : rayon englobant cible en unités.
-// La rampe fait ~7 de haut ; un radar sur mât est plus imposant, donc rayon ~9
-// (diamètre ~18) pour qu'il DOMINE visuellement le pas de tir.
-const RADAR_TARGET_RADIUS = 9
+// Ce sont de gros véhicules/systèmes radar : rayon relevé pour qu'ils soient
+// bien massifs et lisibles de loin dans la map (avant : 9, trop petit).
+const RADAR_TARGET_RADIUS = 16
 
 /**
  * Un radar posé dans la scène de lancement, à sa direction géographique réelle

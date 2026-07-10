@@ -1,8 +1,10 @@
-import { useRef, type RefObject } from 'react'
+import { useEffect, useRef, type RefObject } from 'react'
 import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 
-const FIT_MARGIN = 1.04
+// Marge de cadrage : < 1 rapproche la caméra → le modèle remplit davantage le
+// cadre (les radars paraissent plus gros dans la vitrine de sélection).
+const FIT_MARGIN = 0.6
 const LERP_SPEED = 0.08
 
 /**
@@ -13,22 +15,45 @@ const LERP_SPEED = 0.08
  * rayon mémorisé seulement si le ratio du canvas change (resize), sans
  * re-parcourir la scène.
  */
-export function useFitCameraToObject(targetRef: RefObject<THREE.Object3D | null>) {
+export function useFitCameraToObject(
+  targetRef: RefObject<THREE.Object3D | null>,
+  /** Change quand le modèle change (ex. templateId) : réarme la mesure. */
+  resetKey?: string,
+) {
   const radius = useRef(0)
   const center = useRef(new THREE.Vector3())
   const desiredDistance = useRef(16)
   const lastAspect = useRef(0)
+  // Vrai une fois la taille du modèle stabilisée (fin du décodage Draco async).
+  const settled = useRef(false)
+
+  // Nouveau modèle : on réarme la mesure (sinon la taille reste figée sur
+  // l'ancien radar → tailles incohérentes en changeant de radar).
+  useEffect(() => {
+    settled.current = false
+    radius.current = 0
+    lastAspect.current = 0
+  }, [resetKey])
 
   useFrame(({ camera }) => {
     const target = targetRef.current
     const perspectiveCamera = camera as THREE.PerspectiveCamera
 
-    // Mesure unique de la sphère englobante, une fois le modèle chargé.
-    if (radius.current === 0 && target) {
+    // Mesure la sphère englobante TANT QUE le modèle n'est pas stabilisé. Les
+    // GLB Draco se décodent en asynchrone : une mesure trop tôt tombe sur une
+    // géométrie vide/partielle → rayon faux → taille incohérente d'un chargement
+    // à l'autre. On remesure chaque frame jusqu'à ce que le rayon SE STABILISE
+    // (deux mesures proches d'affilée), puis on fige.
+    if (!settled.current && target) {
       const sphere = new THREE.Box3().setFromObject(target).getBoundingSphere(new THREE.Sphere())
       if (sphere.radius > 0) {
+        // Stable si la nouvelle mesure est très proche de la précédente.
+        if (Math.abs(sphere.radius - radius.current) < radius.current * 0.02) {
+          settled.current = true
+        }
         radius.current = sphere.radius
         center.current.copy(sphere.center)
+        lastAspect.current = 0 // force le recalcul de distance avec le bon rayon
       }
     }
 

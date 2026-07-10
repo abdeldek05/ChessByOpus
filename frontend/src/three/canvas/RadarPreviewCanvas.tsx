@@ -8,6 +8,8 @@ import { RadarLighting } from './RadarLighting'
 interface RadarPreviewCanvasProps {
   modelPath: string
   tintColor?: string
+  /** Identifiant du modèle courant : réarme le cadrage caméra au changement. */
+  resetKey?: string
   className?: string
 }
 
@@ -16,7 +18,7 @@ interface RadarPreviewCanvasProps {
  * réglage (portée/plafond) re-rendait tout le Canvas Three.js à chaque cran
  * et rendait le slider saccadé.
  */
-function RadarPreviewCanvasComponent({ modelPath, tintColor, className }: RadarPreviewCanvasProps) {
+function RadarPreviewCanvasComponent({ modelPath, tintColor, resetKey, className }: RadarPreviewCanvasProps) {
   const modelRef = useRef<THREE.Group>(null)
 
   return (
@@ -36,7 +38,7 @@ function RadarPreviewCanvasComponent({ modelPath, tintColor, className }: RadarP
       <Suspense fallback={null}>
         <RadarLighting />
         <RadarModel ref={modelRef} modelPath={modelPath} tintColor={tintColor} />
-        <CameraRig targetRef={modelRef} />
+        <CameraRig targetRef={modelRef} resetKey={resetKey} />
       </Suspense>
     </Canvas>
   )
