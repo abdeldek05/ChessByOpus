@@ -5,14 +5,20 @@ import * as THREE from 'three'
 import { useOrbitTargetFollow } from '@/three/hooks/useOrbitTargetFollow'
 import { useCameraGroundClamp } from '@/three/hooks/useCameraGroundClamp'
 import { CAMERA_TARGET } from '@/three/constants/sceneLayout'
+import type { SceneBiome } from '@/types/scene.types'
 
 interface LaunchCameraControlsProps {
   /** Position monde de la fusée en vol (null hors vol) — cible du suivi. */
   rocketRef: React.RefObject<THREE.Vector3 | null>
   /** Vol en cours : la cible des contrôles suit la fusée. */
   flying: boolean
+  /** Scénario réarmé (juste après replay) : force un retour caméra instantané
+   * vers le pad, sans attendre l'amortissement normal. */
+  armed?: boolean
   /** Distance max de zoom (proportionnelle à la taille du terrain). */
   maxDistance: number
+  /** Biome du terrain (prairie/dunes) : sol de référence du verrou caméra. */
+  biome?: SceneBiome
 }
 
 /**
@@ -22,11 +28,11 @@ interface LaunchCameraControlsProps {
  * d'elle en plein vol ; à la fin, retour doux vers le pas de tir. Le polar max
  * bloque le passage sous l'horizon.
  */
-export function LaunchCameraControls({ rocketRef, flying, maxDistance }: LaunchCameraControlsProps) {
+export function LaunchCameraControls({ rocketRef, flying, armed, maxDistance, biome }: LaunchCameraControlsProps) {
   const controlsRef = useRef<OrbitControlsImpl>(null)
-  useOrbitTargetFollow({ controlsRef, rocketRef, flying })
+  useOrbitTargetFollow({ controlsRef, rocketRef, flying, armed })
   // Verrou : caméra et cible ne passent JAMAIS sous le relief de la map.
-  useCameraGroundClamp({ controlsRef })
+  useCameraGroundClamp({ controlsRef, biome })
 
   return (
     <OrbitControls

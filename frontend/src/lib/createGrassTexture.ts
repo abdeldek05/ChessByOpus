@@ -1,13 +1,22 @@
 import * as THREE from 'three'
 import { GRASS_COLORS, GRASS_TEXTURE_SIZE } from '@/three/constants/grassField'
 
+/** Palette d'une touffe : base (pied), milieu et pointe des brins. */
+export interface GrassPalette {
+  base: string
+  mid: string
+  tip: string
+}
+
 /**
  * Texture procédurale d'une touffe d'herbe (canvas → CanvasTexture avec alpha) :
  * plusieurs brins verticaux montant en s'affinant, de la base sombre vers la
- * pointe dorée. Fond transparent — appliquée sur des plans croisés, elle donne
- * l'illusion de vraies touffes sans charger d'image externe. Fonction pure.
+ * pointe. Fond transparent — appliquée sur des plans croisés, elle donne
+ * l'illusion de vraies touffes sans charger d'image externe. La palette est
+ * paramétrable : verte (prairie, défaut) ou paille (buissons secs du désert).
+ * Fonction pure.
  */
-export function createGrassTexture(): THREE.CanvasTexture {
+export function createGrassTexture(palette: GrassPalette = GRASS_COLORS): THREE.CanvasTexture {
   const S = GRASS_TEXTURE_SIZE
   const canvas = document.createElement('canvas')
   canvas.width = S
@@ -25,9 +34,9 @@ export function createGrassTexture(): THREE.CanvasTexture {
 
     // Dégradé base→pointe le long du brin.
     const grad = ctx.createLinearGradient(x, S, topX, S - height)
-    grad.addColorStop(0, GRASS_COLORS.base)
-    grad.addColorStop(0.5, GRASS_COLORS.mid)
-    grad.addColorStop(1, GRASS_COLORS.tip)
+    grad.addColorStop(0, palette.base)
+    grad.addColorStop(0.5, palette.mid)
+    grad.addColorStop(1, palette.tip)
     ctx.fillStyle = grad
 
     // Brin = triangle effilé (base large → pointe fine).

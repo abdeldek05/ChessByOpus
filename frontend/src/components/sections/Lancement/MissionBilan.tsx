@@ -1,6 +1,7 @@
 import { BilanRow } from './BilanRow'
 import type { MissionResult, MissionVerdict } from '@/types/missionResult.types'
 import type { MesangeRole } from '@/types/mission.types'
+import type { WeatherInfo } from '@/lib/api'
 
 interface MissionBilanProps {
   result: MissionResult | null
@@ -8,6 +9,8 @@ interface MissionBilanProps {
   radarName: string
   /** Seuil de préavis de détection requis (s), fixé par le client au scénario. */
   requiredLeadSec: number
+  /** Météo réelle (GFS) utilisée pour ce vol ; null si non encore reçue. */
+  weather: WeatherInfo | null
   /** Relance le scénario avec la MÊME configuration (réarme la séquence). */
   onReplay: () => void
 }
@@ -34,7 +37,7 @@ const CLIP = 'polygon(12px 0, 100% 0, 100% calc(100% - 12px), calc(100% - 12px) 
  * et le DIAGNOSTIC (coût des leurres, cause). Tant que le moteur radar n'existe
  * pas, `result` est null et tout s'affiche « — » avec la mention correspondante.
  */
-export function MissionBilan({ result, siteName, radarName, requiredLeadSec, onReplay }: MissionBilanProps) {
+export function MissionBilan({ result, siteName, radarName, requiredLeadSec, weather, onReplay }: MissionBilanProps) {
   const verdict = result?.verdict ?? 'unknown'
   const display = VERDICT_DISPLAY[verdict]
 
@@ -79,6 +82,19 @@ export function MissionBilan({ result, siteName, radarName, requiredLeadSec, onR
         <BilanRow
           label="Threats detected"
           value={result?.detectedCount === undefined || result?.detectedCount === null ? '—' : `${result.detectedCount} / ${result.totalThreats}`}
+        />
+      </section>
+
+      {/* Météo réelle du site (GFS) au moment du tir. */}
+      <section>
+        <h2 className="mb-1.5 text-xs font-semibold tracking-[0.06em] text-white/85 uppercase">Site weather</h2>
+        <BilanRow
+          label="Ground wind"
+          value={weather ? `${weather.groundWindSpeedMs.toFixed(1)} m/s from ${Math.round(weather.groundWindHeadingDeg)}°` : '—'}
+        />
+        <BilanRow
+          label="Source"
+          value={weather ? (weather.source === 'gfs' ? 'Real forecast (GFS)' : 'Standard atmosphere') : '—'}
         />
       </section>
 

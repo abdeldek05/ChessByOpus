@@ -12,7 +12,8 @@ from pathlib import Path
 from fastapi import FastAPI
 from pydantic import BaseModel
 
-from simulate import simulate
+from simulate import simulate, estimate_max_range, estimate_max_range_quick
+from radar import compute_detection
 
 DB_PATH = Path(__file__).parent / "missions.db"
 
@@ -159,22 +160,63 @@ def create_scenario(mission_id: int, payload: ScenarioPayload):
     return {"id": scenario_id, "missionId": mission_id, "createdAt": created_at}
 
 
+class RadarSpecPayload(BaseModel):
+    """Caractéristiques COMPLÈTES d'un radar posé, telles que réglées par le client."""
+
+    latitude: float
+    longitude: float
+    rangeKm: float
+    ceilingM: float
+    rotating: bool = True
+    rotationRpm: float = 40.0
+    minRcsM2: float = 1.0
+    antennaHeightM: float = 4.0
+    detectionThresholdSec: float = 30.0
+
+
+class ThreatPayload(BaseModel):
+    """Une menace du scénario (Roi ou leurre) : rôle, cap et délai de tir."""
+
+    role: str = "KING"
+    azimuthDeg: float = 0.0
+    launchDelaySec: float = 0.0
+
+
 class SimulatePayload(BaseModel):
     latitude: float
     longitude: float
     elevationDeg: float  # angle de tir (90 = vertical)
     azimuthDeg: float  # cap
     siteElevationM: float = 0.0
-    temperatureC: float | None = None  # météo du site → densité de l'air
+    temperatureC: float | None = None  # override manuel → ignore la météo réelle
+    # Date/heure de tir (ISO 8601, UTC de préférence) : pilote la météo réelle
+    # récupérée (GFS) pour CE lieu à CET instant. Par défaut : maintenant.
+    launchDateTime: str | None = None
+    # Radars posés + menaces du scénario : si fournis, le moteur radar calcule
+    # la détection côté serveur (modèle physique complet) et la renvoie.
+    radars: list[RadarSpecPayload] = []
+    threats: list[ThreatPayload] = []
+
+
+def _parse_launch_datetime(value: str | None) -> datetime | None:
+    if not value:
+        return None
+    parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=timezone.utc)
+    return parsed.astimezone(timezone.utc)
 
 
 @app.post("/simulate")
 def run_simulation(payload: SimulatePayload):
-    """Lance la vraie simulation de vol RocketPy et renvoie la trajectoire JSON.
+    """Vraie simulation de vol RocketPy + détection radar physique.
 
-    Physique complète (poussée mesurée, masses/CD du prédesign, atmosphère du
-    site) : trajectoire échantillonnée + apogée, portée, vitesse max, temps de
-    vol. Utilisée par l'écran de lancement pour animer + calculer la détection.
+    1. RocketPy : trajectoire complète (poussée mesurée, masses/CD du prédesign,
+       météo réelle du site — vent/température GFS à la date de tir) → animation
+       côté front.
+    2. Moteur radar (radar.py) : horizon terrestre, SER d'aspect, portée
+       effective, plafond, cône de silence, balayage rotatif, coût des leurres
+       → bilan de mission (verdict/préavis/diagnostic).
     """
     try:
         result = simulate(
@@ -184,9 +226,72 @@ def run_simulation(payload: SimulatePayload):
             azimuth_deg=payload.azimuthDeg,
             site_elevation_m=payload.siteElevationM,
             temperature_c=payload.temperatureC,
+            launch_datetime=_parse_launch_datetime(payload.launchDateTime),
         )
-        return {"status": "ready", "flight": result}
+        detection = None
+        if payload.radars:
+            detection = compute_detection(
+                site_latitude=payload.latitude,
+                site_longitude=payload.longitude,
+                radars=[radar.model_dump() for radar in payload.radars],
+                threats=[threat.model_dump() for threat in payload.threats],
+                flight=result,
+            )
+        return {"status": "ready", "flight": result, "detection": detection}
     except Exception as error:  # noqa: BLE001 — on remonte l'échec proprement au front
+        return {"status": "failed", "error": str(error)}
+
+
+class MaxRangePayload(BaseModel):
+    latitude: float
+    longitude: float
+    siteElevationM: float = 0.0
+    launchDateTime: str | None = None
+    elevationsDeg: list[float] | None = None
+    azimuthStepDeg: float = 15.0
+
+
+@app.post("/simulate/max-range")
+def run_max_range_estimate(payload: MaxRangePayload):
+    """Balaie les azimuts (météo réelle GFS du site à la date de tir) pour
+    estimer, par élévation de tir, la distance max au sol atteignable selon
+    l'azimut choisi par rapport au vent — répond à « jusqu'où selon l'azimut
+    du vent et l'élévation ? »."""
+    try:
+        result = estimate_max_range(
+            latitude=payload.latitude,
+            longitude=payload.longitude,
+            site_elevation_m=payload.siteElevationM,
+            launch_datetime=_parse_launch_datetime(payload.launchDateTime),
+            elevations_deg=payload.elevationsDeg,
+            azimuth_step_deg=payload.azimuthStepDeg,
+        )
+        return {"status": "ready", **result}
+    except Exception as error:  # noqa: BLE001
+        return {"status": "failed", "error": str(error)}
+
+
+class MaxRangeQuickPayload(BaseModel):
+    latitude: float
+    longitude: float
+    siteElevationM: float = 0.0
+    launchDateTime: str | None = None
+
+
+@app.post("/simulate/max-range-quick")
+def run_max_range_quick_estimate(payload: MaxRangeQuickPayload):
+    """Majorant rapide (quelques vols) de la distance max atteignable toutes
+    directions confondues — pour l'afficher pendant le placement du radar,
+    avant que l'azimut/élévation de tir ne soient choisis."""
+    try:
+        result = estimate_max_range_quick(
+            latitude=payload.latitude,
+            longitude=payload.longitude,
+            site_elevation_m=payload.siteElevationM,
+            launch_datetime=_parse_launch_datetime(payload.launchDateTime),
+        )
+        return {"status": "ready", **result}
+    except Exception as error:  # noqa: BLE001
         return {"status": "failed", "error": str(error)}
 
 

@@ -28,7 +28,8 @@
     "react-dom": "^19.2.7",
     "react-router-dom": "^7.18.0",
     "tailwindcss": "^4.3.1",
-    "three": "^0.185.0"
+    "three": "^0.185.0",
+    "three-custom-shader-material": "^6.4.0"
   },
   "devDependencies": {
     "@types/node": "^24.13.2",

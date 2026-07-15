@@ -23,17 +23,39 @@ export function RadarSettings({ config, onChange }: RadarSettingsProps) {
         <HudRange label="Range" value={config.rangeKm} min={5} max={150} unit="km" onChange={(v) => onChange({ rangeKm: v })} />
         <HudRange label="Ceiling" value={config.ceilingM} min={1000} max={40000} step={500} unit="m" onChange={(v) => onChange({ ceilingM: v })} />
         <HudToggle label="Rotating" checked={config.rotating} onChange={(v) => onChange({ rotating: v })} />
+        {config.rotating && (
+          <HudRange
+            label="Scan speed"
+            value={config.rotationRpm}
+            min={10}
+            max={90}
+            step={5}
+            unit="rpm"
+            onChange={(v) => onChange({ rotationRpm: v })}
+          />
+        )}
 
         {showRcs && (
-          <HudRange
-            label="Min. detectable RCS"
-            value={config.minDetectableRcsM2}
-            min={0.1}
-            max={10}
-            step={0.1}
-            unit="m²"
-            onChange={(v) => onChange({ minDetectableRcsM2: v })}
-          />
+          <>
+            <HudRange
+              label="Min. detectable RCS"
+              value={config.minDetectableRcsM2}
+              min={0.1}
+              max={10}
+              step={0.1}
+              unit="m²"
+              onChange={(v) => onChange({ minDetectableRcsM2: v })}
+            />
+            <HudRange
+              label="Antenna height"
+              value={config.antennaHeightM}
+              min={2}
+              max={15}
+              step={0.5}
+              unit="m"
+              onChange={(v) => onChange({ antennaHeightM: v })}
+            />
+          </>
         )}
 
         <button

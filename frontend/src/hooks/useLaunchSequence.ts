@@ -1,7 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { simulateFlight, type FlightData } from '@/lib/api'
-import { computeDetection } from '@/lib/computeDetection'
+import { simulateFlight, type FlightData, type RadarSpec, type ThreatSpec } from '@/lib/api'
 import { TIME_SCALE, LIFTOFF_REAL_SEC, LIFTOFF_TIME_SCALE } from '@/three/constants/flightPlayback'
+import type { RadarConfig } from '@/types/radar.types'
+import type { RadarPosition, MesangeLaunchConfig } from '@/types/mission.types'
+import type { LaunchSite } from '@/types/simulation.types'
+import type { MissionResult } from '@/types/missionResult.types'
 
 /** Durée d'animation (s) pour un vol de `flightSec` réel : décollage ralenti + reste accéléré. */
 function playbackDurationSec(flightSec: number): number {
@@ -9,10 +12,34 @@ function playbackDurationSec(flightSec: number): number {
   const rest = Math.max(0, flightSec - LIFTOFF_REAL_SEC) / TIME_SCALE
   return liftoffAnim + rest
 }
-import type { RadarConfig } from '@/types/radar.types'
-import type { RadarPosition, MesangeLaunchConfig } from '@/types/mission.types'
-import type { LaunchSite } from '@/types/simulation.types'
-import type { MissionResult } from '@/types/missionResult.types'
+
+/** Caractéristiques COMPLÈTES des radars posés → payload du moteur de détection. */
+function buildRadarSpecs(
+  radars: { config: RadarConfig; position: RadarPosition | null }[],
+): RadarSpec[] {
+  return radars
+    .filter((r) => r.position !== null)
+    .map((r) => ({
+      latitude: r.position!.latitude,
+      longitude: r.position!.longitude,
+      rangeKm: r.config.rangeKm,
+      ceilingM: r.config.ceilingM,
+      rotating: r.config.rotating,
+      rotationRpm: r.config.rotationRpm ?? 40,
+      minRcsM2: r.config.minDetectableRcsM2,
+      antennaHeightM: r.config.antennaHeightM ?? 4,
+      detectionThresholdSec: r.config.detectionThresholdSec ?? 30,
+    }))
+}
+
+/** Menaces du scénario (Roi + leurres) → payload du moteur de détection. */
+function buildThreatSpecs(mesangeConfigs: MesangeLaunchConfig[]): ThreatSpec[] {
+  return mesangeConfigs.map((m) => ({
+    role: m.role,
+    azimuthDeg: m.azimuthDeg,
+    launchDelaySec: m.launchDelaySec,
+  }))
+}
 
 export type LaunchPhase = 'armed' | 'countdown' | 'running' | 'done' | 'error'
 
@@ -34,6 +61,8 @@ interface UseLaunchSequenceResult {
   result: MissionResult | null
   /** Vraie trajectoire RocketPy à animer (null tant que non calculée). */
   flight: FlightData | null
+  /** Météo réelle (GFS) du site utilisée pour ce vol ; null tant que non calculée. */
+  weather: FlightData['weather'] | null
   launch: () => void
   /** Réarme le scénario pour le relancer. */
   replay: () => void
@@ -61,6 +90,7 @@ export function useLaunchSequence({
   const [message, setMessage] = useState('')
   const [result, setResult] = useState<MissionResult | null>(null)
   const [flight, setFlight] = useState<FlightData | null>(null)
+  const [weather, setWeather] = useState<FlightData['weather'] | null>(null)
 
   const countdownTimer = useRef<ReturnType<typeof setInterval> | null>(null)
 
@@ -75,7 +105,8 @@ export function useLaunchSequence({
     setPhase('countdown')
     setMessage('Simulation in progress…')
 
-    // 1) Lance RocketPy EN FOND, dès le clic (calcul masqué par le décompte).
+    // 1) Lance RocketPy + moteur radar EN FOND, dès le clic (masqué par le
+    //    décompte) : trajectoire réelle ET détection physique en un appel.
     const simPromise = simulateFlight({
       latitude: site.latitude,
       longitude: site.longitude,
@@ -83,6 +114,8 @@ export function useLaunchSequence({
       azimuthDeg: king.azimuthDeg,
       siteElevationM: site.elevation,
       temperatureC,
+      radars: buildRadarSpecs(radars),
+      threats: buildThreatSpecs(mesangeConfigs),
     }).catch(() => ({ status: 'failed' as const, error: 'Backend unreachable' }))
 
     // 2) Décompte visuel en parallèle.
@@ -106,15 +139,16 @@ export function useLaunchSequence({
       }
       const flightData = sim.flight
       setFlight(flightData)
+      setWeather(flightData.weather)
       setPhase('running')
       setMessage('')
 
       // 4) Anim de la trajectoire (temps réel joué en accéléré, décollage
-      //    ralenti — pas les ~160 s réelles) puis détection + bilan.
+      //    ralenti) ; le bilan vient du MOTEUR RADAR backend (modèle physique).
+      const detection = sim.detection ?? null
       const playbackMs = playbackDurationSec(flightData.flightTimeSec) * 1000
       setTimeout(() => {
-        const mission = computeDetection(site, radars, mesangeConfigs, flightData)
-        setResult(mission)
+        setResult(detection)
         setPhase('done')
       }, playbackMs)
     })
@@ -126,8 +160,9 @@ export function useLaunchSequence({
     setMessage('')
     setResult(null)
     setFlight(null)
+    setWeather(null)
     setPhase('armed')
   }, [clearTimers])
 
-  return { phase, countdown, message, result, flight, launch, replay }
+  return { phase, countdown, message, result, flight, weather, launch, replay }
 }

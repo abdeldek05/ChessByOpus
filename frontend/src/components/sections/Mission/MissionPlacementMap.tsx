@@ -9,13 +9,17 @@ interface MissionPlacementMapProps {
   activeRadarId: string
   onSelectActive: (id: string) => void
   onPlaceRadar: (id: string, position: RadarPosition) => void
+  /** Distance max théorique de la Mesange (km, météo réelle du site) ; null tant que non reçue. */
+  rocketMaxRangeKm?: number | null
 }
 
 /**
  * Carte de placement des 1-2 radars, autour du pas de tir fixe (= le site). Des
  * onglets choisissent le radar qu'on positionne ; cliquer la carte le place.
  * Chaque point est étiqueté (Pas de tir / Radar 1…). L'azimut se règle plus
- * tard, à l'étape Menaces — pas ici.
+ * tard, à l'étape Menaces — pas ici. Un cercle discret montre aussi jusqu'où
+ * la Mesange peut théoriquement aller (toutes directions confondues), pour
+ * situer la couverture radar par rapport à la portée réelle du tir.
  */
 export function MissionPlacementMap({
   site,
@@ -23,12 +27,14 @@ export function MissionPlacementMap({
   activeRadarId,
   onSelectActive,
   onPlaceRadar,
+  rocketMaxRangeKm = null,
 }: MissionPlacementMapProps) {
   const { containerRef, radarsOutOfRange } = useMissionPlacementMap({
     site,
     radars,
     activeRadarId,
     onPlaceRadar,
+    rocketMaxRangeKm,
   })
 
   const active = radars.find((r) => r.id === activeRadarId) ?? radars[0]

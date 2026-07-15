@@ -3,6 +3,7 @@ import { useLaunchTacticalMap } from '@/hooks/useLaunchTacticalMap'
 import { useMapExpansion } from '@/hooks/useMapExpansion'
 import type { LaunchSite } from '@/types/simulation.types'
 import type { PlacedRadar } from '@/types/mission.types'
+import type { FlightData } from '@/lib/api'
 
 interface LaunchTacticalMapProps {
   site: LaunchSite
@@ -11,6 +12,10 @@ interface LaunchTacticalMapProps {
   azimuthDeg: number
   /** Distance réelle pas de tir ↔ radar principal, déjà formatée. */
   distance: string
+  /** Trajectoire RocketPy (null tant que non calculée) : tracée comme piste radar. */
+  flight: FlightData | null
+  /** Progression du vol 0→1 (ref partagée, -1 = pas de vol) : pilote la piste live. */
+  flightProgressRef: React.RefObject<number>
 }
 
 // Hauteur du canvas carte par cran (repliée = 0, carte masquée).
@@ -32,13 +37,22 @@ const PANEL_WIDTH: Record<string, string> = {
  * boutons ; interactive (pan/zoom, faisceau radar) une fois agrandie. Logique
  * carte dans useLaunchTacticalMap.
  */
-export function LaunchTacticalMap({ site, radars, azimuthDeg, distance }: LaunchTacticalMapProps) {
+export function LaunchTacticalMap({
+  site,
+  radars,
+  azimuthDeg,
+  distance,
+  flight,
+  flightProgressRef,
+}: LaunchTacticalMapProps) {
   const { size, grow, shrink } = useMapExpansion()
   const { containerRef } = useLaunchTacticalMap({
     site,
     radars,
     azimuthDeg,
     expanded: size === 'expanded',
+    flight,
+    flightProgressRef,
   })
 
   return (

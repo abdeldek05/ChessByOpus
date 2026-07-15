@@ -12,6 +12,11 @@ const MAP_STYLE = 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.j
 // rouge vif si hors portée (miroir --color-radar / --color-alert).
 const COVERAGE_COLOR = '#94866e'
 const ALERT_COLOR = '#e0584f'
+// Cercle de portée max de la Mesange : plus discret que la couverture radar
+// (même famille chromatique alerte, mais très atténué — c'est un repère, pas
+// un avertissement).
+const ROCKET_RANGE_COLOR = '#e0584f'
+const ROCKET_RANGE_SOURCE_ID = 'rocket-max-range'
 
 interface UseMissionPlacementMapParams {
   /** Région (cadrage initial de la carte). */
@@ -20,6 +25,8 @@ interface UseMissionPlacementMapParams {
   /** Radar en cours d'édition : le clic sur la carte le positionne. */
   activeRadarId: string
   onPlaceRadar: (id: string, position: RadarPosition) => void
+  /** Distance max théorique de la Mesange (km) ; null tant que non reçue. */
+  rocketMaxRangeKm?: number | null
 }
 
 export interface RadarRangeExcess {
@@ -81,6 +88,7 @@ export function useMissionPlacementMap({
   radars,
   activeRadarId,
   onPlaceRadar,
+  rocketMaxRangeKm = null,
 }: UseMissionPlacementMapParams): UseMissionPlacementMapResult {
   const containerRef = useRef<HTMLDivElement>(null)
   const mapRef = useRef<maplibregl.Map | null>(null)
@@ -206,6 +214,46 @@ export function useMissionPlacementMap({
       })
     })
   }, [radars, activeRadarId, radarsOutOfRange])
+
+  // --- Cercle de portée max de la Mesange : centré sur le pas de tir (site),
+  //     toutes directions confondues (météo réelle) — situe la couverture
+  //     radar par rapport à la portée réelle du tir, avant même que l'azimut
+  //     de tir soit choisi (étape suivante). ---
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map) return
+
+    const circle = rocketMaxRangeKm
+      ? buildRangeCircle(site.longitude, site.latitude, rocketMaxRangeKm)
+      : []
+    const geojson = {
+      type: 'Feature' as const,
+      geometry: { type: 'Polygon' as const, coordinates: circle.length ? [circle] : [] },
+      properties: {},
+    }
+
+    const source = map.getSource(ROCKET_RANGE_SOURCE_ID) as maplibregl.GeoJSONSource | undefined
+    if (source) {
+      source.setData(geojson)
+      return
+    }
+
+    whenStyleReady(map, () => {
+      if (map.getSource(ROCKET_RANGE_SOURCE_ID)) return
+      map.addSource(ROCKET_RANGE_SOURCE_ID, { type: 'geojson', data: geojson })
+      map.addLayer({
+        id: `${ROCKET_RANGE_SOURCE_ID}-line`,
+        type: 'line',
+        source: ROCKET_RANGE_SOURCE_ID,
+        paint: {
+          'line-color': ROCKET_RANGE_COLOR,
+          'line-width': 1,
+          'line-dasharray': [1, 2],
+          'line-opacity': 0.35,
+        },
+      })
+    })
+  }, [site, rocketMaxRangeKm])
 
   // --- Trait radar → pas de tir : montre où chaque radar se situe par rapport
   //     au site, avec la distance en discret au milieu du trait. La source

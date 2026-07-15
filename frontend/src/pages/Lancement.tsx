@@ -1,14 +1,18 @@
+import { useEffect, useRef, useState } from 'react'
 import { Navigate, useLocation } from 'react-router-dom'
 import { LaunchSceneCanvas } from '@/three/canvas/LaunchSceneCanvas'
+import { DayNightToggle } from '@/components/sections/Lancement/DayNightToggle'
 import { LaunchHud } from '@/components/sections/Lancement/LaunchHud'
 import { LaunchTacticalMap } from '@/components/sections/Lancement/LaunchTacticalMap'
 import { MissionBilan } from '@/components/sections/Lancement/MissionBilan'
+import { FlightTelemetryChart } from '@/components/sections/Lancement/FlightTelemetryChart'
 import { useLaunchSequence } from '@/hooks/useLaunchSequence'
 import { computeRadarSceneOffset } from '@/lib/computeRadarSceneOffset'
 import { computeDistanceKm, formatDistance } from '@/lib/computeDistanceKm'
 import { getRadarName } from '@/lib/getRadarName'
 import type { LaunchSite } from '@/types/simulation.types'
 import type { PlacedRadar, MesangeLaunchConfig } from '@/types/mission.types'
+import type { SceneMode } from '@/types/scene.types'
 
 interface LancementLocationState {
   site: LaunchSite
@@ -37,6 +41,9 @@ interface LancementSceneProps {
 }
 
 function LancementScene({ state }: LancementSceneProps) {
+  // Ambiance de la scène (bouton ☀/☾ du HUD) : jour golden hour ou nuit.
+  const [sceneMode, setSceneMode] = useState<SceneMode>('day')
+
   // Radar principal (1er placé) : sert au HUD, à la séquence et à la carte
   // tactique. Sa position est garantie non-nulle (filtrée au lancement).
   const primaryRadar = state.radars[0]
@@ -64,6 +71,14 @@ function LancementScene({ state }: LancementSceneProps) {
     king: primary,
   })
 
+  // Progression du vol (0→1) partagée entre le moteur 3D (qui l'écrit à chaque
+  // frame) et la Tactical View (qui la lit dans sa boucle rAF pour dessiner la
+  // piste radar en direct) — sans re-render React. -1 = aucun vol en cours.
+  const flightProgressRef = useRef(-1)
+  useEffect(() => {
+    if (sequence.phase !== 'running') flightProgressRef.current = -1
+  }, [sequence.phase])
+
   return (
     <div className="relative h-screen w-screen overflow-hidden bg-bg">
       <LaunchSceneCanvas
@@ -74,7 +89,16 @@ function LancementScene({ state }: LancementSceneProps) {
         azimuthDeg={primary?.azimuthDeg ?? 0}
         flying={sequence.phase === 'running'}
         flight={sequence.flight}
+        flightProgressRef={flightProgressRef}
+        mode={sceneMode}
+        biome={state.site.biome ?? 'meadow'}
         className="h-full w-full"
+      />
+
+      {/* Bascule d'ambiance jour ☀ / nuit ☾ de la scène. */}
+      <DayNightToggle
+        mode={sceneMode}
+        onToggle={() => setSceneMode((current) => (current === 'day' ? 'night' : 'day'))}
       />
 
       {(sequence.phase === 'done' || sequence.phase === 'error') && (
@@ -83,15 +107,20 @@ function LancementScene({ state }: LancementSceneProps) {
           siteName={state.site.name}
           radarName={radarName}
           requiredLeadSec={state.detectionThresholdSec ?? 30}
+          weather={sequence.weather}
           onReplay={sequence.replay}
         />
       )}
+
+      {sequence.phase === 'done' && <FlightTelemetryChart flight={sequence.flight} />}
 
       <LaunchTacticalMap
         site={state.site}
         radars={state.radars}
         azimuthDeg={primary?.azimuthDeg ?? 0}
         distance={distance}
+        flight={sequence.flight}
+        flightProgressRef={flightProgressRef}
       />
 
       <LaunchHud

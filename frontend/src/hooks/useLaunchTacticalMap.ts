@@ -1,17 +1,20 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useMemo, useRef } from 'react'
 import maplibregl from 'maplibre-gl'
 import { buildRangeCircle } from '@/lib/geoCircle'
 import { buildSightCone } from '@/lib/geoSightCone'
 import { createLabeledMarker } from '@/lib/mapMarker'
+import { enuToLatLon } from '@/lib/enuToLatLon'
 import {
   TACTICAL_MAP_STYLE,
   COVERAGE_COLOR,
   THREAT_CONE_COLOR,
   RING_COLOR,
   RING_STEPS_KM,
+  TRACK_COLOR,
 } from '@/lib/launchTacticalMap'
 import type { LaunchSite } from '@/types/simulation.types'
 import type { PlacedRadar } from '@/types/mission.types'
+import type { FlightData } from '@/lib/api'
 
 interface UseLaunchTacticalMapParams {
   site: LaunchSite
@@ -20,6 +23,10 @@ interface UseLaunchTacticalMapParams {
   azimuthDeg: number
   /** Agrandie : pan + zoom souris actifs ; compacte : figée. */
   expanded: boolean
+  /** Trajectoire RocketPy (null tant que non calculée). */
+  flight: FlightData | null
+  /** Progression du vol 0→1 (ref partagée, -1 = pas de vol). */
+  flightProgressRef: React.RefObject<number>
 }
 
 interface UseLaunchTacticalMapResult {
@@ -45,9 +52,19 @@ export function useLaunchTacticalMap({
   radars,
   azimuthDeg,
   expanded,
+  flight,
+  flightProgressRef,
 }: UseLaunchTacticalMapParams): UseLaunchTacticalMapResult {
   const containerRef = useRef<HTMLDivElement>(null)
   const mapRef = useRef<maplibregl.Map | null>(null)
+
+  // Points [lng, lat] de la trajectoire, convertis une fois depuis l'ENU
+  // RocketPy (x=est, y=nord, en m) autour du pas de tir. Projection au sol :
+  // l'altitude (z) est ignorée (vue de dessus) — on la lira dans les graphiques.
+  const trackLngLat = useMemo<[number, number][]>(() => {
+    if (!flight) return []
+    return flight.trajectory.map((p) => enuToLatLon(p.x, p.y, site.longitude, site.latitude))
+  }, [flight, site.longitude, site.latitude])
 
   // --- Création de la carte (une fois) ---
   useEffect(() => {
@@ -142,6 +159,36 @@ export function useLaunchTacticalMap({
       })
 
       createLabeledMarker(map, [site.longitude, site.latitude], 'launch-marker launch-marker--origin', 'Launch pad')
+
+      // PISTE de la menace (dessinée en direct par la boucle rAF ci-dessous) :
+      // une source de TRACE (LineString qui s'allonge) + une source de TÊTE
+      // (point de position actuelle). Créées vides, alimentées pendant le vol.
+      map.addSource('track', {
+        type: 'geojson',
+        data: { type: 'Feature', geometry: { type: 'LineString', coordinates: [] }, properties: {} },
+      })
+      map.addLayer({
+        id: 'track',
+        type: 'line',
+        source: 'track',
+        layout: { 'line-cap': 'round', 'line-join': 'round' },
+        paint: { 'line-color': TRACK_COLOR, 'line-width': 2, 'line-opacity': 0.9 },
+      })
+      map.addSource('track-head', {
+        type: 'geojson',
+        data: { type: 'Feature', geometry: { type: 'Point', coordinates: [] }, properties: {} },
+      })
+      map.addLayer({
+        id: 'track-head',
+        type: 'circle',
+        source: 'track-head',
+        paint: {
+          'circle-radius': 4,
+          'circle-color': TRACK_COLOR,
+          'circle-stroke-width': 1.5,
+          'circle-stroke-color': '#0b0d10',
+        },
+      })
     }
 
     if (map.isStyleLoaded()) draw()
@@ -166,6 +213,47 @@ export function useLaunchTacticalMap({
     const timer = setTimeout(() => map.resize(), 260)
     return () => clearTimeout(timer)
   }, [expanded])
+
+  // --- Piste live : boucle rAF DÉDIÉE qui lit la progression partagée et
+  //     redessine la trace + la tête, SANS re-render React (fluide 60fps). ---
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map || trackLngLat.length < 2) return
+
+    let raf = 0
+    let lastProgress = -2 // force un premier dessin
+
+    const update = () => {
+      raf = requestAnimationFrame(update)
+      const progress = flightProgressRef.current
+      if (progress === lastProgress) return // rien de neuf cette frame
+      lastProgress = progress
+
+      const trackSrc = map.getSource('track') as maplibregl.GeoJSONSource | undefined
+      const headSrc = map.getSource('track-head') as maplibregl.GeoJSONSource | undefined
+      if (!trackSrc || !headSrc) return
+
+      // Hors vol (-1) : piste vide.
+      if (progress < 0) {
+        trackSrc.setData({ type: 'Feature', geometry: { type: 'LineString', coordinates: [] }, properties: {} })
+        headSrc.setData({ type: 'Feature', geometry: { type: 'Point', coordinates: [] }, properties: {} })
+        return
+      }
+
+      // Portion parcourue : les points jusqu'à l'index correspondant à la
+      // progression. La trace s'allonge donc au fil du vol.
+      const n = trackLngLat.length
+      const idx = Math.min(n - 1, Math.max(1, Math.floor(progress * (n - 1)) + 1))
+      const coords = trackLngLat.slice(0, idx + 1)
+      const head = trackLngLat[idx]
+
+      trackSrc.setData({ type: 'Feature', geometry: { type: 'LineString', coordinates: coords }, properties: {} })
+      headSrc.setData({ type: 'Feature', geometry: { type: 'Point', coordinates: head }, properties: {} })
+    }
+
+    raf = requestAnimationFrame(update)
+    return () => cancelAnimationFrame(raf)
+  }, [trackLngLat, flightProgressRef])
 
   return { containerRef }
 }

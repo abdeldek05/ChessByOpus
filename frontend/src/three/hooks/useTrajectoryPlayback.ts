@@ -1,16 +1,12 @@
-import { useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 import type { FlightData, TrajectoryPoint } from '@/lib/api'
-import { sampleLawnRelief } from '@/lib/sampleLawnRelief'
+import { sampleSceneGround } from '@/lib/sampleSceneGround'
 import { PAD_TOP_Y } from '@/three/constants/launchComplex'
-import {
-  TARGET_FLIGHT_EXTENT,
-  TIME_SCALE,
-  LIFTOFF_REAL_SEC,
-  LIFTOFF_TIME_SCALE,
-  BURN_TIME_SEC,
-} from '@/three/constants/flightPlayback'
+import { LAUNCH_CENTER, METERS_PER_SCENE_UNIT } from '@/three/constants/sceneLayout'
+import type { SceneBiome } from '@/types/scene.types'
+import { TIME_SCALE, LIFTOFF_REAL_SEC, LIFTOFF_TIME_SCALE, BURN_TIME_SEC } from '@/three/constants/flightPlayback'
 
 export type PlaybackPhase = 'flying' | 'broken'
 
@@ -23,6 +19,8 @@ interface UseTrajectoryPlaybackParams {
   active: boolean
   /** Origine scène (sommet de rampe) où démarre la trajectoire. */
   origin: THREE.Vector3
+  /** Biome du terrain (prairie/dunes) : détermine le sol de collision. */
+  biome?: SceneBiome
   /** Remontée de la position monde à chaque frame (caméra de suivi). */
   onFrame?: (position: THREE.Vector3, progress: number) => void
 }
@@ -38,17 +36,18 @@ interface UseTrajectoryPlaybackResult {
 }
 
 /**
- * Position scène d'un point de trajectoire. On NORMALISE par la plus grande
- * dimension du vol : `metersPerUnit` est choisi pour que max(apogée, portée)
- * occupe `TARGET_FLIGHT_EXTENT` unités. Ainsi le vol ENTIER tient dans le cadre
- * quel que soit l'angle, en gardant les BONNES proportions. ENU RocketPy :
- * x=est(+X), y=nord(-Z scène), z=altitude(+Y).
+ * Position scène d'un point de trajectoire, à la VRAIE échelle de la scène
+ * (`METERS_PER_SCENE_UNIT`, partagée avec le radar dans
+ * computeRadarSceneOffset) : un vol qui atterrit à 40 km du pas de tir finit
+ * à 40 km de distance scène — plus de normalisation par vol qui recomprimait
+ * chaque trajectoire dans un cadre fixe indépendamment de son ampleur réelle.
+ * ENU RocketPy : x=est(+X), y=nord(-Z scène), z=altitude(+Y).
  */
-function toScene(p: TrajectoryPoint, origin: THREE.Vector3, metersPerUnit: number): THREE.Vector3 {
+function toScene(p: TrajectoryPoint, origin: THREE.Vector3): THREE.Vector3 {
   return new THREE.Vector3(
-    origin.x + p.x / metersPerUnit,
-    origin.y + p.z / metersPerUnit,
-    origin.z - p.y / metersPerUnit,
+    origin.x + p.x / METERS_PER_SCENE_UNIT,
+    origin.y + p.z / METERS_PER_SCENE_UNIT,
+    origin.z - p.y / METERS_PER_SCENE_UNIT,
   )
 }
 
@@ -76,6 +75,7 @@ export function useTrajectoryPlayback({
   flight,
   active,
   origin,
+  biome = 'meadow',
   onFrame,
 }: UseTrajectoryPlaybackParams): UseTrajectoryPlaybackResult {
   const groupRef = useRef<THREE.Group>(null)
@@ -83,6 +83,18 @@ export function useTrajectoryPlayback({
   const brokenElapsed = useRef(0)
   const thrusting = useRef(true)
   const [phase, setPhase] = useState<PlaybackPhase>('flying')
+
+  // Rejeu d'un scénario (replay) : `flight` reçoit une NOUVELLE trajectoire à
+  // chaque lancement, mais ce hook reste monté en permanence (le composant
+  // parent retourne juste `null` sans démonter) — sans ce reset, `phase` et
+  // les compteurs restent bloqués sur l'état du vol PRÉCÉDENT (ex. 'broken'
+  // + débris déjà explosés), et le nouveau vol démarre déjà cassé.
+  useEffect(() => {
+    animElapsed.current = 0
+    brokenElapsed.current = 0
+    thrusting.current = true
+    setPhase('flying')
+  }, [flight])
 
   // Temporaires réutilisés chaque frame (zéro allocation en régime permanent).
   const scratch = useMemo(
@@ -95,30 +107,28 @@ export function useTrajectoryPlayback({
     [],
   )
 
-  // Pré-calcule la spline (échelle normalisée), les temps et l'impact au sol.
+  // Pré-calcule la spline (échelle réelle unique), les temps et l'impact au sol.
   const { curve, times, duration, impact } = useMemo(() => {
     if (!flight || flight.trajectory.length < 2) {
       return { curve: null, times: [] as number[], duration: 0, impact: origin.clone() }
     }
-    // Mètres/unité tel que la plus grande dimension du vol (apogée OU portée)
-    // occupe TARGET_FLIGHT_EXTENT unités → le vol entier tient dans le cadre.
-    const extent = Math.max(1, flight.apogeeM, flight.rangeM)
-    const metersPerUnit = extent / TARGET_FLIGHT_EXTENT
-
-    const positions = flight.trajectory.map((p) => toScene(p, origin, metersPerUnit))
+    const positions = flight.trajectory.map((p) => toScene(p, origin))
     const times = flight.trajectory.map((p) => p.t)
 
     // Spline centripète : passe par tous les points sans oscillation parasite.
     const curve = new THREE.CatmullRomCurve3(positions, false, 'centripetal')
 
-    // Impact posé AU RAS du relief : le dernier point de trajectoire est ramené
-    // à la hauteur du terrain (coordonnées locales au groupe surélevé du pad).
+    // Impact posé AU RAS du sol (relief OU dalle béton) : le dernier point de
+    // trajectoire est ramené à la hauteur du sol. `sampleSceneGround` et
+    // `positions` sont maintenant dans la MÊME échelle (METERS_PER_SCENE_UNIT
+    // partagée) — plus besoin de reconvertir entre deux référentiels distincts.
     const last = positions[positions.length - 1]
     const impact = last.clone()
-    impact.y = sampleLawnRelief(impact.x, impact.z) - PAD_TOP_Y
+    const groundWorldY = sampleSceneGround(impact.x + LAUNCH_CENTER[0], impact.z + LAUNCH_CENTER[2], biome) - PAD_TOP_Y
+    impact.y = origin.y + groundWorldY / METERS_PER_SCENE_UNIT
 
     return { curve, times, duration: flight.flightTimeSec, impact }
-  }, [flight, origin])
+  }, [flight, origin, biome])
 
   useFrame((_, delta) => {
     const group = groupRef.current
@@ -152,6 +162,20 @@ export function useTrajectoryPlayback({
         scratch.desiredQuat.setFromUnitVectors(scratch.up, scratch.tangent.normalize())
         // Nez lissé : slerp amorti indépendant du framerate.
         group.quaternion.slerp(scratch.desiredQuat, 1 - Math.exp(-HEADING_STIFFNESS * dt))
+      }
+
+      // COLLISION avec le sol : en descente, dès que la fusée touche le relief
+      // (collines comprises) OU la dalle béton, elle SE BRISE là — elle ne
+      // traverse plus la map. (Sol et trajectoire dans la MÊME échelle réelle.)
+      if (scratch.tangent.y < 0) {
+        const groundWorldY =
+          sampleSceneGround(scratch.pos.x + LAUNCH_CENTER[0], scratch.pos.z + LAUNCH_CENTER[2], biome) - PAD_TOP_Y
+        const groundLocalY = origin.y + groundWorldY / METERS_PER_SCENE_UNIT
+        if (scratch.pos.y <= groundLocalY + 0.4) {
+          impact.set(scratch.pos.x, groundLocalY, scratch.pos.z)
+          setPhase('broken')
+          return
+        }
       }
 
       thrusting.current = t <= BURN_TIME_SEC

@@ -66,6 +66,7 @@ export const launchSites: LaunchSite[] = [
     elevation: 650,
     timezone: "Asia/Riyadh",
     active: true,
+    biome: "desert",
   },
 ];
 

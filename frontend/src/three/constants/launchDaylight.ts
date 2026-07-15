@@ -11,17 +11,10 @@ export const SUN_DIRECTION: [number, number, number] = [-38, 14, 26]
 // rapprochée pour une shadow-camera exploitable.
 export const SUN_LIGHT_POSITION: [number, number, number] = [-60, 22, 40]
 
-// Réglages du ciel physique <Sky> (drei) — Preetham. Turbidité modérée, forte
-// diffusion Rayleigh pour un ciel golden hour saturé, soleil bas.
+// Position du disque solaire (DaylightSky) : élévation/azimut, bas sur l'horizon.
 export const SKY = {
-  turbidity: 5,
-  rayleigh: 2.6,
-  mieCoefficient: 0.008,
-  mieDirectionalG: 0.86,
-  /** Élévation/azimut du soleil (degrés) — bas sur l'horizon. */
   elevationDeg: 7,
   azimuthDeg: 160,
-  distance: 2000,
 } as const
 
 // Lumière directe + remplissage, teintes chaudes golden hour.
@@ -43,9 +36,30 @@ export const ENVIRONMENT_INTENSITY = 1.1
 export const DAYLIGHT_EXPOSURE = 1.0
 export const DAYLIGHT_BACKGROUND = '#dcc9a8' // brume chaude d'horizon (fond)
 
-// Brume atmosphérique de profondeur (golden hour) : teinte dorée lumineuse qui
-// fond l'horizon et donne l'échelle. Le fog commence à FOG_NEAR_FRAC × terrain
-// et sature à FOG_FAR_FRAC × terrain — dosé pour envelopper sans noyer le radar.
-export const FOG_COLOR = '#e8d3ac'
-export const FOG_NEAR_FRAC = 0.35
-export const FOG_FAR_FRAC = 1.15
+// Brume atmosphérique de profondeur (golden hour) : MÊME couleur que le fond
+// (DAYLIGHT_BACKGROUND) et que l'horizon du SkyDome — c'est cette égalité qui
+// rend le bord du terrain invisible (il se dissout dans le ciel). Le fog
+// (linéaire) commence à FOG_NEAR_FRAC × terrainRadius et sature à
+// FOG_FAR_FRAC × terrainRadius : le pas de tir reste net, l'horizon fond pile
+// au bord du terrain, quel que soit le scénario (radar proche ou à 60 km).
+export const FOG_COLOR = '#dcc9a8'
+export const FOG_NEAR_FRAC = 0.3
+export const FOG_FAR_FRAC = 1.0
+
+// Dégagement du fog EN ALTITUDE : quand la caméra suit la fusée qui monte, la
+// brume dense de l'horizon au sol masquerait la fusée et le vol. Le fog `far`
+// s'ÉLARGIT progressivement avec la hauteur de la caméra (AltitudeFog) — dense
+// au ras du sol (horizon caché, immersif), quasi dégagé en l'air (fusée nette).
+// `FOG_ALTITUDE_START` : hauteur (unités) où le dégagement commence.
+// `FOG_ALTITUDE_FULL` : hauteur où le fog far est à son maximum étendu.
+// `FOG_FAR_ALTITUDE_MULT` : facteur d'élargissement max du far à haute altitude.
+export const FOG_ALTITUDE_START = 40
+export const FOG_ALTITUDE_FULL = 600
+export const FOG_FAR_ALTITUDE_MULT = 6
+
+// Dégradé du dôme de ciel (SkyDome) : zénith bleu doux → horizon brume chaude.
+// L'horizon DOIT rester égal à FOG_COLOR/DAYLIGHT_BACKGROUND (fondu invisible).
+export const SKY_GRADIENT = {
+  zenith: '#8aa8cf',
+  horizon: '#dcc9a8',
+} as const

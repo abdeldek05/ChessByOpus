@@ -21,7 +21,20 @@ export function useMesangeScene(modelPath: string): UseMesangeSceneResult {
   const scene = useMemo(() => original.clone(true), [original])
 
   useLayoutEffect(() => {
+    // Box3.setFromObject mesure en coordonnées MONDE : si `scene` est déjà
+    // enfant d'un parent INCLINÉ (ex. la rampe de tir basculée), la bbox
+    // « monde » de la fusée est déformée par cette rotation parent — l'axe
+    // détecté comme « le plus long » devient FAUX (piège déjà rencontré sur ce
+    // projet, cf. le radar qui tournait en carrousel). On détache
+    // temporairement `scene` de son parent pour ce calcul, afin de mesurer la
+    // géométrie du modèle dans son propre repère, jamais influencée par
+    // l'inclinaison de la rampe.
+    const parent = scene.parent
+    if (parent) parent.remove(scene)
+    scene.position.set(0, 0, 0)
+    scene.rotation.set(0, 0, 0)
     scene.updateMatrixWorld(true)
+
     const initialSize = new THREE.Box3().setFromObject(scene).getSize(new THREE.Vector3())
 
     let longestAxis: 'x' | 'y' | 'z' = 'y'
@@ -78,15 +91,12 @@ export function useMesangeScene(modelPath: string): UseMesangeSceneResult {
     if (noseIsAtBottom) scene.rotateOnAxis(new THREE.Vector3(0, 0, 1), Math.PI)
 
     scene.updateMatrixWorld(true)
-    // Recentrage dans le repère du PARENT (où vit `position`), pas en monde :
-    // sinon un groupe parent décalé (fusée posée sur le banc de tir) serait
-    // soustrait avec le centre et fausserait la position.
-    const parentInverse = new THREE.Matrix4()
-    if (scene.parent) {
-      scene.parent.updateWorldMatrix(true, false)
-      parentInverse.copy(scene.parent.matrixWorld).invert()
-    }
-    const box = new THREE.Box3().setFromObject(scene).applyMatrix4(parentInverse)
+
+    // Recentrage : `scene` est TOUJOURS détachée à ce stade (voir plus haut),
+    // donc sa bbox « monde » EST déjà son repère local — plus besoin de
+    // compenser par l'inverse du parent (qui était d'ailleurs la source du
+    // bug : mesurée avant détachement, une rampe inclinée la faussait).
+    const box = new THREE.Box3().setFromObject(scene)
     const center = box.getCenter(new THREE.Vector3())
     scene.position.set(-center.x, -center.y, -center.z)
 
@@ -97,6 +107,12 @@ export function useMesangeScene(modelPath: string): UseMesangeSceneResult {
         mesh.receiveShadow = true
       }
     })
+
+    // Réattache au VRAI parent (rampe inclinée, groupe de vol, etc.) —
+    // toutes les transformations ci-dessus sont désormais indépendantes de
+    // lui, donc jamais faussées par son inclinaison.
+    if (parent) parent.add(scene)
+    scene.updateMatrixWorld(true)
   }, [scene])
 
   return { scene }

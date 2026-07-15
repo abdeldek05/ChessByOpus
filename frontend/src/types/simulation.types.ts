@@ -1,3 +1,5 @@
+import type { SceneBiome } from '@/types/scene.types'
+
 export interface LaunchSite {
   id: string
   name: string
@@ -9,4 +11,6 @@ export interface LaunchSite {
   timezone: string
   /** Site opérationnel pour le MVP (seuls les actifs sont sélectionnables). */
   active: boolean
+  /** Biome du décor 3D de lancement (défaut : prairie). */
+  biome?: SceneBiome
 }

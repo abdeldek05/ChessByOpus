@@ -4,7 +4,8 @@
       "Bash(node verify_holo.mjs)",
       "Bash(sed -i 's/const PORT = 9247/const PORT = 9251/' verify_holo.mjs)",
       "Bash(sed -i 's|const targets = await getJSON|await sleep\\(1200\\); let targets; for \\(let k=0;k<8;k++\\){ try { targets = await getJSON\\('\"'\"'/json'\"'\"'\\); break } catch { await sleep\\(500\\) } } targets = targets ?? await getJSON|' verify_holo.mjs)",
-      "Bash(echo \"refs-exit=$?\")"
+      "Bash(echo \"refs-exit=$?\")",
+      "Bash(.venv/Scripts/python.exe -c ' *)"
     ]
   }
 }

@@ -7,6 +7,7 @@ import { ImpactBurst } from './ImpactBurst'
 import { useTrajectoryPlayback } from '@/three/hooks/useTrajectoryPlayback'
 import { FLYING_ROCKET_SCALE } from '@/three/constants/flightPlayback'
 import type { FlightData } from '@/lib/api'
+import type { SceneBiome } from '@/types/scene.types'
 
 interface FlyingMesangeProps {
   /** Vraie trajectoire RocketPy à rejouer (null = rien à animer). */
@@ -15,6 +16,8 @@ interface FlyingMesangeProps {
   origin: THREE.Vector3
   /** Vol en cours : anime le tir ; false = rien affiché. */
   active: boolean
+  /** Biome du terrain (prairie/dunes) : sol de collision du crash. */
+  biome?: SceneBiome
   /** Position monde de la fusée à chaque frame (caméra de suivi). */
   onFlightFrame?: (position: THREE.Vector3, progress: number) => void
 }
@@ -26,7 +29,7 @@ interface FlyingMesangeProps {
  * Orchestre le modèle, le panache et les débris ; l'interpolation vit dans le
  * hook. Remonte la position monde (caméra de suivi).
  */
-export function FlyingMesange({ flight, origin, active, onFlightFrame }: FlyingMesangeProps) {
+export function FlyingMesange({ flight, origin, active, biome, onFlightFrame }: FlyingMesangeProps) {
   // Stabilise l'origine (évite un nouveau Vector3 à chaque render → reset hook).
   const originStable = useMemo(() => origin.clone(), [origin.x, origin.y, origin.z])
 
@@ -34,6 +37,7 @@ export function FlyingMesange({ flight, origin, active, onFlightFrame }: FlyingM
     flight,
     active,
     origin: originStable,
+    biome,
     onFrame: onFlightFrame,
   })
 
@@ -43,7 +47,9 @@ export function FlyingMesange({ flight, origin, active, onFlightFrame }: FlyingM
     <>
       {phase === 'flying' && (
         <group ref={groupRef} scale={FLYING_ROCKET_SCALE}>
-          <MesangeStatic />
+          {/* noFog : en altitude la fusée monte au-delà du fog (calé sur le
+              rayon du terrain) — sans ça elle se noierait dans la brume. */}
+          <MesangeStatic noFog />
           {/* Panache d'échappement désactivé le temps de régler la trajectoire. */}
           {/* <ExhaustPlume thrustingRef={thrusting} /> */}
         </group>

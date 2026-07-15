@@ -2,23 +2,24 @@ import { useEffect, useMemo } from 'react'
 import * as THREE from 'three'
 import { mergeBufferGeometries } from 'three-stdlib'
 import { createGrassTexture } from '@/lib/createGrassTexture'
-import { useGrassInstances } from '@/three/hooks/useGrassInstances'
-import { GrassChunk } from './GrassChunk'
+import { useGrassTiles } from '@/three/hooks/useGrassTiles'
+import { GrassTile } from './GrassTile'
+import type { SceneBiome } from '@/types/scene.types'
 
 interface GrassFieldProps {
-  /** Rayon de semis (= tout le terrain visible) — l'herbe couvre toute la map. */
-  radius: number
+  biome: SceneBiome
 }
 
 /**
- * Champ d'herbe instancié couvrant TOUT le terrain : touffes en plans croisés
- * texturés alpha, découpées en SECTEURS frustum-cullés (GrassChunk) — seuls les
- * secteurs dans le champ de la caméra sont dessinés. Matériau en passe OPAQUE
- * (alphaTest seul, pas de tri de transparence) : rendu identique, GPU soulagé.
- * Géométrie et matériau partagés entre tous les secteurs, possédés ici.
+ * Champ d'herbe DENSE PARTOUT sur la map, par STREAMING DE TUILES autour de la
+ * caméra (useGrassTiles) : seules les tuiles proches de la caméra existent à
+ * un instant donné, donc le coût reste borné même si la caméra parcourt des
+ * dizaines de km — l'herbe est aussi dense loin du pas de tir qu'à côté.
+ * Matériau en passe OPAQUE (alphaTest seul, pas de tri de transparence).
+ * Géométrie et matériau partagés entre toutes les tuiles, possédés ici.
  */
-export function GrassField({ radius }: GrassFieldProps) {
-  const chunks = useGrassInstances(radius)
+export function GrassField({ biome }: GrassFieldProps) {
+  const tiles = useGrassTiles()
   const texture = useMemo(() => createGrassTexture(), [])
 
   // Géométrie : deux plans perpendiculaires, pivot ramené à la base (y ∈ [0,1]).
@@ -53,11 +54,16 @@ export function GrassField({ radius }: GrassFieldProps) {
 
   return (
     <>
-      {chunks.map((matrices, index) =>
-        matrices.length > 0 ? (
-          <GrassChunk key={index} matrices={matrices} geometry={geometry} material={material} />
-        ) : null,
-      )}
+      {tiles.map(({ tileX, tileZ }) => (
+        <GrassTile
+          key={`${tileX}:${tileZ}`}
+          tileX={tileX}
+          tileZ={tileZ}
+          biome={biome}
+          geometry={geometry}
+          material={material}
+        />
+      ))}
     </>
   )
 }

@@ -5,7 +5,11 @@ export interface RadarTemplate {
   rangeKm: number
   ceilingM: number
   rotating: boolean
+  /** Vitesse de balayage (tours/min) — l'accroche attend le passage du faisceau. */
+  rotationRpm: number
   minDetectableRcsM2: number
+  /** Hauteur d'antenne (m) — détermine l'horizon radar (courbure terrestre). */
+  antennaHeightM: number
   modelPath: string
   tintColor?: string
 }

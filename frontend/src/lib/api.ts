@@ -2,6 +2,7 @@ import type { LaunchSite } from '@/types/simulation.types'
 import type { RadarConfig } from '@/types/radar.types'
 import type { MesangeLaunchConfig } from '@/types/mission.types'
 import type { ScenarioRecord } from '@/types/scenario.types'
+import type { MissionResult } from '@/types/missionResult.types'
 
 // Client HTTP centralisé pour le back-end (FastAPI, proxifié sous /api).
 // Un seul endroit sait comment parler au serveur : les hooks/UI passent par
@@ -26,9 +27,13 @@ export class ApiError extends Error {
 // on remonte une erreur → l'UI affiche « Échec — réessayer ».
 const REQUEST_TIMEOUT_MS = 8000
 
-async function request<T>(path: string, init?: RequestInit): Promise<T> {
+// /simulate télécharge la météo réelle (GFS) du site en plus de lancer
+// RocketPy : quelques secondes de plus qu'un simple aller-retour DB.
+const SIMULATE_TIMEOUT_MS = 20000
+
+async function request<T>(path: string, init?: RequestInit, timeoutMs = REQUEST_TIMEOUT_MS): Promise<T> {
   const controller = new AbortController()
-  const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS)
+  const timer = setTimeout(() => controller.abort(), timeoutMs)
 
   let response: Response
   try {
@@ -104,6 +109,26 @@ export function listScenarios(): Promise<ScenarioRecord[]> {
 // Le backend lance RocketPy (POST /simulate) avec l'azimut, l'élévation, le site
 // et sa météo, et renvoie la trajectoire échantillonnée + les métriques réelles.
 
+/** Caractéristiques complètes d'un radar posé, envoyées au moteur de détection. */
+export interface RadarSpec {
+  latitude: number
+  longitude: number
+  rangeKm: number
+  ceilingM: number
+  rotating: boolean
+  rotationRpm: number
+  minRcsM2: number
+  antennaHeightM: number
+  detectionThresholdSec: number
+}
+
+/** Une menace du scénario (Roi ou leurre) : rôle, cap et délai de tir. */
+export interface ThreatSpec {
+  role: string
+  azimuthDeg: number
+  launchDelaySec: number
+}
+
 export interface SimulateRequest {
   latitude: number
   longitude: number
@@ -113,17 +138,33 @@ export interface SimulateRequest {
   azimuthDeg: number
   /** Altitude du site (m). */
   siteElevationM?: number
-  /** Température au sol (°C) : influe sur la densité de l'air (traînée). */
+  /** Override manuel (°C) : si fourni, ignore la météo réelle du site. */
   temperatureC?: number
+  /** Date/heure de tir (ISO 8601) : pilote la météo réelle (GFS) du lieu à cet instant. Défaut : maintenant. */
+  launchDateTime?: string
+  /** Radars posés : le moteur radar backend calcule la détection physique. */
+  radars?: RadarSpec[]
+  /** Menaces du scénario (Roi + leurres). */
+  threats?: ThreatSpec[]
 }
 
-/** Un point de trajectoire : temps, position ENU (m) et vitesse (m/s). */
+/** Météo effectivement utilisée par la simulation (vent au sol + source). */
+export interface WeatherInfo {
+  source: 'gfs' | 'standard_atmosphere'
+  groundWindSpeedMs: number
+  groundWindHeadingDeg: number
+  groundTemperatureC: number
+}
+
+/** Un point de trajectoire : temps, position ENU (m), vitesse (m/s), cap et élévation instantanés (deg). */
 export interface TrajectoryPoint {
   t: number
   x: number // est (m)
   y: number // nord (m)
   z: number // altitude sol (m)
   v: number // vitesse (m/s)
+  azimuthDeg: number // cap du vecteur vitesse (0=nord, 90=est)
+  elevationDeg: number // élévation du vecteur vitesse (90=vertical)
 }
 
 export interface FlightData {
@@ -133,6 +174,7 @@ export interface FlightData {
   rangeM: number
   maxSpeedMs: number
   flightTimeSec: number
+  weather: WeatherInfo
 }
 
 export type SimulationStatus = 'ready' | 'failed'
@@ -140,6 +182,8 @@ export type SimulationStatus = 'ready' | 'failed'
 export interface SimulationResponse {
   status: SimulationStatus
   flight?: FlightData
+  /** Bilan du moteur radar backend (null si aucun radar transmis). */
+  detection?: MissionResult | null
   error?: string
 }
 
@@ -149,8 +193,89 @@ export interface SimulationResponse {
  * secondes côté back ; l'appel est donc synchrone et l'UI attend le résultat.
  */
 export async function simulateFlight(payload: SimulateRequest): Promise<SimulationResponse> {
-  return request<SimulationResponse>('/simulate', {
-    method: 'POST',
-    body: JSON.stringify(payload),
-  })
+  return request<SimulationResponse>(
+    '/simulate',
+    { method: 'POST', body: JSON.stringify(payload) },
+    SIMULATE_TIMEOUT_MS,
+  )
+}
+
+// --- Estimation de portée max selon l'azimut du vent et l'élévation ---------
+
+export interface MaxRangeRequest {
+  latitude: number
+  longitude: number
+  siteElevationM?: number
+  /** Date/heure de tir (ISO 8601) : météo réelle (GFS) du lieu à cet instant. */
+  launchDateTime?: string
+  /** Élévations de tir à balayer (deg). Défaut backend : [90, 80, 70, 60, 45]. */
+  elevationsDeg?: number[]
+  /** Pas d'azimut du balayage (deg). Défaut backend : 15. */
+  azimuthStepDeg?: number
+}
+
+/** Portée obtenue pour un couple (élévation, azimut) donné. */
+export interface MaxRangeRun {
+  elevationDeg: number
+  azimuthDeg: number
+  rangeM: number
+  apogeeM: number
+}
+
+export interface MaxRangeResponse {
+  status: SimulationStatus
+  weather?: Pick<WeatherInfo, 'source' | 'groundWindSpeedMs' | 'groundWindHeadingDeg'>
+  runs?: MaxRangeRun[]
+  maxRange?: MaxRangeRun
+  error?: string
+}
+
+/**
+ * Balaie les azimuts sous la météo réelle du site (vent GFS) pour estimer,
+ * par élévation de tir, la distance max au sol atteignable selon l'azimut
+ * choisi par rapport au vent.
+ */
+// Enchaîne des dizaines de vols RocketPy (un par azimut/élévation) : plus long
+// qu'un seul /simulate.
+const MAX_RANGE_TIMEOUT_MS = 60000
+
+export async function estimateMaxRange(payload: MaxRangeRequest): Promise<MaxRangeResponse> {
+  return request<MaxRangeResponse>(
+    '/simulate/max-range',
+    { method: 'POST', body: JSON.stringify(payload) },
+    MAX_RANGE_TIMEOUT_MS,
+  )
+}
+
+// --- Majorant rapide de portée max (carte de placement du radar) -----------
+
+export interface MaxRangeQuickRequest {
+  latitude: number
+  longitude: number
+  siteElevationM?: number
+  launchDateTime?: string
+}
+
+export interface MaxRangeQuickResponse {
+  status: SimulationStatus
+  maxRangeM?: number
+  weather?: Pick<WeatherInfo, 'source' | 'groundWindSpeedMs' | 'groundWindHeadingDeg'>
+  error?: string
+}
+
+// Quelques vols RocketPy (pas un balayage complet) : plus rapide que
+// /simulate/max-range, mais dépasse largement le timeout par défaut.
+const MAX_RANGE_QUICK_TIMEOUT_MS = 30000
+
+/**
+ * Majorant rapide (toutes directions confondues) de la distance max
+ * atteignable sous la météo réelle du site — affiché sur la carte de
+ * placement du radar, avant que l'azimut/élévation de tir ne soient choisis.
+ */
+export async function estimateMaxRangeQuick(payload: MaxRangeQuickRequest): Promise<MaxRangeQuickResponse> {
+  return request<MaxRangeQuickResponse>(
+    '/simulate/max-range-quick',
+    { method: 'POST', body: JSON.stringify(payload) },
+    MAX_RANGE_QUICK_TIMEOUT_MS,
+  )
 }
