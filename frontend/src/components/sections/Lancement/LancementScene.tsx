@@ -4,6 +4,7 @@ import { LaunchStage } from './LaunchStage'
 import { DayNightToggle } from './DayNightToggle'
 import { LaunchHud } from './LaunchHud'
 import { LaunchTacticalMap } from './LaunchTacticalMap'
+import { CorridorLegend } from './CorridorLegend'
 import { MissionBilan } from './MissionBilan'
 import { FlightTelemetryChart } from './FlightTelemetryChart'
 import { useLaunchSequence } from '@/hooks/useLaunchSequence'
@@ -170,6 +171,10 @@ export function LancementScene({ state }: LancementSceneProps) {
       )}
 
       {false && sequence.phase === 'done' && <FlightTelemetryChart flight={sequence.flight} />}
+
+      {/* Légende du corridor de visibilité : visible dès qu'un vol est lancé
+          (running) et jusqu'à la fin, pour expliquer le tracé coloré. */}
+      {(sequence.phase === 'running' || sequence.phase === 'done') && <CorridorLegend />}
 
       <LaunchTacticalMap
         site={state.site}

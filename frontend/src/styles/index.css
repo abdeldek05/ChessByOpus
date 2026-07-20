@@ -262,6 +262,28 @@ body {
   background: var(--color-border);
 }
 
+/* Panneau holographique (légende du corridor de visibilité) : fond flouté
+   translucide + liseré laiton fin, coin biseauté — lit comme une projection
+   plutôt qu'une boîte pleine. */
+.hud-holo {
+  background: color-mix(in srgb, var(--color-bg) 55%, transparent);
+  backdrop-filter: blur(6px);
+  border: 1px solid color-mix(in srgb, var(--color-accent-bright) 30%, transparent);
+  clip-path: polygon(12px 0, 100% 0, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0 100%, 0 12px);
+}
+
+/* Pastilles de la légende du corridor : mêmes teintes que le corridor 3D
+   (voir three/constants/visibilityCorridor.ts), en hex CSS opaque. */
+.corridor-dot--r1 {
+  background: #3bff9e;
+}
+.corridor-dot--r2 {
+  background: #ffb648;
+}
+.corridor-dot--blind {
+  background: #ff5470;
+}
+
 /* Curseur (range) stylé et fluide — remplace le range natif qui rendait mal.
    Piste douce + pastille laiton qui grossit au survol. */
 .range-brass {

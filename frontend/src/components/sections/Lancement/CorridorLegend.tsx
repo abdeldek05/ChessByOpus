@@ -23,9 +23,9 @@ export function CorridorLegend() {
         The trail behind the threat shows, at each instant, whether a radar can see it.
       </p>
       <ul className="mt-3 space-y-1.5">
-        {LEGEND.map(({ color, label }) => (
+        {LEGEND.map(({ dot, label }) => (
           <li key={label} className="flex items-center gap-2.5">
-            <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: color }} />
+            <span className={`h-2.5 w-2.5 rounded-full ${dot}`} />
             <span className="font-mono text-[11px] text-ink-dim">{label}</span>
           </li>
         ))}
