@@ -2,14 +2,15 @@
 // `unitsPerRepeat` : combien d'unités de scène couvre une tuile de texture.
 
 export const LAWN = {
-  // Palette d'herbe RÉALISTE et variée (golden hour) : du vert foncé humide au
-  // vert clair, puis jaune-vert et taches sèches jaunies/brunies — un vrai champ
-  // n'est jamais d'un vert uniforme.
-  colorDark: '#33421f', // vert foncé (creux humides)
-  colorMid: '#556b2c', // vert moyen dominant
-  colorLight: '#7c8f3e', // vert clair (crêtes exposées)
-  colorYellow: '#a8a24e', // jaune-vert (herbe qui jaunit)
-  colorDry: '#9c8348', // sec / paille (patchs)
+  // Palette d'herbe VERTE luxuriante : dominante verte fraîche et saturée,
+  // le soleil golden hour vient juste réchauffer les crêtes exposées (colorLight)
+  // sans jamais virer au jaune/doré. ACCORDÉE à GRASS_COLORS (three/models).
+  // Luminosité remontée (colorDark était proche du noir → sol trop sombre).
+  colorDark: '#274a1c', // vert ombré (creux à l'ombre), lisible mais sombre
+  colorMid: '#4f7d38', // vert franc moyen, dominant
+  colorLight: '#96c95f', // vert clair lumineux (crêtes exposées au soleil)
+  colorYellow: '#a8a94c', // vert-jaune discret (variation naturelle, pas dominant)
+  colorDry: '#8a7a3a', // patchs secs occasionnels (jamais dominant sur une prairie fraîche)
   unitsPerRepeat: 5,
 }
 

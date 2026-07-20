@@ -9,11 +9,7 @@ import {
   ROCK_VARIANT_SEED,
   ROCK_SCATTER,
 } from '@/three/constants/rocks'
-import type { SceneBiome } from '@/types/scene.types'
-
 interface RockFieldProps {
-  /** Biome du terrain : chaque rocher se pose sur le sol correspondant. */
-  biome?: SceneBiome
   /** Rayon du terrain (= bord du scénario) — plafonne la portée du semis. */
   terrainRadius: number
 }
@@ -25,12 +21,11 @@ interface RockFieldProps {
  * fixes. Chaque instance du semis est assignée à une variante par son index
  * (répartition round-robin déterministe) → un InstancedMesh par variante.
  */
-export function RockField({ biome = 'meadow', terrainRadius }: RockFieldProps) {
+export function RockField({ terrainRadius }: RockFieldProps) {
   const geometries = useRockVariants(ROCK_VARIANT_COUNT, ROCK_BASE_RADIUS, ROCK_VARIANT_SEED)
   const matrices = useScatterInstances({
     ...ROCK_SCATTER,
     cutoffRadius: Math.min(ROCK_SCATTER.cutoffRadius, terrainRadius),
-    biome,
   })
 
   // Répartit les matrices du semis entre les variantes (round-robin).

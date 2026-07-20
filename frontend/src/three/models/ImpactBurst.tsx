@@ -1,4 +1,4 @@
-import { useMemo, useRef } from 'react'
+import { useEffect, useMemo, useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 import { makeRng } from '@/lib/makeRng'
@@ -48,6 +48,9 @@ export function ImpactBurst({ elapsedRef }: ImpactBurstProps) {
   const lightRef = useRef<THREE.PointLight>(null)
 
   const texture = useMemo(() => createParticleTexture(0.65), [])
+  // Démonté puis remonté à chaque rejeu (retour phase flying) : dispose obligatoire
+  // pour ne pas accumuler une texture par lancement sur la session.
+  useEffect(() => () => texture.dispose(), [texture])
 
   const { dust, smoke } = useMemo(() => {
     const rng = makeRng(4242)

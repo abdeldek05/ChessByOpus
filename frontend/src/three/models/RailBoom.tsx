@@ -10,7 +10,8 @@ export function RailBoom() {
 
   return (
     <mesh geometry={geometry} castShadow receiveShadow>
-      <meshStandardMaterial color={RAIL_COLORS.boom} metalness={0.6} roughness={0.4} />
+      {/* IBL réelle (HDRI) : reflets nets sur l'acier du fût — voir RailBase. */}
+      <meshStandardMaterial color={RAIL_COLORS.boom} metalness={0.65} roughness={0.35} envMapIntensity={1.2} />
     </mesh>
   )
 }

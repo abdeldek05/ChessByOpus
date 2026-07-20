@@ -1,7 +1,6 @@
 import { useMemo } from 'react'
 import * as THREE from 'three'
-import { sampleTerrainHeight } from '@/lib/sampleTerrainHeight'
-import type { SceneBiome } from '@/types/scene.types'
+import { sampleGroundHeight } from '@/lib/sampleGroundHeight'
 
 export interface ScatterParams {
   /** Nombre d'instances visé. */
@@ -16,7 +15,6 @@ export interface ScatterParams {
   baseScale: number
   /** Variation ± de l'échelle (0-1). */
   scaleJitter: number
-  biome: SceneBiome
   /** Enfoncement sous le sol (unités) pour ancrer roches/troncs. */
   sink?: number
 }
@@ -34,13 +32,13 @@ function makeRng(seed: number) {
 
 /**
  * Semis générique d'instances sur TOUTE la map : matrices posées au ras du
- * relief unifié (sampleTerrainHeight), réparties dans l'anneau
+ * relief (sampleGroundHeight, source de vérité unique), réparties dans l'anneau
  * [innerRadius, outerRadius] avec une densité surfacique décroissante douce
  * (plus dense près du centre, plus rare au loin), échelle et rotation variées.
  * Réutilisable pour arbres, roches, buissons (étape 4 ajustera les profils).
  */
 export function useScatterInstances(params: ScatterParams): THREE.Matrix4[] {
-  const { count, innerRadius, cutoffRadius, seed, baseScale, scaleJitter, biome, sink = 0 } = params
+  const { count, innerRadius, cutoffRadius, seed, baseScale, scaleJitter, sink = 0 } = params
   return useMemo(() => {
     const rng = makeRng(seed)
     const matrices: THREE.Matrix4[] = []
@@ -57,7 +55,7 @@ export function useScatterInstances(params: ScatterParams): THREE.Matrix4[] {
       const r = innerRadius + u * (cutoffRadius - innerRadius)
       const x = Math.cos(angle) * r
       const z = Math.sin(angle) * r
-      const y = sampleTerrainHeight(x, z, biome) - sink
+      const y = sampleGroundHeight(x, z) - sink
 
       const s = baseScale * (1 + (rng() - 0.5) * 2 * scaleJitter)
       pos.set(x, y, z)
@@ -66,5 +64,5 @@ export function useScatterInstances(params: ScatterParams): THREE.Matrix4[] {
       matrices.push(new THREE.Matrix4().compose(pos, quat, scale))
     }
     return matrices
-  }, [count, innerRadius, cutoffRadius, seed, baseScale, scaleJitter, biome, sink])
+  }, [count, innerRadius, cutoffRadius, seed, baseScale, scaleJitter, sink])
 }

@@ -10,6 +10,7 @@ const Simulation = lazy(() => import('@/pages/Simulation').then((m) => ({ defaul
 const Mission = lazy(() => import('@/pages/Mission').then((m) => ({ default: m.Mission })))
 const Historique = lazy(() => import('@/pages/Historique').then((m) => ({ default: m.Historique })))
 const Lancement = lazy(() => import('@/pages/Lancement').then((m) => ({ default: m.Lancement })))
+const Analytics = lazy(() => import('@/pages/Analytics').then((m) => ({ default: m.Analytics })))
 
 export default function App() {
   return (
@@ -21,6 +22,7 @@ export default function App() {
         <Route path="/mission" element={<Mission />} />
         <Route path="/historique" element={<Historique />} />
         <Route path="/lancement" element={<Lancement />} />
+        <Route path="/analytics" element={<Analytics />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
     </Suspense>

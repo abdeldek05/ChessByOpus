@@ -1,24 +1,26 @@
-@import "@fontsource/saira/400.css";
-@import "@fontsource/saira/500.css";
-@import "@fontsource/saira/600.css";
-@import "@fontsource/chakra-petch/500.css";
-@import "@fontsource/chakra-petch/600.css";
+/* Trois familles, pas une de plus : Montserrat (texte/UI/données), Anton (gros
+   titres display), Jost (accents FINS/légers pour aérer). */
 @import "@fontsource/montserrat/400.css";
 @import "@fontsource/montserrat/500.css";
 @import "@fontsource/montserrat/600.css";
 @import "@fontsource/montserrat/700.css";
-@import "@fontsource/spline-sans-mono/400.css";
-@import "@fontsource/spline-sans-mono/500.css";
-@import "@fontsource/spline-sans-mono/600.css";
+@import "@fontsource/anton/400.css";
+@import "@fontsource/jost/300.css";
+@import "@fontsource/jost/400.css";
 @import "tailwindcss";
 @import "./animations.css";
 
 @theme {
-  --font-sans: "Saira", system-ui, sans-serif;
-  --font-mono: "Chakra Petch", ui-monospace, monospace;
-  /* Refonte /simulation : Montserrat (titres/UI) + mono télémétrie (données). */
+  /* Montserrat = police d'UI par défaut (sans/mono/display/data) : tout le texte
+     courant reste propre et lisible. Anton (`font-title`) est RÉSERVÉ aux gros
+     titres hero, jamais l'UI courante (sinon tout devient lourd et gras). Jost
+     light (`font-fine`) = accents fins (labels de carte, sous-titres). */
+  --font-sans: "Montserrat", system-ui, sans-serif;
+  --font-mono: "Montserrat", system-ui, sans-serif;
   --font-display: "Montserrat", system-ui, sans-serif;
-  --font-data: "Spline Sans Mono", ui-monospace, monospace;
+  --font-data: "Montserrat", system-ui, sans-serif;
+  --font-fine: "Jost", "Montserrat", system-ui, sans-serif;
+  --font-title: "Anton", "Montserrat", system-ui, sans-serif;
 
   /* Fond : anthracite doux (plus tout à fait noir pur, moins "vantablack"). */
   --color-bg: #101210;
@@ -40,6 +42,9 @@
   --color-accent-bright: #cdbb98;
   --color-ok: #8fe28a;
   --color-alert: #e0584f;
+  /* Orange d'alerte « lancement » : teinte du glow du bouton LAUNCH (mêmes
+     217,138,61 que ses ombres). Utilisé par les classes text-/bg-/border-warning. */
+  --color-warning: #d98a3d;
 
   /* Identité radar : même laiton que le pas de tir — une seule famille de
      couleur HUD dans toute l'app, pas de couleur dédiée par fonction. */
@@ -61,10 +66,6 @@
   --color-ink-faint: #62666c;
   --color-accent: #94866e;
   --color-accent-bright: #a89a7f;
-  /* Dans ce thème, tout passe en Montserrat (le client trouvait le mono
-     moche) : on redirige font-mono/font-sans vers la display. */
-  --font-sans: "Montserrat", system-ui, sans-serif;
-  --font-mono: "Montserrat", system-ui, sans-serif;
   color-scheme: dark;
 }
 
@@ -190,10 +191,12 @@ body {
   margin-left: 9px;
   transform: translateY(-50%);
   white-space: nowrap;
-  font-family: var(--font-display);
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.02em;
+  /* Jost light : label fin et discret. Anton (display) rendait ces petits
+     labels trop gros/gras et lourds à l'œil. */
+  font-family: var(--font-fine);
+  font-size: 10px;
+  font-weight: 300;
+  letter-spacing: 0.08em;
   color: var(--color-ink);
   text-shadow:
     0 0 4px var(--color-bg),
@@ -316,7 +319,7 @@ body {
   content: "";
   position: absolute;
   top: 50%;
-  width: 40px;
+  width: 110px;
   height: 1px;
   background: var(--color-border);
 }
@@ -325,5 +328,52 @@ body {
 }
 .hud-callout--right::before {
   left: 100%;
+}
+
+/* Coins biseautés du HUD (angulaire) : même polygone qu'avant, sorti des
+   style={{ clipPath }} inline vers des classes (taille de coupe = suffixe px). */
+.clip-corner-10 {
+  clip-path: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px);
+}
+.clip-corner-14 {
+  clip-path: polygon(14px 0, 100% 0, 100% calc(100% - 14px), calc(100% - 14px) 100%, 0 100%, 0 14px);
+}
+.clip-corner-18 {
+  clip-path: polygon(18px 0, 100% 0, 100% calc(100% - 18px), calc(100% - 18px) 100%, 0 100%, 0 18px);
+}
+
+/* Halo sombre du bouton bascule jour/nuit. */
+.hud-btn-glow {
+  box-shadow: 0 0 24px rgba(0, 0, 0, 0.35);
+}
+
+/* Glow orange du bouton LAUNCH (token --color-warning) : DEUX couches (halo
+   large et diffus + halo resserré) pour un rayonnement qui a du volume plutôt
+   qu'un flou plat uniforme — c'est le bouton le plus important de toute
+   l'app, il doit se sentir comme tel. */
+.launch-btn-glow {
+  box-shadow:
+    0 0 70px color-mix(in srgb, var(--color-warning) 22%, transparent),
+    0 0 28px color-mix(in srgb, var(--color-warning) 38%, transparent);
+}
+.launch-btn-glow:hover {
+  box-shadow:
+    0 0 100px color-mix(in srgb, var(--color-warning) 32%, transparent),
+    0 0 42px color-mix(in srgb, var(--color-warning) 58%, transparent);
+}
+/* Remplissage en dégradé du bouton LAUNCH : fondu diagonal (plus dense vers
+   le coin coupé) au lieu d'un aplat uniforme — donne de la profondeur au
+   panneau sans ajouter de bordure ni de décoration superflue. */
+.launch-btn-fill {
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--color-warning) 20%, transparent) 0%,
+    color-mix(in srgb, var(--color-warning) 7%, transparent) 55%,
+    transparent 100%
+  );
+}
+/* Halo du grand compte à rebours. */
+.countdown-glow {
+  filter: drop-shadow(0 0 50px color-mix(in srgb, var(--color-warning) 60%, transparent));
 }
 

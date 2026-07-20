@@ -5,23 +5,25 @@ interface LaunchHudProps {
   radarName: string
   phase: LaunchPhase
   countdown: number
+  /** Message d'état / d'erreur de la séquence — affiché quand la simu échoue. */
+  message: string
   /** Déclenche la séquence de lancement (bouton LANCER). */
   onLaunch: () => void
   onReplay: () => void
+  /** Ouvre la page analytics post-simulation (absent tant qu'aucun vol). */
+  onAnalytics?: () => void
 }
-
-const CLIP = 'polygon(14px 0, 100% 0, 100% calc(100% - 14px), calc(100% - 14px) 100%, 0 100%, 0 14px)'
-const CLIP_BTN = 'polygon(18px 0, 100% 0, 100% calc(100% - 18px), calc(100% - 18px) 100%, 0 100%, 0 18px)'
 
 /**
  * Surcouche minimale de la scène : identité mission (haut-droite), grand bouton
  * LANCER (armé), compte à rebours plein écran, puis bouton REJOUER. Le bouton
  * LANCER est un vrai bouton 2D (pas la console 3D). Style HUD angulaire.
  */
-export function LaunchHud({ siteName, radarName, phase, countdown, onLaunch, onReplay }: LaunchHudProps) {
+export function LaunchHud({ siteName, radarName, phase, countdown, message, onLaunch, onReplay, onAnalytics }: LaunchHudProps) {
   const finished = phase === 'done' || phase === 'error'
   const running = phase === 'running'
   const armed = phase === 'armed'
+  const failed = phase === 'error'
 
   return (
     <div className="pointer-events-none absolute inset-0 font-mono">
@@ -31,27 +33,50 @@ export function LaunchHud({ siteName, radarName, phase, countdown, onLaunch, onR
         <p className="text-xs text-ink">{radarName}</p>
       </div>
 
-      {/* Grand bouton LANCER (phase armée) */}
+      {/* Grand bouton LANCER (phase armée) : le bouton le plus important de
+          toute l'app — label d'état façon console au-dessus, indicateur
+          « armé » en ping superposé (pas un simple point), glow à deux
+          couches (voir index.css) et léger zoom au survol pour un vrai
+          retour tactile. */}
       {armed && (
-        <div className="absolute bottom-16 left-1/2 -translate-x-1/2">
+        <div className="absolute bottom-16 left-1/2 flex -translate-x-1/2 flex-col items-center gap-2.5">
+          <span className="font-fine text-[10px] font-light tracking-[0.35em] text-warning/70 uppercase">
+            Systems armed
+          </span>
           <button
             type="button"
             onClick={onLaunch}
-            className="group pointer-events-auto flex items-center gap-3 border-2 border-warning/60 bg-warning/10 px-10 py-4 text-lg font-bold tracking-[0.32em] text-warning uppercase shadow-[0_0_40px_rgba(217,138,61,0.35)] transition-all hover:bg-warning/25 hover:shadow-[0_0_60px_rgba(217,138,61,0.6)]"
-            style={{ clipPath: CLIP_BTN }}
+            className="clip-corner-18 launch-btn-glow launch-btn-fill group pointer-events-auto flex items-center gap-3 border-2 border-warning/60 px-10 py-4 text-lg font-bold tracking-[0.32em] text-warning uppercase transition-all duration-300 hover:scale-[1.03] hover:border-warning"
           >
-            <span className="h-3 w-3 animate-pulse rounded-full bg-warning" />
+            <span className="relative flex h-3 w-3">
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-warning opacity-60" />
+              <span className="relative inline-flex h-3 w-3 rounded-full bg-warning" />
+            </span>
             LAUNCH
           </button>
         </div>
       )}
 
-      {/* Compte à rebours plein écran */}
-      {phase === 'countdown' && countdown > 0 && (
-        <div className="absolute inset-0 flex items-center justify-center">
-          <span className="text-[13rem] leading-none font-bold text-warning drop-shadow-[0_0_50px_rgba(217,138,61,0.6)]">
-            {countdown}
-          </span>
+      {/* Compte à rebours plein écran, puis « GO » + indicateur de CALCUL : le
+          backend met ~7 s (plus au 1er appel, météo à télécharger) à produire
+          la trajectoire, bien plus que les 3 s de décompte. Sans ce retour
+          visuel, l'écran restait FIGÉ sur « GO » plusieurs secondes → semblait
+          planté. Le pulse « Computing trajectory… » montre que ça travaille. */}
+      {phase === 'countdown' && (
+        <div className="absolute inset-0 flex flex-col items-center justify-center gap-6">
+          {countdown > 0 ? (
+            <span className="countdown-glow text-[13rem] leading-none font-bold text-warning">{countdown}</span>
+          ) : (
+            <>
+              <span className="countdown-glow text-[9rem] leading-none font-bold text-warning">GO</span>
+              <div className="flex items-center gap-3">
+                <span className="h-2.5 w-2.5 animate-ping rounded-full bg-accent-bright" />
+                <span className="font-fine text-xs font-light tracking-[0.3em] text-accent-bright uppercase">
+                  Computing trajectory…
+                </span>
+              </div>
+            </>
+          )}
         </div>
       )}
 
@@ -63,17 +88,37 @@ export function LaunchHud({ siteName, radarName, phase, countdown, onLaunch, onR
         </div>
       )}
 
-      {/* Bouton rejouer */}
+      {/* Échec de simulation : message CLAIR (avant, l'erreur était muette — le
+          panneau bilan étant désactivé — donc « ça ne se lance pas » sans
+          explication). Le bouton REPLAY ci-dessous permet de réessayer. */}
+      {failed && (
+        <div className="absolute bottom-20 left-1/2 flex -translate-x-1/2 flex-col items-center gap-1 text-center">
+          <p className="font-fine text-[11px] font-light tracking-[0.28em] text-alert uppercase">
+            Simulation failed
+          </p>
+          {message && <p className="max-w-xs text-[11px] text-ink-dim">{message}</p>}
+        </div>
+      )}
+
+      {/* Boutons de fin de simulation : rejouer + analytics */}
       {finished && (
-        <div className="absolute bottom-7 left-1/2 -translate-x-1/2">
+        <div className="absolute bottom-7 left-1/2 flex -translate-x-1/2 items-center gap-3">
           <button
             type="button"
             onClick={onReplay}
-            className="pointer-events-auto flex items-center gap-2 border border-accent-bright/40 bg-accent-bright/10 py-2.5 pr-5 pl-4 text-[10px] font-bold tracking-[0.24em] text-accent-bright transition-colors hover:bg-accent-bright/20"
-            style={{ clipPath: CLIP }}
+            className="clip-corner-14 pointer-events-auto flex items-center gap-2 border border-accent-bright/40 bg-accent-bright/10 py-2.5 pr-5 pl-4 text-[10px] font-bold tracking-[0.24em] text-accent-bright transition-colors hover:bg-accent-bright/20"
           >
             ⟳ REPLAY
           </button>
+          {onAnalytics && (
+            <button
+              type="button"
+              onClick={onAnalytics}
+              className="clip-corner-14 pointer-events-auto flex items-center gap-2 border border-warning/40 bg-warning/10 py-2.5 pr-5 pl-4 text-[10px] font-bold tracking-[0.24em] text-warning transition-colors hover:bg-warning/20"
+            >
+              ▤ ANALYTICS
+            </button>
+          )}
         </div>
       )}
     </div>

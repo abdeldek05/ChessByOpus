@@ -24,6 +24,11 @@ export function useFitCameraToObject(
   const center = useRef(new THREE.Vector3())
   const desiredDistance = useRef(16)
   const lastAspect = useRef(0)
+  // Temporaires de mesure hissés hors de la boucle : réutilisés à chaque frame
+  // tant que le modèle n'est pas stabilisé, au lieu d'allouer un Box3 + une
+  // Sphere par frame.
+  const scratchBox = useRef(new THREE.Box3())
+  const scratchSphere = useRef(new THREE.Sphere())
   // Vrai une fois la taille du modèle stabilisée (fin du décodage Draco async).
   const settled = useRef(false)
 
@@ -45,7 +50,7 @@ export function useFitCameraToObject(
     // à l'autre. On remesure chaque frame jusqu'à ce que le rayon SE STABILISE
     // (deux mesures proches d'affilée), puis on fige.
     if (!settled.current && target) {
-      const sphere = new THREE.Box3().setFromObject(target).getBoundingSphere(new THREE.Sphere())
+      const sphere = scratchBox.current.setFromObject(target).getBoundingSphere(scratchSphere.current)
       if (sphere.radius > 0) {
         // Stable si la nouvelle mesure est très proche de la précédente.
         if (Math.abs(sphere.radius - radius.current) < radius.current * 0.02) {

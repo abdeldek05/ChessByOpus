@@ -1,17 +1,7 @@
 import { useEffect, useMemo, useRef } from 'react'
 import maplibregl from 'maplibre-gl'
-import { buildRangeCircle } from '@/lib/geoCircle'
-import { buildSightCone } from '@/lib/geoSightCone'
-import { createLabeledMarker } from '@/lib/mapMarker'
 import { enuToLatLon } from '@/lib/enuToLatLon'
-import {
-  TACTICAL_MAP_STYLE,
-  COVERAGE_COLOR,
-  THREAT_CONE_COLOR,
-  RING_COLOR,
-  RING_STEPS_KM,
-  TRACK_COLOR,
-} from '@/lib/launchTacticalMap'
+import { TACTICAL_MAP_STYLE, drawTacticalOverlay } from '@/lib/launchTacticalMap'
 import type { LaunchSite } from '@/types/simulation.types'
 import type { PlacedRadar } from '@/types/mission.types'
 import type { FlightData } from '@/lib/api'
@@ -42,10 +32,9 @@ function setInteractive(map: maplibregl.Map, on: boolean) {
 /**
  * Carte tactique de l'écran de lancement : vue de dessus à l'échelle réelle,
  * là où la distance est FIDÈLE (la scène 3D montre le pas de tir grandeur
- * nature). Épurée : quelques anneaux de distance discrets, le cône d'azimut de
- * la MENACE (depuis le pas de tir), et pour chaque radar sa couverture + un
- * trait de liaison. Radars statiques (plus de faisceau tournant). Read-only en
- * compact ; pan/zoom actifs une fois agrandie.
+ * nature). Épurée : anneaux de distance, cône d'azimut de la MENACE, et pour
+ * chaque radar sa couverture + un trait de liaison (dessin → lib/launchTacticalMap).
+ * Read-only en compact ; pan/zoom actifs une fois agrandie.
  */
 export function useLaunchTacticalMap({
   site,
@@ -90,107 +79,7 @@ export function useLaunchTacticalMap({
     })
     mapRef.current = map
 
-    const draw = () => {
-      // Anneaux de distance, discrets, centrés sur le pas de tir.
-      RING_STEPS_KM.filter((km) => km <= maxRangeKm).forEach((km) => {
-        const ring = buildRangeCircle(site.longitude, site.latitude, km)
-        map.addSource(`ring-${km}`, {
-          type: 'geojson',
-          data: { type: 'Feature', geometry: { type: 'LineString', coordinates: ring }, properties: {} },
-        })
-        map.addLayer({
-          id: `ring-${km}`,
-          type: 'line',
-          source: `ring-${km}`,
-          paint: { 'line-color': RING_COLOR, 'line-width': 1, 'line-opacity': 0.35 },
-        })
-      })
-
-      // Cône d'azimut de la MENACE (depuis le pas de tir), trait fin.
-      const cone = buildSightCone(site.longitude, site.latitude, azimuthDeg, maxRangeKm * 1.1)
-      map.addSource('cone', {
-        type: 'geojson',
-        data: { type: 'Feature', geometry: { type: 'Polygon', coordinates: [cone] }, properties: {} },
-      })
-      map.addLayer({ id: 'cone-fill', type: 'fill', source: 'cone', paint: { 'fill-color': THREAT_CONE_COLOR, 'fill-opacity': 0.12 } })
-      map.addLayer({
-        id: 'cone-line',
-        type: 'line',
-        source: 'cone',
-        layout: { 'line-cap': 'round', 'line-join': 'round' },
-        paint: { 'line-color': THREAT_CONE_COLOR, 'line-width': 1.4, 'line-opacity': 0.8 },
-      })
-
-      // Par radar posé : couverture (trait fin) + liaison discrète + marqueur.
-      placed.forEach((radar, index) => {
-        const { longitude: rLng, latitude: rLat } = radar.position!
-        const label = placed.length > 1 ? `Radar ${index + 1}` : 'Radar'
-
-        const coverage = buildRangeCircle(rLng, rLat, radar.config.rangeKm)
-        map.addSource(`cov-${radar.id}`, {
-          type: 'geojson',
-          data: { type: 'Feature', geometry: { type: 'Polygon', coordinates: [coverage] }, properties: {} },
-        })
-        map.addLayer({ id: `cov-fill-${radar.id}`, type: 'fill', source: `cov-${radar.id}`, paint: { 'fill-color': COVERAGE_COLOR, 'fill-opacity': 0.04 } })
-        map.addLayer({
-          id: `cov-line-${radar.id}`,
-          type: 'line',
-          source: `cov-${radar.id}`,
-          paint: { 'line-color': COVERAGE_COLOR, 'line-width': 1, 'line-dasharray': [4, 4], 'line-opacity': 0.5 },
-        })
-
-        map.addSource(`link-${radar.id}`, {
-          type: 'geojson',
-          data: {
-            type: 'Feature',
-            geometry: { type: 'LineString', coordinates: [[site.longitude, site.latitude], [rLng, rLat]] },
-            properties: {},
-          },
-        })
-        map.addLayer({
-          id: `link-${radar.id}`,
-          type: 'line',
-          source: `link-${radar.id}`,
-          layout: { 'line-cap': 'round' },
-          paint: { 'line-color': COVERAGE_COLOR, 'line-width': 1.2, 'line-opacity': 0.6 },
-        })
-
-        createLabeledMarker(map, [rLng, rLat], 'radar-marker', label)
-      })
-
-      createLabeledMarker(map, [site.longitude, site.latitude], 'launch-marker launch-marker--origin', 'Launch pad')
-
-      // PISTE de la menace (dessinée en direct par la boucle rAF ci-dessous) :
-      // une source de TRACE (LineString qui s'allonge) + une source de TÊTE
-      // (point de position actuelle). Créées vides, alimentées pendant le vol.
-      map.addSource('track', {
-        type: 'geojson',
-        data: { type: 'Feature', geometry: { type: 'LineString', coordinates: [] }, properties: {} },
-      })
-      map.addLayer({
-        id: 'track',
-        type: 'line',
-        source: 'track',
-        layout: { 'line-cap': 'round', 'line-join': 'round' },
-        paint: { 'line-color': TRACK_COLOR, 'line-width': 2, 'line-opacity': 0.9 },
-      })
-      map.addSource('track-head', {
-        type: 'geojson',
-        data: { type: 'Feature', geometry: { type: 'Point', coordinates: [] }, properties: {} },
-      })
-      map.addLayer({
-        id: 'track-head',
-        type: 'circle',
-        source: 'track-head',
-        paint: {
-          'circle-radius': 4,
-          'circle-color': TRACK_COLOR,
-          'circle-stroke-width': 1.5,
-          'circle-stroke-color': '#0b0d10',
-        },
-      })
-    }
-
+    const draw = () => drawTacticalOverlay(map, site, placed, azimuthDeg, maxRangeKm)
     if (map.isStyleLoaded()) draw()
     else map.once('load', draw)
 

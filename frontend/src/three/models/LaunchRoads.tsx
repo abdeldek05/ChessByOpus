@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useEffect, useMemo } from 'react'
 import * as THREE from 'three'
 import { createConcreteTexture } from '@/lib/createConcreteTexture'
 import { ROADS, CONCRETE_COLOR, PAD_TIERS } from '@/three/constants/launchComplex'
@@ -22,9 +22,17 @@ export function LaunchRoads() {
         color: CONCRETE_COLOR,
         roughness: 0.92,
         metalness: 0.02,
+        // IBL réelle (HDRI) : béton mat (voir LaunchPad, même raisonnement).
+        envMapIntensity: 0.6,
       }),
     [colorMap, normalMap],
   )
+
+  useEffect(() => () => {
+    material.dispose()
+    colorMap.dispose()
+    normalMap.dispose()
+  }, [material, colorMap, normalMap])
 
   return (
     <group>

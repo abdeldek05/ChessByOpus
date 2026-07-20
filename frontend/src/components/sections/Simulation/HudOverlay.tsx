@@ -17,7 +17,7 @@ export function HudOverlay() {
         <p className="mt-4 font-display text-[10px] tracking-[0.28em] text-accent uppercase">
           Opus Aerospace · CHESS
         </p>
-        <h1 className="mt-1 font-display text-2xl leading-tight font-medium text-ink">
+        <h1 className="mt-1 font-title text-2xl leading-tight tracking-wide text-ink">
           Fire campaign
         </h1>
       </div>

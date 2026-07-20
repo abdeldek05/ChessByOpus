@@ -4,6 +4,7 @@ import * as THREE from 'three'
 import { RadarModel } from '@/three/models/RadarModel'
 import { CameraRig } from './CameraRig'
 import { RadarLighting } from './RadarLighting'
+import { GlContextReleaser } from './GlContextReleaser'
 
 interface RadarPreviewCanvasProps {
   modelPath: string
@@ -35,6 +36,7 @@ function RadarPreviewCanvasComponent({ modelPath, tintColor, resetKey, className
         gl.toneMappingExposure = 1.1
       }}
     >
+      <GlContextReleaser />
       <Suspense fallback={null}>
         <RadarLighting />
         <RadarModel ref={modelRef} modelPath={modelPath} tintColor={tintColor} />

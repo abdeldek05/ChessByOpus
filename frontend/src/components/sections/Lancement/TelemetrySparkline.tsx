@@ -1,3 +1,4 @@
+import { useMemo } from 'react'
 import { useSparklineHover } from '@/hooks/useSparklineHover'
 import type { TelemetrySeries } from '@/hooks/useFlightTelemetrySeries'
 
@@ -34,7 +35,9 @@ function buildPath(series: TelemetrySeries): string {
  */
 export function TelemetrySparkline({ label, unit, series, decimals = 0 }: TelemetrySparklineProps) {
   const { hovered, hoverFrac, onPointerMove, onPointerLeave } = useSparklineHover(series)
-  const path = buildPath(series)
+  // Le chemin ne dépend que de la série ; le survol re-render à chaque pointermove,
+  // inutile de reconstruire tout le path (map + toFixed sur chaque point).
+  const path = useMemo(() => buildPath(series), [series])
   const crosshairX = hoverFrac === null ? null : hoverFrac * WIDTH
 
   return (

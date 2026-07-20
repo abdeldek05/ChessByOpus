@@ -10,6 +10,9 @@ export interface RadarTemplate {
   minDetectableRcsM2: number
   /** Hauteur d'antenne (m) — détermine l'horizon radar (courbure terrestre). */
   antennaHeightM: number
+  /** Élévation maximale du faisceau (deg) — au-dessus, cône de silence.
+   *  Optionnel : défaut COVERAGE_ELEVATION_MAX_DEG (constants/coverage). */
+  elevationMaxDeg?: number
   modelPath: string
   tintColor?: string
 }

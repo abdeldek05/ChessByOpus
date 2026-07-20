@@ -1,4 +1,3 @@
-import { METERS_PER_SCENE_UNIT } from '@/three/constants/sceneLayout'
 import type { LaunchSite } from '@/types/simulation.types'
 import type { RadarPosition } from '@/types/mission.types'
 
@@ -15,14 +14,18 @@ export interface SceneOffset {
 }
 
 /**
- * Décalage 3D du radar relatif au pas de tir, à la VRAIE échelle de la scène
- * (METERS_PER_SCENE_UNIT, partagée avec la trajectoire du vol dans
- * useTrajectoryPlayback) : un radar à 50 km est projeté à 50 km de distance
- * scène, pas compressé — c'est la caméra et le sol lointain (FarGround) qui
- * s'adaptent à l'échelle réelle, jamais la distance elle-même. Orientation :
- * Est → +x, Nord → -z (convention Three.js).
+ * Décalage 3D du radar relatif au pas de tir, dans la map FIXE (voir
+ * sceneScale.ts) : la distance réelle est multipliée par `sceneScale`
+ * (mètres → unités scène), le MÊME facteur que la trajectoire du vol
+ * (useTrajectoryPlayback) pour un même scénario — radar et impact tombent au
+ * bon endroit l'un par rapport à l'autre, quelle que soit la vraie distance en
+ * km. Orientation : Est → +x, Nord → -z (convention Three.js).
  */
-export function computeRadarSceneOffset(site: LaunchSite, radarPosition: RadarPosition): SceneOffset {
+export function computeRadarSceneOffset(
+  site: LaunchSite,
+  radarPosition: RadarPosition,
+  sceneScale: number,
+): SceneOffset {
   const latRad = (site.latitude * Math.PI) / 180
   const dLat = ((radarPosition.latitude - site.latitude) * Math.PI) / 180
   const dLng = ((radarPosition.longitude - site.longitude) * Math.PI) / 180
@@ -35,7 +38,7 @@ export function computeRadarSceneOffset(site: LaunchSite, radarPosition: RadarPo
     return { x: 0, z: -MIN_RADAR_SCENE_RADIUS, sceneRadius: MIN_RADAR_SCENE_RADIUS }
   }
 
-  const sceneRadius = Math.max(MIN_RADAR_SCENE_RADIUS, realDistance / METERS_PER_SCENE_UNIT)
+  const sceneRadius = Math.max(MIN_RADAR_SCENE_RADIUS, realDistance * sceneScale)
 
   const dirX = realX / realDistance
   const dirZ = realZ / realDistance

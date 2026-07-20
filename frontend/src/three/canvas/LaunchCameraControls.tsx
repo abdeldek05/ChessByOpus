@@ -4,8 +4,8 @@ import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib'
 import * as THREE from 'three'
 import { useOrbitTargetFollow } from '@/three/hooks/useOrbitTargetFollow'
 import { useCameraGroundClamp } from '@/three/hooks/useCameraGroundClamp'
+import { useLaunchShake } from '@/three/hooks/useLaunchShake'
 import { CAMERA_TARGET } from '@/three/constants/sceneLayout'
-import type { SceneBiome } from '@/types/scene.types'
 
 interface LaunchCameraControlsProps {
   /** Position monde de la fusée en vol (null hors vol) — cible du suivi. */
@@ -17,8 +17,6 @@ interface LaunchCameraControlsProps {
   armed?: boolean
   /** Distance max de zoom (proportionnelle à la taille du terrain). */
   maxDistance: number
-  /** Biome du terrain (prairie/dunes) : sol de référence du verrou caméra. */
-  biome?: SceneBiome
 }
 
 /**
@@ -28,11 +26,15 @@ interface LaunchCameraControlsProps {
  * d'elle en plein vol ; à la fin, retour doux vers le pas de tir. Le polar max
  * bloque le passage sous l'horizon.
  */
-export function LaunchCameraControls({ rocketRef, flying, armed, maxDistance, biome }: LaunchCameraControlsProps) {
+export function LaunchCameraControls({ rocketRef, flying, armed, maxDistance }: LaunchCameraControlsProps) {
   const controlsRef = useRef<OrbitControlsImpl>(null)
   useOrbitTargetFollow({ controlsRef, rocketRef, flying, armed })
   // Verrou : caméra et cible ne passent JAMAIS sous le relief de la map.
-  useCameraGroundClamp({ controlsRef, biome })
+  useCameraGroundClamp({ controlsRef })
+  // Secousse brève au décollage (APRÈS le suivi/clamp ci-dessus dans l'ordre
+  // des hooks — donc appliquée en dernier dans la frame, sur la position déjà
+  // calculée par les autres, sans être écrasée).
+  useLaunchShake({ flying })
 
   return (
     <OrbitControls

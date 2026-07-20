@@ -24,7 +24,7 @@ export function SiteInfoPanel({ site }: SiteInfoPanelProps) {
       <p className="font-display text-[10px] font-semibold tracking-[0.22em] text-accent uppercase">
         Launch site · {site.country}
       </p>
-      <h2 className="mt-1 font-display text-2xl leading-tight font-semibold text-ink">{site.name}</h2>
+      <h2 className="mt-1 font-title text-2xl leading-tight tracking-wide text-ink">{site.name}</h2>
 
       <dl className="mt-5 space-y-2.5 font-display text-xs">
         <div className="flex items-baseline justify-between gap-4">

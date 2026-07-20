@@ -1,4 +1,4 @@
-import { useMemo, useRef } from 'react'
+import { useEffect, useMemo, useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 import { createParticleTexture } from '@/lib/createParticleTexture'
@@ -22,6 +22,7 @@ export function ScorchDecal({ launched, radius = 9, y = 0.06 }: ScorchDecalProps
   const matRef = useRef<THREE.MeshBasicMaterial>(null)
   const opacity = useRef(0)
   const texture = useMemo(() => createParticleTexture(0.55), [])
+  useEffect(() => () => texture.dispose(), [texture])
 
   useFrame((_, delta) => {
     if (!matRef.current) return

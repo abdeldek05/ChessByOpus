@@ -114,6 +114,23 @@ def _apply_real_weather(env: Environment, launch_datetime: datetime | None) -> b
         return False
 
 
+def _zero_wind(env: Environment) -> None:
+    """Annule le VENT tout en gardant l'atmosphère réelle GFS (densité,
+    température, pression — qui déterminent la portée). RocketPy fait DÉRIVER
+    la fusée avec le vent, si bien que la trajectoire réelle s'écarte du cap
+    (`heading`) demandé : l'azimut choisi par l'utilisateur au scénario ne
+    correspondait alors plus à la direction réellement prise dans la scène 3D
+    / sur la carte tactique. Sans vent, la fusée suit EXACTEMENT l'azimut
+    réglé. `Flight` lit `wind_velocity_x/y(z)` ; on les force à zéro, et on
+    aligne les grandeurs dérivées (vitesse/cap au sol) pour le rapport météo."""
+    zero = Function(0)
+    env.wind_velocity_x = zero
+    env.wind_velocity_y = zero
+    env.wind_speed = zero
+    env.wind_heading = zero
+    env.wind_direction = zero
+
+
 def build_motor() -> SolidMotor:
     """Moteur à poussée constante (~3500 N) depuis la thrust curve mesurée."""
     return SolidMotor(
@@ -198,6 +215,17 @@ def simulate(
         if not used_real_weather:
             env.set_atmospheric_model(type="standard_atmosphere")
 
+    # Vent réel du site CAPTURÉ avant annulation : reste affiché dans le bilan
+    # (info météo crédible) même si la physique du vol l'ignore désormais.
+    real_wind_speed = round(float(env.wind_speed(site_elevation_m)), 1)
+    real_wind_heading = round(float(env.wind_heading(site_elevation_m)), 1)
+
+    # VENT ANNULÉ pour le tir réel : la fusée suit exactement l'azimut réglé
+    # (le vent la faisait dériver → décalage entre l'azimut de config et la
+    # direction prise dans la scène). L'atmosphère GFS (densité/température/
+    # pression, qui pilotent la portée) est conservée.
+    _zero_wind(env)
+
     motor = build_motor()
     rocket = build_rocket(motor)
 
@@ -244,8 +272,10 @@ def simulate(
         "flightTimeSec": round(float(t_end), 1),
         "weather": {
             "source": "gfs" if used_real_weather else "standard_atmosphere",
-            "groundWindSpeedMs": round(float(env.wind_speed(site_elevation_m)), 1),
-            "groundWindHeadingDeg": round(float(env.wind_heading(site_elevation_m)), 1),
+            # Vent RÉEL affiché pour info ; il n'agit plus sur la trajectoire
+            # (annulé pour garder l'azimut exact — voir _zero_wind).
+            "groundWindSpeedMs": real_wind_speed,
+            "groundWindHeadingDeg": real_wind_heading,
             "groundTemperatureC": round(float(env.temperature(site_elevation_m)) - 273.15, 1),
         },
     }

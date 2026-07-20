@@ -9,10 +9,16 @@ export interface PadTier {
   half: number
   top: number
 }
+// Facteur d'agrandissement du pas de tir (demi-largeurs des gradins
+// uniquement) : la plateforme paraissait trop petite à côté de la rampe/du
+// décor. Les hauteurs (top) restent inchangées pour ne pas rendre les gradins
+// disproportionnés en épaisseur.
+const PAD_SCALE = 1.6
+
 export const PAD_TIERS: PadTier[] = [
-  { half: 26, top: 0.6 }, // socle large, à peine surélevé
-  { half: 18, top: 1.6 }, // niveau intermédiaire
-  { half: 12, top: 2.4 }, // plateau supérieur (accueille la rampe)
+  { half: 26 * PAD_SCALE, top: 0.6 }, // socle large, à peine surélevé
+  { half: 18 * PAD_SCALE, top: 1.6 }, // niveau intermédiaire
+  { half: 12 * PAD_SCALE, top: 2.4 }, // plateau supérieur (accueille la rampe)
 ]
 // Hauteur du plateau supérieur = référence pour poser la rampe/console dessus.
 export const PAD_TOP_Y = 2.4

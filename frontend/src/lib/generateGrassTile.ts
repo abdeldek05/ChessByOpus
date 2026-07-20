@@ -1,10 +1,12 @@
 import * as THREE from 'three'
-import { sampleTerrainHeight } from '@/lib/sampleTerrainHeight'
+import { sampleGroundHeight } from '@/lib/sampleGroundHeight'
 import {
   GRASS_TILE_SIZE,
   GRASS_DENSITY,
   GRASS_MAX_PER_TILE,
   GRASS_INNER_RADIUS,
+  GRASS_LOW_DENSITY_RADIUS,
+  GRASS_LOW_DENSITY_FACTOR,
   GRASS_HEIGHT,
   GRASS_WIDTH,
   GRASS_SIZE_JITTER,
@@ -38,8 +40,9 @@ function tileSeed(tileX: number, tileZ: number): number {
  * entières) : densité UNIFORME, identique pour toutes les tuiles — c'est le
  * streaming (useGrassTiles) qui borne le coût total, pas une densité variable.
  * Les touffes trop proches de l'origine (dalle du pas de tir) sont exclues.
+ * La hauteur vient de `sampleGroundHeight` (source de vérité unique du relief).
  */
-export function generateGrassTile(tileX: number, tileZ: number, biome: 'meadow' | 'desert' = 'meadow'): THREE.Matrix4[] {
+export function generateGrassTile(tileX: number, tileZ: number): THREE.Matrix4[] {
   const rng = makeRng(tileSeed(tileX, tileZ))
   const originX = tileX * GRASS_TILE_SIZE
   const originZ = tileZ * GRASS_TILE_SIZE
@@ -56,9 +59,13 @@ export function generateGrassTile(tileX: number, tileZ: number, biome: 'meadow' 
   for (let i = 0; i < count; i++) {
     const x = originX + rng() * GRASS_TILE_SIZE
     const z = originZ + rng() * GRASS_TILE_SIZE
-    if (Math.hypot(x, z) < GRASS_INNER_RADIUS) continue
+    const distance = Math.hypot(x, z)
+    if (distance < GRASS_INNER_RADIUS) continue
+    // Zone tampon juste après le pad : on garde une fraction des touffes
+    // seulement (raccord progressif plutôt qu'un passage net à pleine densité).
+    if (distance < GRASS_LOW_DENSITY_RADIUS && rng() > GRASS_LOW_DENSITY_FACTOR) continue
 
-    const y = sampleTerrainHeight(x, z, biome)
+    const y = sampleGroundHeight(x, z)
 
     position.set(x, y, z)
     quaternion.setFromAxisAngle(up, rng() * Math.PI * 2)

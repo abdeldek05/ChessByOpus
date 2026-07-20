@@ -1,65 +1,61 @@
-// Conditions atmosphériques : JOUR, GOLDEN HOUR (soleil rasant, lumière chaude).
+// Conditions atmosphériques : JOUR, GOLDEN HOUR (soleil bas, lumière chaude).
 // (Le fichier garde son nom historique `launchDaylight` pour ne pas casser les
-// imports.) Objectif : base d'un rendu photo-réaliste — ciel physique, soleil
-// bas doré, IBL chaud pour de vrais reflets sur les métaux et l'eau.
+// imports.) Ciel + IBL fournis par une VRAIE HDRI photographique (voir
+// EnvironmentSky) — plus de ciel procédural Preetham : le rendu (couleurs,
+// nuages, halo solaire) vient d'une capture réelle, alignée avec l'éclairage
+// direct (SunLight) pour que les ombres portées correspondent au soleil visible
+// dans le ciel.
 
-// Direction du SOLEIL bas sur l'horizon (golden hour). Vecteur monde ; sert au
-// ciel physique (drei <Sky>) ET à la lumière directionnelle (SunLight).
-export const SUN_DIRECTION: [number, number, number] = [-38, 14, 26]
+/** Chemin de l'HDRI (public/, servi tel quel) : golden hour, soleil bas sur l'horizon. */
+export const HDRI_PATH = '/hdri/golden_hour_sky.hdr'
 
-// Position de la lumière directionnelle (soleil) : alignée sur SUN_DIRECTION,
-// rapprochée pour une shadow-camera exploitable.
-export const SUN_LIGHT_POSITION: [number, number, number] = [-60, 22, 40]
-
-// Position du disque solaire (DaylightSky) : élévation/azimut, bas sur l'horizon.
+// Position du soleil DANS CETTE HDRI PRÉCISE (déterminée par analyse du pixel
+// le plus lumineux du fichier — voir décodage RGBE). SOURCE UNIQUE de la
+// direction du soleil : SunLight en dérive sa position (getSunDirection
+// ci-dessous), pour que les ombres portées et le halo visible dans le ciel
+// restent alignés. Si l'HDRI change, ces deux valeurs doivent être re-mesurées.
 export const SKY = {
-  elevationDeg: 7,
-  azimuthDeg: 160,
+  elevationDeg: 5,
+  azimuthDeg: 49,
 } as const
 
-// Lumière directe + remplissage, teintes chaudes golden hour.
-export const LIGHTING = {
-  sunColor: '#ffd9a0', // soleil doré chaud
-  sunIntensity: 3.4, // fort, rasant
-  skyTint: '#bcd3f0', // remplissage hémisphérique : ciel clair
-  groundTint: '#3a3320', // rebond sol chaud (terre/herbe sèche)
-  hemiIntensity: 1.1,
+/** Direction unitaire du soleil (même convention sphérique que l'equirect HDRI). */
+export function getSunDirection(): [number, number, number] {
+  const phi = (Math.PI / 180) * (90 - SKY.elevationDeg)
+  const theta = (Math.PI / 180) * SKY.azimuthDeg
+  const sinPhi = Math.sin(phi)
+  return [sinPhi * Math.sin(theta), Math.cos(phi), sinPhi * Math.cos(theta)]
 }
 
-// IBL : preset HDRI d'extérieur au coucher de soleil (reflets chauds réalistes
-// sur métaux et eau). Baké une fois — pas de coût continu.
-export const ENVIRONMENT_PRESET = 'sunset' as const
-// Intensité de l'IBL appliquée globalement aux matériaux.
+// Lumière directe + remplissage, teintes chaudes golden hour (accent qui vient
+// s'ajouter à l'éclairage ambiant de l'IBL — sert surtout à porter des ombres
+// nettes et cohérentes avec le soleil visible dans l'HDRI, l'IBL seul n'en
+// projette pas).
+export const LIGHTING = {
+  sunColor: '#ffdca8', // soleil doré chaud
+  sunIntensity: 1.6,
+  skyTint: '#bcd3f0', // remplissage hémisphérique : ciel clair
+  groundTint: '#3c5a2a', // rebond sol vert (prairie luxuriante, cf. LAWN/GRASS_COLORS)
+  hemiIntensity: 1.2,
+  // Rim/fill light en contre-jour : froid (bleu-violet crépusculaire) —
+  // débouche les faces à l'ombre (contre-jour) sans les éclairer aussi fort
+  // que le soleil, pour garder du modelé.
+  rimColor: '#c9d4ea',
+  rimIntensity: 0.85,
+}
+
+// Intensité de l'IBL (éclairage image) appliquée globalement aux matériaux —
+// reflets réalistes sur métaux/béton depuis la vraie HDRI. Baké une fois par
+// chargement, pas de coût continu.
 export const ENVIRONMENT_INTENSITY = 1.1
 
-// Rendu : tone mapping ACES, exposition et fond calés jour.
+// Rendu : tone mapping AgX (voir LaunchSceneCanvas), exposition calée jour.
+// AgX gérant déjà le roll-off des hautes lumières, l'exposition reste neutre
+// (1.0) — à ajuster à l'œil si la scène paraît trop sombre/claire.
 export const DAYLIGHT_EXPOSURE = 1.0
-export const DAYLIGHT_BACKGROUND = '#dcc9a8' // brume chaude d'horizon (fond)
 
-// Brume atmosphérique de profondeur (golden hour) : MÊME couleur que le fond
-// (DAYLIGHT_BACKGROUND) et que l'horizon du SkyDome — c'est cette égalité qui
-// rend le bord du terrain invisible (il se dissout dans le ciel). Le fog
-// (linéaire) commence à FOG_NEAR_FRAC × terrainRadius et sature à
-// FOG_FAR_FRAC × terrainRadius : le pas de tir reste net, l'horizon fond pile
-// au bord du terrain, quel que soit le scénario (radar proche ou à 60 km).
-export const FOG_COLOR = '#dcc9a8'
-export const FOG_NEAR_FRAC = 0.3
-export const FOG_FAR_FRAC = 1.0
-
-// Dégagement du fog EN ALTITUDE : quand la caméra suit la fusée qui monte, la
-// brume dense de l'horizon au sol masquerait la fusée et le vol. Le fog `far`
-// s'ÉLARGIT progressivement avec la hauteur de la caméra (AltitudeFog) — dense
-// au ras du sol (horizon caché, immersif), quasi dégagé en l'air (fusée nette).
-// `FOG_ALTITUDE_START` : hauteur (unités) où le dégagement commence.
-// `FOG_ALTITUDE_FULL` : hauteur où le fog far est à son maximum étendu.
-// `FOG_FAR_ALTITUDE_MULT` : facteur d'élargissement max du far à haute altitude.
-export const FOG_ALTITUDE_START = 40
-export const FOG_ALTITUDE_FULL = 600
-export const FOG_FAR_ALTITUDE_MULT = 6
-
-// Dégradé du dôme de ciel (SkyDome) : zénith bleu doux → horizon brume chaude.
-// L'horizon DOIT rester égal à FOG_COLOR/DAYLIGHT_BACKGROUND (fondu invisible).
-export const SKY_GRADIENT = {
-  zenith: '#8aa8cf',
-  horizon: '#dcc9a8',
-} as const
+// Couleur du fog de distance : ÉCHANTILLONNÉE depuis la bande horizon de
+// l'HDRI (moyenne des pixels autour de l'équateur de l'image, tone-mappée) —
+// pour que le sol lointain se fonde dans le ciel sans « mur » de couleur au
+// bord du monde, quelle que soit l'HDRI utilisée.
+export const FOG_COLOR = '#baada6'

@@ -1,136 +1,33 @@
-import { useEffect, useRef, useState } from 'react'
 import { Navigate, useLocation } from 'react-router-dom'
-import { LaunchSceneCanvas } from '@/three/canvas/LaunchSceneCanvas'
-import { DayNightToggle } from '@/components/sections/Lancement/DayNightToggle'
-import { LaunchHud } from '@/components/sections/Lancement/LaunchHud'
-import { LaunchTacticalMap } from '@/components/sections/Lancement/LaunchTacticalMap'
-import { MissionBilan } from '@/components/sections/Lancement/MissionBilan'
-import { FlightTelemetryChart } from '@/components/sections/Lancement/FlightTelemetryChart'
-import { useLaunchSequence } from '@/hooks/useLaunchSequence'
-import { computeRadarSceneOffset } from '@/lib/computeRadarSceneOffset'
-import { computeDistanceKm, formatDistance } from '@/lib/computeDistanceKm'
-import { getRadarName } from '@/lib/getRadarName'
-import type { LaunchSite } from '@/types/simulation.types'
-import type { PlacedRadar, MesangeLaunchConfig } from '@/types/mission.types'
-import type { SceneMode } from '@/types/scene.types'
+import { SceneErrorBoundary } from '@/components/ui/SceneErrorBoundary'
+import {
+  LancementScene,
+  type LancementLocationState,
+} from '@/components/sections/Lancement/LancementScene'
 
-interface LancementLocationState {
-  site: LaunchSite
-  scenarioId: number
-  /** Radars placés (1-2), tous affichés dans la scène. */
-  radars: PlacedRadar[]
-  mesangeConfigs: MesangeLaunchConfig[]
-  /** Seuil de préavis de détection requis (s), fixé à la création du scénario. */
-  detectionThresholdSec: number
-}
-
+/**
+ * Page /lancement : garde de route (state de scénario valide) + filet de
+ * sécurité (SceneErrorBoundary). Toute la scène est orchestrée par LancementScene.
+ */
 export function Lancement() {
   const location = useLocation()
   const state = location.state as LancementLocationState | null
 
-  // Garde-fou : sans scénario enregistré + au moins un radar placé, retour HUD.
-  if (!state?.site || !state.scenarioId || !state.radars?.length) {
+  // Garde-fou : sans scénario complet, retour HUD. On valide ici TOUT ce que la
+  // scène déréférence sans filet plus bas (position du 1er radar, menaces) —
+  // sinon un state malformé (navigation manuelle, replay, payload modifié)
+  // ferait planter le render (accès sur null/undefined) au lieu d'un retour propre.
+  const firstRadarPlaced = state?.radars?.[0]?.position != null
+  const hasThreats = Array.isArray(state?.mesangeConfigs) && state.mesangeConfigs.length > 0
+  if (!state?.site || !state.scenarioId || !state.radars?.length || !firstRadarPlaced || !hasThreats) {
     return <Navigate to="/mission" replace />
   }
 
-  return <LancementScene state={state} />
-}
-
-interface LancementSceneProps {
-  state: LancementLocationState
-}
-
-function LancementScene({ state }: LancementSceneProps) {
-  // Ambiance de la scène (bouton ☀/☾ du HUD) : jour golden hour ou nuit.
-  const [sceneMode, setSceneMode] = useState<SceneMode>('day')
-
-  // Radar principal (1er placé) : sert au HUD, à la séquence et à la carte
-  // tactique. Sa position est garantie non-nulle (filtrée au lancement).
-  const primaryRadar = state.radars[0]
-  const primaryPosition = primaryRadar.position!
-
-  const distance = formatDistance(computeDistanceKm(state.site, primaryPosition))
-  const radarName = getRadarName(primaryRadar.config.templateId)
-
-  // Offset scène de CHAQUE radar (direction réelle, distance bornée = contexte).
-  const radarsInScene = state.radars
-    .filter((radar) => radar.position !== null)
-    .map((radar) => ({
-      id: radar.id,
-      config: radar.config,
-      offset: computeRadarSceneOffset(state.site, radar.position!),
-    }))
-
-  // Menace principale (Roi si présent, sinon la première) : cale la rampe.
-  const primary = state.mesangeConfigs.find((m) => m.role === 'KING') ?? state.mesangeConfigs[0]
-
-  const sequence = useLaunchSequence({
-    site: state.site,
-    radars: state.radars,
-    mesangeConfigs: state.mesangeConfigs,
-    king: primary,
-  })
-
-  // Progression du vol (0→1) partagée entre le moteur 3D (qui l'écrit à chaque
-  // frame) et la Tactical View (qui la lit dans sa boucle rAF pour dessiner la
-  // piste radar en direct) — sans re-render React. -1 = aucun vol en cours.
-  const flightProgressRef = useRef(-1)
-  useEffect(() => {
-    if (sequence.phase !== 'running') flightProgressRef.current = -1
-  }, [sequence.phase])
-
+  // Filet de sécurité : toute exception levée pendant le rendu de la scène (3D,
+  // HUD ou carte) affiche un panneau de secours au lieu de blanchir toute l'app.
   return (
-    <div className="relative h-screen w-screen overflow-hidden bg-bg">
-      <LaunchSceneCanvas
-        radars={radarsInScene}
-        launchEnabled={sequence.phase === 'armed'}
-        onLaunch={sequence.launch}
-        inclinationDeg={primary?.inclinationDeg ?? 80}
-        azimuthDeg={primary?.azimuthDeg ?? 0}
-        flying={sequence.phase === 'running'}
-        flight={sequence.flight}
-        flightProgressRef={flightProgressRef}
-        mode={sceneMode}
-        biome={state.site.biome ?? 'meadow'}
-        className="h-full w-full"
-      />
-
-      {/* Bascule d'ambiance jour ☀ / nuit ☾ de la scène. */}
-      <DayNightToggle
-        mode={sceneMode}
-        onToggle={() => setSceneMode((current) => (current === 'day' ? 'night' : 'day'))}
-      />
-
-      {(sequence.phase === 'done' || sequence.phase === 'error') && (
-        <MissionBilan
-          result={sequence.result}
-          siteName={state.site.name}
-          radarName={radarName}
-          requiredLeadSec={state.detectionThresholdSec ?? 30}
-          weather={sequence.weather}
-          onReplay={sequence.replay}
-        />
-      )}
-
-      {sequence.phase === 'done' && <FlightTelemetryChart flight={sequence.flight} />}
-
-      <LaunchTacticalMap
-        site={state.site}
-        radars={state.radars}
-        azimuthDeg={primary?.azimuthDeg ?? 0}
-        distance={distance}
-        flight={sequence.flight}
-        flightProgressRef={flightProgressRef}
-      />
-
-      <LaunchHud
-        siteName={state.site.name}
-        radarName={radarName}
-        phase={sequence.phase}
-        countdown={sequence.countdown}
-        onLaunch={sequence.launch}
-        onReplay={sequence.replay}
-      />
-    </div>
+    <SceneErrorBoundary label="Scène de lancement interrompue">
+      <LancementScene state={state} />
+    </SceneErrorBoundary>
   )
 }

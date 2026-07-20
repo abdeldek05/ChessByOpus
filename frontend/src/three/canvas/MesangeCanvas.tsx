@@ -4,6 +4,7 @@ import * as THREE from 'three'
 import { MesangeModel } from '@/three/models/MesangeModel'
 import { CameraRig } from './CameraRig'
 import { StudioLighting } from './StudioLighting'
+import { GlContextReleaser } from './GlContextReleaser'
 
 interface MesangeCanvasProps {
   className?: string
@@ -24,6 +25,7 @@ export function MesangeCanvas({ className }: MesangeCanvasProps) {
         gl.toneMappingExposure = 1.1
       }}
     >
+      <GlContextReleaser />
       <Suspense fallback={null}>
         <StudioLighting />
         <MesangeModel ref={modelRef} />

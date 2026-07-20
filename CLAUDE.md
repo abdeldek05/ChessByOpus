@@ -136,6 +136,18 @@ export function MesangeModel() {
 
 ---
 
+## 7. Déclaration de variables — JS moderne
+
+- ❌ **`var` est interdit, sans exception.** Il est obsolète : portée de fonction
+  (pas de bloc) + hoisting, source de bugs subtils. Verrouillé par `no-var` (error)
+  dans `.oxlintrc.json`.
+- ✅ **`const` par défaut.** Une variable qui n'est jamais réaffectée est `const`
+  (règle `prefer-const` en error). On ne relâche en `let` **que** si la valeur est
+  réellement réassignée.
+- Cela vaut aussi pour le code JS applicatif hors React (backend inclus si TS).
+
+---
+
 ## Checklist avant de considérer un fichier terminé
 
 - [ ] Un seul composant exporté dans ce fichier
@@ -146,3 +158,4 @@ export function MesangeModel() {
 - [ ] Logique de plus de 5-6 lignes extraite en hook
 - [ ] Code Three.js réparti dans `canvas/` / `models/` / `hooks/` / `constants/`, jamais mélangé
 - [ ] Le fichier est rangé dans le bon dossier selon la structure définie en section 1
+- [ ] Zéro `var` ; `const` par défaut, `let` uniquement si réaffectation

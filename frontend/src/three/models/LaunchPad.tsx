@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useEffect, useMemo } from 'react'
 import * as THREE from 'three'
 import { createConcreteTexture } from '@/lib/createConcreteTexture'
 import { PAD_TIERS, PAD_TOP_Y, FLAME_PIT, CONCRETE_COLOR } from '@/three/constants/launchComplex'
@@ -21,9 +21,19 @@ export function LaunchPad() {
         color: CONCRETE_COLOR,
         roughness: 0.9,
         metalness: 0.02,
+        // IBL réelle (HDRI) : béton mat, reflet du ciel étouffé (sinon la
+        // dalle a l'air mouillée/brillante) — contraste avec le métal de la
+        // rampe qui montre le ciel nettement (voir RailBase/RailBoom).
+        envMapIntensity: 0.6,
       }),
     [colorMap, normalMap],
   )
+
+  useEffect(() => () => {
+    material.dispose()
+    colorMap.dispose()
+    normalMap.dispose()
+  }, [material, colorMap, normalMap])
 
   return (
     <group>
