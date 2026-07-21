@@ -9,6 +9,7 @@ import {
   applyRocketRangeLayer,
   applyLinkLayer,
 } from '@/lib/missionPlacementMap'
+import { ROCKET_MAX_RANGE_KM } from '@/constants/rocket'
 import type { LaunchSite } from '@/types/simulation.types'
 import type { RadarPosition, PlacedRadar } from '@/types/mission.types'
 
@@ -19,8 +20,6 @@ interface UseMissionPlacementMapParams {
   /** Radar en cours d'édition : le clic sur la carte le positionne. */
   activeRadarId: string
   onPlaceRadar: (id: string, position: RadarPosition) => void
-  /** Distance max théorique de la Mesange (km) ; null tant que non reçue. */
-  rocketMaxRangeKm?: number | null
 }
 
 export interface RadarRangeExcess {
@@ -28,13 +27,13 @@ export interface RadarRangeExcess {
   id: string
   /** Distance réelle radar → pas de tir (km, non arrondie). */
   distanceKm: number
-  /** Portée du radar (km) — la limite exacte dépassée. */
+  /** Rayon d'action de la Mesange (km) — la limite exacte dépassée. */
   maxKm: number
 }
 
 interface UseMissionPlacementMapResult {
   containerRef: React.RefObject<HTMLDivElement | null>
-  /** Radars posés au-delà de leur portée exacte, avec les distances mesurées. */
+  /** Radars posés au-delà du rayon d'action de la Mesange, distances mesurées. */
   radarsOutOfRange: RadarRangeExcess[]
 }
 
@@ -50,7 +49,6 @@ export function useMissionPlacementMap({
   radars,
   activeRadarId,
   onPlaceRadar,
-  rocketMaxRangeKm = null,
 }: UseMissionPlacementMapParams): UseMissionPlacementMapResult {
   const containerRef = useRef<HTMLDivElement>(null)
   const mapRef = useRef<maplibregl.Map | null>(null)
@@ -60,16 +58,22 @@ export function useMissionPlacementMap({
   const placeRef = useRef(onPlaceRadar)
   placeRef.current = onPlaceRadar
 
-  // Radars posés dont la distance au pas de tir dépasse leur portée EXACTE
-  // (haversine, sans marge — même règle que validateScenario, pour que
-  // l'avertissement carte et le blocage final restent cohérents).
+  // Radars posés dont le cercle de COUVERTURE ne chevauche même pas le cercle
+  // de portée max de la Mesange : deux cercles se touchent/chevauchent dès que
+  // la distance entre leurs centres est ≤ somme de leurs rayons (pas besoin que
+  // l'un contienne entièrement l'autre, juste qu'ils se croisent quelque part —
+  // la fusée peut alors survoler une zone couverte par ce radar). Au-delà,
+  // aucun chevauchement possible : le radar ne pourra jamais rien détecter,
+  // quel que soit l'azimut/élévation du tir — signalé en rouge, jamais bloquant
+  // (voir validateScenario pour la même règle côté blocage final).
   const radarsOutOfRange = useMemo(() => {
     const out: RadarRangeExcess[] = []
     radars.forEach((radar) => {
       if (!radar.position) return
       const distanceKm = computeDistanceKm(site, radar.position)
-      if (distanceKm > radar.config.rangeKm) {
-        out.push({ id: radar.id, distanceKm, maxKm: radar.config.rangeKm })
+      const maxKm = ROCKET_MAX_RANGE_KM + radar.config.rangeKm
+      if (distanceKm > maxKm) {
+        out.push({ id: radar.id, distanceKm, maxKm })
       }
     })
     return out
@@ -99,6 +103,10 @@ export function useMissionPlacementMap({
     // Pas de tir FIXE = le site (repère de référence pour poser les radars).
     createLabeledMarker(map, [site.longitude, site.latitude], 'launch-marker launch-marker--origin', 'Launch pad')
 
+    // Placement TOUJOURS libre : hors du cercle de portée, le radar se pose
+    // quand même (juste signalé en rouge, voir radarsOutOfRange) — l'ancien
+    // refus strict du clic dépendait d'un rocketMaxRangeKm chargé en direct
+    // (~17s), désormais remplacé par une constante fixe (voir constants/rocket).
     map.on('click', (event) => {
       placeRef.current(activeIdRef.current, { latitude: event.lngLat.lat, longitude: event.lngLat.lng })
     })
@@ -135,8 +143,8 @@ export function useMissionPlacementMap({
   useEffect(() => {
     const map = mapRef.current
     if (!map) return
-    applyRocketRangeLayer(map, site, rocketMaxRangeKm)
-  }, [site, rocketMaxRangeKm])
+    applyRocketRangeLayer(map, site, ROCKET_MAX_RANGE_KM)
+  }, [site])
 
   // --- Trait radar → pas de tir + distance discrète ---
   useEffect(() => {

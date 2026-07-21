@@ -2,6 +2,7 @@ import { useNavigate } from 'react-router-dom'
 import { useMissionConfig } from '@/hooks/useMissionConfig'
 import { useMissionStepper } from '@/hooks/useMissionStepper'
 import { useSaveScenario } from '@/hooks/useSaveScenario'
+import { ROCKET_MAX_RANGE_KM } from '@/constants/rocket'
 import { validateScenario } from '@/lib/validateScenario'
 import { MissionStepRail } from './MissionStepRail'
 import { StepRadar } from './steps/StepRadar'
@@ -33,6 +34,7 @@ export function MissionConsole({ site, missionId }: MissionConsoleProps) {
     site,
     radars: config.radars,
     mesangeConfigs: config.mesangeConfigs,
+    rocketMaxRangeKm: ROCKET_MAX_RANGE_KM,
   })
 
   const allRadarsPlaced = config.radars.every((radar) => radar.position !== null)

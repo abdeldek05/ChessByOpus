@@ -10,7 +10,7 @@ import { FlightTelemetryChart } from './FlightTelemetryChart'
 import { SceneLoadingOverlay } from './SceneLoadingOverlay'
 import { LaunchComputingOverlay } from './LaunchComputingOverlay'
 import { useLaunchSequence } from '@/hooks/useLaunchSequence'
-import { useRocketMaxRange } from '@/hooks/useRocketMaxRange'
+import { ROCKET_MAX_RANGE_KM } from '@/constants/rocket'
 import { useSceneLoadingOverlay } from '@/hooks/useSceneLoadingOverlay'
 import { computeRadarSceneOffset } from '@/lib/computeRadarSceneOffset'
 import { computeDistanceKm, formatDistance } from '@/lib/computeDistanceKm'
@@ -59,11 +59,6 @@ export function LancementScene({ state }: LancementSceneProps) {
   // Menace principale (Roi si présent, sinon la première) : cale la rampe.
   const primary = state.mesangeConfigs.find((m) => m.role === 'KING') ?? state.mesangeConfigs[0]
   const roleLabel = getMesangeRoleLabel(primary?.role)
-
-  // Portée max estimée du missile (km) sous la météo réelle du site : affichée
-  // dans la fiche technique sur le pad (RocketInfoHologram), null tant que non
-  // reçue — chargée une fois par site, indépendante de la séquence de vol.
-  const { maxRangeKm } = useRocketMaxRange(state.site)
 
   const sequence = useLaunchSequence({
     site: state.site,
@@ -151,7 +146,7 @@ export function LancementScene({ state }: LancementSceneProps) {
         onImpact={sequence.reportImpact}
         onSceneReady={loadingOverlay.reportSceneReady}
         metersPerSceneUnit={1 / sceneScale}
-        rangeKm={maxRangeKm}
+        rangeKm={ROCKET_MAX_RANGE_KM}
         roleLabel={roleLabel}
         site={state.site}
         placedRadars={state.radars}

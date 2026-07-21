@@ -11,15 +11,18 @@ export const INCLINATION_MAX = 90
 export const LAUNCH_DELAY_MIN = 0
 export const LAUNCH_DELAY_MAX = 600
 
-// Le radar doit être ni collé au pas de tir, ni au-delà de sa portée EXACTE
-// (limite stricte, sans marge de tolérance : au-delà, il ne couvre plus le
-// pas de tir — scénario incohérent).
+// Le radar doit être ni collé au pas de tir, ni assez loin pour qu'AUCUN
+// chevauchement ne soit possible entre son cercle de couverture et le cercle
+// de portée max de la Mesange (voir la règle 2 plus bas — même logique que
+// useMissionPlacementMap).
 export const RADAR_MIN_DISTANCE_KM = 0.5
 
 export interface ScenarioInput {
   site: LaunchSite | null
   radars: PlacedRadar[]
   mesangeConfigs: MesangeLaunchConfig[]
+  /** Distance max théorique de la Mesange (km, constante fixe — voir constants/rocket). */
+  rocketMaxRangeKm: number
 }
 
 export interface ScenarioViolation {
@@ -41,7 +44,7 @@ export interface ScenarioValidation {
  */
 export function validateScenario(input: ScenarioInput): ScenarioValidation {
   const violations: ScenarioViolation[] = []
-  const { site, radars, mesangeConfigs } = input
+  const { site, radars, mesangeConfigs, rocketMaxRangeKm } = input
 
   // 1. Chaque radar configuré doit être positionné sur la carte (pas juste un
   //    parmi d'autres : si on en ajoute un 2e, il doit être posé aussi).
@@ -52,20 +55,23 @@ export function validateScenario(input: ScenarioInput): ScenarioValidation {
     }
   })
 
-  // 2. Chaque radar placé doit être à une distance cohérente d'un pas de tir.
+  // 2. Le cercle de COUVERTURE du radar doit chevaucher le cercle de portée
+  //    max de la Mesange (pas besoin de le contenir entièrement, juste que les
+  //    deux cercles se croisent quelque part) — sinon ce radar ne pourra
+  //    JAMAIS rien détecter, quel que soit l'azimut/élévation choisis.
   //    (Référence : le site pour l'instant ; passera aux pas de tir posés.)
   if (site) {
     radars.forEach((radar, index) => {
       if (!radar.position) return
       const distanceKm = computeDistanceKm(site, radar.position)
-      const maxKm = radar.config.rangeKm
+      const maxKm = rocketMaxRangeKm + radar.config.rangeKm
       const label = radars.length > 1 ? `Radar ${index + 1} : ` : ''
       if (distanceKm < RADAR_MIN_DISTANCE_KM) {
         violations.push({ code: 'radar-too-close', message: `${label}too close to the launch pad.` })
       } else if (distanceKm > maxKm) {
         violations.push({
           code: 'radar-out-of-range',
-          message: `${label}out of range (${distanceKm.toFixed(2).replace('.', ',')} km > ${maxKm} km).`,
+          message: `${label}can never overlap the rocket's reach (${distanceKm.toFixed(2).replace('.', ',')} km > ${maxKm.toFixed(0)} km).`,
         })
       }
     })

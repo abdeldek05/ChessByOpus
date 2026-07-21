@@ -10,8 +10,11 @@ export const PLACEMENT_MAP_STYLE = 'https://basemaps.cartocdn.com/gl/dark-matter
 // portée (miroir --color-radar / --color-alert).
 export const COVERAGE_COLOR = '#94866e'
 export const ALERT_COLOR = '#e0584f'
-// Cercle de portée max de la Mesange : même famille alerte, très atténué (repère).
-export const ROCKET_RANGE_COLOR = '#e0584f'
+// Cercle de portée max de la Mesange (laiton bright, plus clair que la
+// couverture radar) : REPÈRE PRINCIPAL de cette étape désormais — c'est lui
+// qui délimite où un radar peut être posé, donc net et bien visible (avant :
+// pointillé rouge à peine perceptible, hérité d'un rôle de simple indicateur).
+export const ROCKET_RANGE_COLOR = '#cdbb98'
 export const ROCKET_RANGE_SOURCE_ID = 'rocket-max-range'
 
 export function rangeLayerIds(radarId: string) {
@@ -99,8 +102,15 @@ export function applyCoverageLayer(
   })
 }
 
-/** Cercle de portée max de la Mesange, centré sur le pas de tir (toutes directions). */
+export function rocketRangeLayerIds() {
+  return { fill: `${ROCKET_RANGE_SOURCE_ID}-fill`, line: `${ROCKET_RANGE_SOURCE_ID}-line` }
+}
+
+/** Cercle de portée max de la Mesange, centré sur le pas de tir (toutes
+ *  directions) : zone AUTORISÉE pour poser un radar — trait net + léger
+ *  remplissage, repère principal de l'étape de placement. */
 export function applyRocketRangeLayer(map: maplibregl.Map, site: LaunchSite, rocketMaxRangeKm: number | null) {
+  const ids = rocketRangeLayerIds()
   const circle = rocketMaxRangeKm ? buildRangeCircle(site.longitude, site.latitude, rocketMaxRangeKm) : []
   const geojson = {
     type: 'Feature' as const,
@@ -118,10 +128,16 @@ export function applyRocketRangeLayer(map: maplibregl.Map, site: LaunchSite, roc
     if (map.getSource(ROCKET_RANGE_SOURCE_ID)) return
     map.addSource(ROCKET_RANGE_SOURCE_ID, { type: 'geojson', data: geojson })
     map.addLayer({
-      id: `${ROCKET_RANGE_SOURCE_ID}-line`,
+      id: ids.fill,
+      type: 'fill',
+      source: ROCKET_RANGE_SOURCE_ID,
+      paint: { 'fill-color': ROCKET_RANGE_COLOR, 'fill-opacity': 0.05 },
+    })
+    map.addLayer({
+      id: ids.line,
       type: 'line',
       source: ROCKET_RANGE_SOURCE_ID,
-      paint: { 'line-color': ROCKET_RANGE_COLOR, 'line-width': 1, 'line-dasharray': [1, 2], 'line-opacity': 0.35 },
+      paint: { 'line-color': ROCKET_RANGE_COLOR, 'line-width': 1.5, 'line-opacity': 0.75 },
     })
   })
 }

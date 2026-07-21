@@ -9,17 +9,17 @@ interface MissionPlacementMapProps {
   activeRadarId: string
   onSelectActive: (id: string) => void
   onPlaceRadar: (id: string, position: RadarPosition) => void
-  /** Distance max théorique de la Mesange (km, météo réelle du site) ; null tant que non reçue. */
-  rocketMaxRangeKm?: number | null
 }
 
 /**
  * Carte de placement des 1-2 radars, autour du pas de tir fixe (= le site). Des
- * onglets choisissent le radar qu'on positionne ; cliquer la carte le place.
- * Chaque point est étiqueté (Pas de tir / Radar 1…). L'azimut se règle plus
- * tard, à l'étape Menaces — pas ici. Un cercle discret montre aussi jusqu'où
- * la Mesange peut théoriquement aller (toutes directions confondues), pour
- * situer la couverture radar par rapport à la portée réelle du tir.
+ * onglets choisissent le radar qu'on positionne ; cliquer la carte le place —
+ * LIBREMENT, n'importe où : aucun clic n'est jamais refusé. Un radar dont le
+ * cercle de couverture ne CHEVAUCHE MÊME PAS le cercle de portée max de la
+ * Mesange (les deux cercles ne se touchent nulle part) est signalé en rouge —
+ * il ne pourra jamais rien détecter, quel que soit l'azimut/élévation choisis
+ * ensuite. Chaque point est étiqueté (Pas de tir / Radar 1…). L'azimut se
+ * règle plus tard, à l'étape Menaces — pas ici.
  */
 export function MissionPlacementMap({
   site,
@@ -27,24 +27,24 @@ export function MissionPlacementMap({
   activeRadarId,
   onSelectActive,
   onPlaceRadar,
-  rocketMaxRangeKm = null,
 }: MissionPlacementMapProps) {
   const { containerRef, radarsOutOfRange } = useMissionPlacementMap({
     site,
     radars,
     activeRadarId,
     onPlaceRadar,
-    rocketMaxRangeKm,
   })
 
   const active = radars.find((r) => r.id === activeRadarId) ?? radars[0]
 
-  // Une ligne d'alerte par radar hors portée : numéro + distances exactes.
+  // Une ligne d'alerte par radar dont le cercle de couverture ne chevauche pas
+  // du tout le cercle de portée de la Mesange : signalement visuel seul,
+  // jamais un blocage — le placement reste libre.
   const outOfRangeLines = radarsOutOfRange.map((excess) => {
     const index = radars.findIndex((radar) => radar.id === excess.id)
     return {
       id: excess.id,
-      text: `Radar ${index + 1} out of range — ${excess.distanceKm.toFixed(2).replace('.', ',')} km measured / ${excess.maxKm} km range`,
+      text: `Radar ${index + 1} can never overlap the rocket's reach — ${excess.distanceKm.toFixed(2).replace('.', ',')} km measured / ${excess.maxKm.toFixed(0)} km max`,
     }
   })
 
