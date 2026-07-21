@@ -35,6 +35,9 @@ interface UseTrajectoryPlaybackParams {
   metersPerSceneUnit: number
   /** Remontée de la position monde à chaque frame (caméra de suivi). */
   onFrame?: (position: THREE.Vector3, progress: number) => void
+  /** Impact réel (fin de la chute physique sur le relief 3D) : signale la fin
+   *  DU VOL RENDU — voir le commentaire sur `setPhase('broken')` plus bas. */
+  onImpact?: () => void
 }
 
 interface UseTrajectoryPlaybackResult {
@@ -61,6 +64,7 @@ export function useTrajectoryPlayback({
   initialDirection,
   metersPerSceneUnit,
   onFrame,
+  onImpact,
 }: UseTrajectoryPlaybackParams): UseTrajectoryPlaybackResult {
   const groupRef = useRef<THREE.Group>(null)
   const animElapsed = useRef(0)
@@ -236,6 +240,7 @@ export function useTrajectoryPlayback({
         group.position.copy(scratch.pos)
         impact.copy(scratch.pos)
         setPhase('broken')
+        onImpact?.()
         return
       }
 

@@ -15,6 +15,7 @@ from __future__ import annotations
 import argparse
 import json
 import math
+from concurrent.futures import ThreadPoolExecutor, TimeoutError as FutureTimeoutError
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -79,14 +80,29 @@ def _fix_gfs_pressure_density_bug(env: Environment) -> None:
     )
 
 
+# Budget max pour charger la météo GFS avant d'abandonner et de retomber sur
+# une atmosphère standard : RocketPy retente en interne JUSQU'À 10 FOIS avec un
+# backoff exponentiel (2, 4, 8, 16, 32... secondes) sur le moindre hoquet réseau
+# — un seul échec de connexion initial (DNS pas encore résolu, TLS pas encore
+# négocié) suffit à dépasser largement le timeout front (45 s), voire plusieurs
+# MINUTES dans le pire cas. C'est ce qui causait le « Simulation failed —
+# Backend unreachable » systématique au TOUT PREMIER lancement d'une session
+# (le replay suivant, connexion déjà chaude, réussissait du premier coup). On
+# borne donc l'attente nous-mêmes : au-delà, on abandonne GFS pour cette
+# requête (le thread orphelin continue en arrière-plan sans effet de bord, il
+# n'écrit que dans son `env` local) plutôt que de faire attendre l'utilisateur.
+GFS_FETCH_TIMEOUT_SEC = 8.0
+
+
 def _apply_real_weather(env: Environment, launch_datetime: datetime | None) -> bool:
     """Tente de charger la météo réelle du site (vent par altitude, température,
     pression) via la prévision GFS (NOAA, gratuit, sans clé API) à la date de
     tir demandée. Renvoie True si la vraie météo a pu être chargée.
 
-    Sans accès réseau, ou en dehors de la fenêtre de prévision GFS, on ne lève
-    pas d'erreur : l'appelant retombe sur une atmosphère standard sans vent
-    plutôt que de bloquer toute la simulation pour une histoire de météo.
+    Sans accès réseau, en dehors de la fenêtre de prévision GFS, ou si ça
+    dépasse `GFS_FETCH_TIMEOUT_SEC`, on ne lève pas d'erreur : l'appelant
+    retombe sur une atmosphère standard sans vent plutôt que de bloquer toute
+    la simulation pour une histoire de météo.
 
     RocketPy recale `env.elevation` sur l'altitude de la maille GFS la plus
     proche (résolution grossière) au moment du chargement — donc DIFFÉRENTE de
@@ -97,12 +113,22 @@ def _apply_real_weather(env: Environment, launch_datetime: datetime | None) -> b
     """
     launch_datetime = launch_datetime or datetime.now(timezone.utc)
     site_elevation_m = env.elevation
-    try:
+
+    def _load() -> None:
         env.set_date(
             (launch_datetime.year, launch_datetime.month, launch_datetime.day, launch_datetime.hour),
             timezone="UTC",
         )
         env.set_atmospheric_model(type="Forecast", file="GFS")
+
+    # PAS de `with` : sa sortie de bloc attendrait (shutdown(wait=True)) que le
+    # thread orphelin termine ses propres tentatives internes RocketPy avant de
+    # rendre la main — ça annulerait tout l'intérêt du timeout ci-dessous.
+    # `wait=False` laisse le thread mourir de son côté sans bloquer l'appelant.
+    pool = ThreadPoolExecutor(max_workers=1)
+    try:
+        pool.submit(_load).result(timeout=GFS_FETCH_TIMEOUT_SEC)
+        pool.shutdown(wait=False)
         env.set_elevation(site_elevation_m)
         # Pression au niveau de la mer plausible : 80-110 kPa. Au-delà, c'est
         # le bug RocketPy ci-dessus (facteur ~100) — on corrige ; sinon (si un
@@ -110,7 +136,11 @@ def _apply_real_weather(env: Environment, launch_datetime: datetime | None) -> b
         if env.pressure(site_elevation_m) > 200_000:
             _fix_gfs_pressure_density_bug(env)
         return True
+    except FutureTimeoutError:
+        pool.shutdown(wait=False)
+        return False
     except Exception:  # noqa: BLE001 — GFS indisponible : repli silencieux
+        pool.shutdown(wait=False)
         return False
 
 

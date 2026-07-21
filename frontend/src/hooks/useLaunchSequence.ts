@@ -1,17 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { simulateFlight, type FlightData, type RadarSpec, type ThreatSpec } from '@/lib/api'
-import { TIME_SCALE, LIFTOFF_REAL_SEC, LIFTOFF_TIME_SCALE } from '@/three/constants/flightPlayback'
 import type { RadarConfig } from '@/types/radar.types'
 import type { RadarPosition, MesangeLaunchConfig } from '@/types/mission.types'
 import type { LaunchSite } from '@/types/simulation.types'
 import type { MissionResult } from '@/types/missionResult.types'
-
-/** Durée d'animation (s) pour un vol de `flightSec` réel : décollage ralenti + reste accéléré. */
-function playbackDurationSec(flightSec: number): number {
-  const liftoffAnim = LIFTOFF_REAL_SEC / LIFTOFF_TIME_SCALE
-  const rest = Math.max(0, flightSec - LIFTOFF_REAL_SEC) / TIME_SCALE
-  return liftoffAnim + rest
-}
 
 /** Caractéristiques COMPLÈTES des radars posés → payload du moteur de détection. */
 function buildRadarSpecs(
@@ -66,6 +58,14 @@ interface UseLaunchSequenceResult {
   launch: () => void
   /** Réarme le scénario pour le relancer. */
   replay: () => void
+  /** Signale l'impact RÉEL de la fusée (fin de la chute sur le relief 3D) :
+   *  fait basculer 'running' → 'done'. Appelé depuis la scène (voir
+   *  useTrajectoryPlayback/onImpact), jamais deviné par un minuteur — la durée
+   *  RocketPy est calculée sur un sol plat virtuel, alors que l'impact réel
+   *  dépend du relief 3D (bosses/creux) sous le point de chute, qui peut
+   *  largement diverger : un minuteur fixe coupait le rendu de la fusée
+   *  (`active=false`) avant ou après la fin réelle de sa chute affichée. */
+  reportImpact: () => void
 }
 
 const COUNTDOWN_START = 3
@@ -93,6 +93,10 @@ export function useLaunchSequence({
   const [weather, setWeather] = useState<FlightData['weather'] | null>(null)
 
   const countdownTimer = useRef<ReturnType<typeof setInterval> | null>(null)
+  // Bilan radar en attente de l'impact RÉEL (voir reportImpact) : calculé dès
+  // que la simu répond, mais affiché seulement quand la fusée touche
+  // effectivement le relief 3D — jamais avant, jamais après.
+  const pendingDetection = useRef<MissionResult | null>(null)
 
   const clearTimers = useCallback(() => {
     if (countdownTimer.current) clearInterval(countdownTimer.current)
@@ -145,17 +149,21 @@ export function useLaunchSequence({
 
       // 4) Anim de la trajectoire (temps réel joué en accéléré, décollage
       //    ralenti) ; le bilan vient du MOTEUR RADAR backend (modèle physique).
-      const detection = sim.detection ?? null
-      const playbackMs = playbackDurationSec(flightData.flightTimeSec) * 1000
-      setTimeout(() => {
-        setResult(detection)
-        setPhase('done')
-      }, playbackMs)
+      // La transition 'running' → 'done' est déclenchée par reportImpact(),
+      // appelé depuis la scène au moment de l'impact RÉEL sur le relief 3D —
+      // pas par une durée devinée à l'avance (voir reportImpact).
+      pendingDetection.current = sim.detection ?? null
     })
   }, [phase, king, site, radars, mesangeConfigs, temperatureC])
 
+  const reportImpact = useCallback(() => {
+    setResult(pendingDetection.current)
+    setPhase('done')
+  }, [])
+
   const replay = useCallback(() => {
     clearTimers()
+    pendingDetection.current = null
     setCountdown(COUNTDOWN_START)
     setMessage('')
     setResult(null)
@@ -164,5 +172,5 @@ export function useLaunchSequence({
     setPhase('armed')
   }, [clearTimers])
 
-  return { phase, countdown, message, result, flight, weather, launch, replay }
+  return { phase, countdown, message, result, flight, weather, launch, replay, reportImpact }
 }

@@ -51,6 +51,10 @@ export interface LaunchSceneCanvasProps {
   flying: boolean
   flight: FlightData | null
   flightProgressRef?: React.RefObject<number>
+  /** Impact réel de la fusée (fin de la chute sur le relief 3D) — voir
+   *  useTrajectoryPlayback. Signal DÉCLENCHEUR de la fin de vol côté séquence,
+   *  au lieu d'une durée devinée à l'avance (voir useLaunchSequence). */
+  onImpact?: () => void
   /** Mètres réels → unités scène (map fixe, voir computeSceneScale). */
   metersPerSceneUnit: number
   /** Portée max estimée du missile (km), null tant que non reçue — voir RocketInfoHologram. */
@@ -89,6 +93,7 @@ export function LaunchSceneCanvas({
   flying,
   flight,
   flightProgressRef,
+  onImpact,
   metersPerSceneUnit,
   rangeKm,
   roleLabel,
@@ -224,6 +229,7 @@ export function LaunchSceneCanvas({
               corridorPosRef.current.copy(p)
               if (flightProgressRef) flightProgressRef.current = progress
             }}
+            onImpact={onImpact}
           />
           {/* Corridor de visibilité : la fusée réellement rendue, suivie EN
               DIRECT (voir VisibilityCorridor/useVisibilityCorridorTrail) —

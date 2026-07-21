@@ -141,6 +141,7 @@ export function LancementScene({ state }: LancementSceneProps) {
         flying={sequence.phase === 'running'}
         flight={sequence.flight}
         flightProgressRef={flightProgressRef}
+        onImpact={sequence.reportImpact}
         metersPerSceneUnit={1 / sceneScale}
         rangeKm={maxRangeKm}
         roleLabel={roleLabel}

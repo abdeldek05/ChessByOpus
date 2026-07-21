@@ -20,6 +20,8 @@ interface FlyingMesangeProps {
   metersPerSceneUnit: number
   /** Position monde de la fusée à chaque frame (caméra de suivi). */
   onFlightFrame?: (position: THREE.Vector3, progress: number) => void
+  /** Impact réel (fin de la chute sur le relief 3D) — voir useTrajectoryPlayback. */
+  onImpact?: () => void
 }
 
 /**
@@ -36,6 +38,7 @@ export function FlyingMesange({
   active,
   metersPerSceneUnit,
   onFlightFrame,
+  onImpact,
 }: FlyingMesangeProps) {
   // Stabilise l'origine/direction (évite un nouveau Vector3 à chaque render → reset hook).
   const originStable = useMemo(() => origin.clone(), [origin.x, origin.y, origin.z])
@@ -51,6 +54,7 @@ export function FlyingMesange({
     initialDirection: directionStable,
     metersPerSceneUnit,
     onFrame: onFlightFrame,
+    onImpact,
   })
 
   if (!active || !flight) return null
