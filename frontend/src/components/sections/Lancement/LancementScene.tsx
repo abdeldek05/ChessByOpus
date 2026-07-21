@@ -7,8 +7,10 @@ import { LaunchTacticalMap } from './LaunchTacticalMap'
 import { CorridorLegend } from './CorridorLegend'
 import { MissionBilan } from './MissionBilan'
 import { FlightTelemetryChart } from './FlightTelemetryChart'
+import { SceneLoadingOverlay } from './SceneLoadingOverlay'
 import { useLaunchSequence } from '@/hooks/useLaunchSequence'
 import { useRocketMaxRange } from '@/hooks/useRocketMaxRange'
+import { useSceneLoadingOverlay } from '@/hooks/useSceneLoadingOverlay'
 import { computeRadarSceneOffset } from '@/lib/computeRadarSceneOffset'
 import { computeDistanceKm, formatDistance } from '@/lib/computeDistanceKm'
 import { computeSceneScale } from '@/lib/sceneScale'
@@ -68,6 +70,10 @@ export function LancementScene({ state }: LancementSceneProps) {
     mesangeConfigs: state.mesangeConfigs,
     king: primary,
   })
+
+  // Écran de chargement affiché le temps que la scène 3D (GLB, HDRI, terrain)
+  // monte — purement cosmétique, voir useSceneLoadingOverlay.
+  const loadingOverlay = useSceneLoadingOverlay()
 
   // Échelle UNIQUE de la map fixe (voir sceneScale.ts) : normalise radar ET
   // trajectoire par le même facteur, calculé sur la plus grande distance
@@ -142,6 +148,7 @@ export function LancementScene({ state }: LancementSceneProps) {
         flight={sequence.flight}
         flightProgressRef={flightProgressRef}
         onImpact={sequence.reportImpact}
+        onSceneReady={loadingOverlay.reportSceneReady}
         metersPerSceneUnit={1 / sceneScale}
         rangeKm={maxRangeKm}
         roleLabel={roleLabel}
@@ -150,6 +157,12 @@ export function LancementScene({ state }: LancementSceneProps) {
         mode={sceneMode}
         className="h-full w-full"
       />
+
+      {/* Écran de chargement : couvre le montage de la scène 3D, disparaît une
+          fois la scène prête ET la durée minimum cosmétique écoulée. */}
+      {loadingOverlay.visible && (
+        <SceneLoadingOverlay progress={loadingOverlay.progress} message={loadingOverlay.message} />
+      )}
 
       {/* Bascule d'ambiance jour ☀ / nuit ☾ de la scène. */}
       <DayNightToggle

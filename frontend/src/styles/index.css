@@ -399,3 +399,21 @@ body {
   filter: drop-shadow(0 0 50px color-mix(in srgb, var(--color-warning) 60%, transparent));
 }
 
+/* Écran de chargement (montage de la scène de lancement) : piste de la barre
+   de progression + halo de la pastille fusée qui glisse dessus, même famille
+   laiton que le reste du HUD (voir SceneLoadingOverlay). */
+.loading-track {
+  background: color-mix(in srgb, var(--color-accent-bright) 18%, transparent);
+}
+.loading-track__fill {
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--color-accent-bright) 40%, transparent),
+    var(--color-accent-bright)
+  );
+  box-shadow: 0 0 16px color-mix(in srgb, var(--color-accent-bright) 70%, transparent);
+}
+.loading-marker-glow {
+  filter: drop-shadow(0 0 10px color-mix(in srgb, var(--color-accent-bright) 80%, transparent));
+}
+

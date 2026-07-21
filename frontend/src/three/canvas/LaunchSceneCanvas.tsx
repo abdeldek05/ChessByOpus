@@ -16,6 +16,7 @@ import { LaunchRail } from '@/three/models/LaunchRail'
 import { ScorchDecal } from '@/three/models/ScorchDecal'
 import { ControlConsole } from '@/three/models/ControlConsole'
 import { FlyingMesange } from '@/three/models/FlyingMesange'
+import { SceneReadySignal } from '@/three/models/SceneReadySignal'
 import { RocketInfoHologram } from '@/three/models/RocketInfoHologram'
 import { VisibilityCorridor } from '@/three/models/VisibilityCorridor'
 import { SceneRadar } from '@/three/models/SceneRadar'
@@ -55,6 +56,8 @@ export interface LaunchSceneCanvasProps {
    *  useTrajectoryPlayback. Signal DÉCLENCHEUR de la fin de vol côté séquence,
    *  au lieu d'une durée devinée à l'avance (voir useLaunchSequence). */
   onImpact?: () => void
+  /** Scène 3D montée (GLB radars/mésange chargés) — voir SceneReadySignal. */
+  onSceneReady?: () => void
   /** Mètres réels → unités scène (map fixe, voir computeSceneScale). */
   metersPerSceneUnit: number
   /** Portée max estimée du missile (km), null tant que non reçue — voir RocketInfoHologram. */
@@ -94,6 +97,7 @@ export function LaunchSceneCanvas({
   flight,
   flightProgressRef,
   onImpact,
+  onSceneReady,
   metersPerSceneUnit,
   rangeKm,
   roleLabel,
@@ -200,6 +204,7 @@ export function LaunchSceneCanvas({
           suspension remonte jusqu'à la route et blanchit brièvement l'écran ; un
           échec de chargement est capté par le SceneErrorBoundary parent. */}
       <Suspense fallback={null}>
+      {onSceneReady && <SceneReadySignal onReady={onSceneReady} />}
       <group position={LAUNCH_CENTER}>
         <LaunchComplex />
         <group position={[0, PAD_TOP_Y, 0]}>
