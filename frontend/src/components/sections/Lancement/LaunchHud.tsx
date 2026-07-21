@@ -57,26 +57,13 @@ export function LaunchHud({ siteName, radarName, phase, countdown, message, onLa
         </div>
       )}
 
-      {/* Compte à rebours plein écran, puis « GO » + indicateur de CALCUL : le
-          backend met ~7 s (plus au 1er appel, météo à télécharger) à produire
-          la trajectoire, bien plus que les 3 s de décompte. Sans ce retour
-          visuel, l'écran restait FIGÉ sur « GO » plusieurs secondes → semblait
-          planté. Le pulse « Computing trajectory… » montre que ça travaille. */}
-      {phase === 'countdown' && (
-        <div className="absolute inset-0 flex flex-col items-center justify-center gap-6">
-          {countdown > 0 ? (
-            <span className="countdown-glow text-[13rem] leading-none font-bold text-warning">{countdown}</span>
-          ) : (
-            <>
-              <span className="countdown-glow text-[9rem] leading-none font-bold text-warning">GO</span>
-              <div className="flex items-center gap-3">
-                <span className="h-2.5 w-2.5 animate-ping rounded-full bg-accent-bright" />
-                <span className="font-fine text-xs font-light tracking-[0.3em] text-accent-bright uppercase">
-                  Computing trajectory…
-                </span>
-              </div>
-            </>
-          )}
+      {/* Compte à rebours plein écran (3-2-1 uniquement). Une fois à 0, ce bloc
+          s'efface : l'overlay de calcul animé (LaunchComputingOverlay, monté
+          dans LancementScene) prend le relais le temps que le backend réponde —
+          plus de gros « GO » figé plaqué à l'écran pendant l'attente. */}
+      {phase === 'countdown' && countdown > 0 && (
+        <div className="absolute inset-0 flex flex-col items-center justify-center">
+          <span className="countdown-glow text-[13rem] leading-none font-bold text-warning">{countdown}</span>
         </div>
       )}
 

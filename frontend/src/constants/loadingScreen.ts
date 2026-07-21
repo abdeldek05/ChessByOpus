@@ -18,3 +18,24 @@ export const LOADING_MESSAGES = [
 
 /** Durée (s) d'affichage de chaque message avant de passer au suivant. */
 export const LOADING_MESSAGE_INTERVAL_SEC = 1.2
+
+// --- Overlay de CALCUL de tir (après le décompte 3-2-1, le temps que RocketPy
+// réponde) — voir useLaunchComputingOverlay. Distinct du chargement de scène :
+// piloté par la vraie fin du backend, pas par une durée fixe.
+
+/** Messages du calcul de tir (défilent pendant l'attente RocketPy). */
+export const COMPUTING_MESSAGES = [
+  'Igniting engines…',
+  'Computing trajectory…',
+  'Resolving atmosphere…',
+  'Finalizing flight path…',
+] as const
+
+/** Progression max (0→1) tant que le backend n'a PAS répondu : la barre monte
+ *  vers ce plafond puis y reste, pour ne jamais afficher un « 100% » figé alors
+ *  que le calcul continue. Elle bondit à 1 seulement à la vraie fin. */
+export const COMPUTING_PROGRESS_CEILING = 0.9
+
+/** Constante de temps (s) de l'approche asymptotique vers le plafond : plus
+ *  grand = montée plus lente/douce. */
+export const COMPUTING_PROGRESS_TAU = 3

@@ -8,6 +8,7 @@ import { CorridorLegend } from './CorridorLegend'
 import { MissionBilan } from './MissionBilan'
 import { FlightTelemetryChart } from './FlightTelemetryChart'
 import { SceneLoadingOverlay } from './SceneLoadingOverlay'
+import { LaunchComputingOverlay } from './LaunchComputingOverlay'
 import { useLaunchSequence } from '@/hooks/useLaunchSequence'
 import { useRocketMaxRange } from '@/hooks/useRocketMaxRange'
 import { useSceneLoadingOverlay } from '@/hooks/useSceneLoadingOverlay'
@@ -163,6 +164,13 @@ export function LancementScene({ state }: LancementSceneProps) {
       {loadingOverlay.visible && (
         <SceneLoadingOverlay progress={loadingOverlay.progress} message={loadingOverlay.message} />
       )}
+
+      {/* Overlay de calcul de tir : prend le relais dès que le décompte 3-2-1
+          atteint 0, le temps que le backend réponde — remplace l'ancien « GO »
+          figé. Disparaît pile quand le vol démarre (phase → 'running'). */}
+      <LaunchComputingOverlay
+        active={sequence.phase === 'countdown' && sequence.countdown <= 0}
+      />
 
       {/* Bascule d'ambiance jour ☀ / nuit ☾ de la scène. */}
       <DayNightToggle

@@ -5,24 +5,38 @@ interface SceneLoadingOverlayProps {
   progress: number
   /** Message courant, tourne pendant le chargement. */
   message: string
+  /** Titre affiché au-dessus de la piste. */
+  title?: string
+  /** Fond assombri translucide au lieu d'opaque : laisse voir la scène derrière
+   *  (utilisé pendant le calcul de tir, où la rampe reste visible). */
+  dimmed?: boolean
 }
 
 /**
- * Écran de chargement plein écran affiché le temps que la scène 3D de
- * lancement monte (GLB, HDRI, terrain) : une pastille fusée glisse le long
- * d'une piste vers une icône radar, texte de statut en rotation en dessous.
- * Rendu pur — toute la logique de progression/timing vit dans
- * useSceneLoadingOverlay.
+ * Écran de chargement (fusée glissant vers une icône radar, texte de statut en
+ * rotation) : sert au montage de la scène 3D (fond opaque, voir
+ * useSceneLoadingOverlay) ET à l'attente du calcul de tir (fond translucide,
+ * voir LaunchComputingOverlay). Rendu pur — la logique de progression/timing
+ * vit dans les hooks appelants.
  */
-export function SceneLoadingOverlay({ progress, message }: SceneLoadingOverlayProps) {
+export function SceneLoadingOverlay({
+  progress,
+  message,
+  title = 'Preparing launch scene',
+  dimmed = false,
+}: SceneLoadingOverlayProps) {
   // Position de la pastille le long de la piste : calculée dynamiquement selon
   // la progression courante — seule exception au style inline (voir CLAUDE.md).
   const markerLeft = `${progress * 100}%`
 
   return (
-    <div className="absolute inset-0 z-50 flex flex-col items-center justify-center gap-8 bg-bg font-mono">
+    <div
+      className={`absolute inset-0 z-50 flex flex-col items-center justify-center gap-8 font-mono ${
+        dimmed ? 'bg-bg/80 backdrop-blur-sm' : 'bg-bg'
+      }`}
+    >
       <p className="font-fine text-xs font-light tracking-[0.4em] text-accent-bright uppercase">
-        Preparing launch scene
+        {title}
       </p>
 
       <div className="flex w-full max-w-md items-center gap-4 px-10">
