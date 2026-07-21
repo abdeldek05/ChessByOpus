@@ -2,6 +2,17 @@ import { useEffect, useMemo, useRef } from 'react'
 import maplibregl from 'maplibre-gl'
 import { enuToLatLon } from '@/lib/enuToLatLon'
 import { TACTICAL_MAP_STYLE, drawTacticalOverlay } from '@/lib/launchTacticalMap'
+import { buildSweepTrailFeatures } from '@/lib/geoRadarSector'
+import { computeRadarEnu } from '@/lib/coverage/computeRadarEnu'
+import { isInCoverage } from '@/lib/coverage/computeVisibilityWindows'
+import {
+  SWEEP_HALF_WIDTH_DEG,
+  SWEEP_TRAIL_DEG,
+  SWEEP_DIRECTION,
+  SWEEP_DEFAULT_RPM,
+  SWEEP_SEARCH_COLOR,
+  SWEEP_LOCKED_COLOR,
+} from '@/constants/tacticalRadar'
 import type { LaunchSite } from '@/types/simulation.types'
 import type { PlacedRadar } from '@/types/mission.types'
 import type { FlightData } from '@/lib/api'
@@ -10,7 +21,6 @@ interface UseLaunchTacticalMapParams {
   site: LaunchSite
   /** Tous les radars placés (1-2), chacun avec sa couverture. */
   radars: PlacedRadar[]
-  azimuthDeg: number
   /** Agrandie : pan + zoom souris actifs ; compacte : figée. */
   expanded: boolean
   /** Trajectoire RocketPy (null tant que non calculée). */
@@ -32,14 +42,14 @@ function setInteractive(map: maplibregl.Map, on: boolean) {
 /**
  * Carte tactique de l'écran de lancement : vue de dessus à l'échelle réelle,
  * là où la distance est FIDÈLE (la scène 3D montre le pas de tir grandeur
- * nature). Épurée : anneaux de distance, cône d'azimut de la MENACE, et pour
- * chaque radar sa couverture + un trait de liaison (dessin → lib/launchTacticalMap).
+ * nature). Épurée : uniquement les radars — marqueur, couverture, trait de
+ * liaison, et un FAISCEAU ROTATIF qui balaie en continu (dessin statique →
+ * lib/launchTacticalMap, rotation + détection live → boucle rAF ci-dessous).
  * Read-only en compact ; pan/zoom actifs une fois agrandie.
  */
 export function useLaunchTacticalMap({
   site,
   radars,
-  azimuthDeg,
   expanded,
   flight,
   flightProgressRef,
@@ -55,16 +65,35 @@ export function useLaunchTacticalMap({
     return flight.trajectory.map((p) => enuToLatLon(p.x, p.y, site.longitude, site.latitude))
   }, [flight, site.longitude, site.latitude])
 
+  // Radars posés, avec leur position ENU (m, même repère que la trajectoire)
+  // et leur vitesse de rotation — recalculé seulement quand les radars/site
+  // changent, pas à chaque frame.
+  const placedRadars = useMemo(
+    () =>
+      radars
+        .filter((radar) => radar.position !== null)
+        .map((radar) => ({
+          id: radar.id,
+          lng: radar.position!.longitude,
+          lat: radar.position!.latitude,
+          enu: computeRadarEnu(site, radar.position!),
+          config: radar.config,
+          rpm: radar.config.rotating ? (radar.config.rotationRpm ?? SWEEP_DEFAULT_RPM) : 0,
+        })),
+    [site, radars],
+  )
+
   // --- Création de la carte (une fois) ---
   useEffect(() => {
     if (!containerRef.current) return
 
     const placed = radars.filter((radar) => radar.position !== null)
-    const maxRangeKm = Math.max(...placed.map((r) => r.config.rangeKm), 40)
 
-    // Cadrage SERRÉ : englobe pas de tir + radars. Padding ASYMÉTRIQUE FORT pour
-    // pousser l'ensemble nettement dans un coin → le pas de tir est franchement
-    // décalé sur le côté (pas au milieu), scène plus dynamique.
+    // Cadrage SERRÉ : englobe pas de tir + radars. Padding réduit + maxZoom
+    // relevé (14 au lieu de 11) pour zoomer nettement plus près — la carte
+    // épurée (radars + faisceau seuls, plus d'anneaux ni de cône) reste
+    // lisible même resserrée. Padding gauche encore asymétrique pour décaler
+    // l'ensemble (scène plus dynamique, pas de tir pas pile au centre).
     const bounds = new maplibregl.LngLatBounds()
     bounds.extend([site.longitude, site.latitude])
     placed.forEach((radar) => bounds.extend([radar.position!.longitude, radar.position!.latitude]))
@@ -73,13 +102,13 @@ export function useLaunchTacticalMap({
       container: containerRef.current,
       style: TACTICAL_MAP_STYLE,
       bounds,
-      fitBoundsOptions: { padding: { top: 25, right: 25, bottom: 150, left: 210 }, maxZoom: 11 },
+      fitBoundsOptions: { padding: { top: 15, right: 15, bottom: 60, left: 90 }, maxZoom: 14 },
       interactive: false, // navigation togglée ensuite selon `expanded`
       attributionControl: false,
     })
     mapRef.current = map
 
-    const draw = () => drawTacticalOverlay(map, site, placed, azimuthDeg, maxRangeKm)
+    const draw = () => drawTacticalOverlay(map, site, placed)
     if (map.isStyleLoaded()) draw()
     else map.once('load', draw)
 
@@ -143,6 +172,80 @@ export function useLaunchTacticalMap({
     raf = requestAnimationFrame(update)
     return () => cancelAnimationFrame(raf)
   }, [trackLngLat, flightProgressRef])
+
+  // --- Faisceau rotatif : boucle rAF DÉDIÉE, tourne en CONTINU (même hors
+  //     vol, contrairement à la piste ci-dessus qui ne redessine que si la
+  //     progression change) — un radar rotatif balaie sans arrêt. Calcule
+  //     aussi la détection live (fusée dans l'enveloppe + faisceau pointé
+  //     dessus) pour virer le faisceau à l'alarme. ---
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map || placedRadars.length === 0) return
+
+    let raf = 0
+    const startMs = performance.now()
+    const lockedStateByRadar = new Map<string, boolean>()
+
+    const update = () => {
+      raf = requestAnimationFrame(update)
+      const elapsedMin = (performance.now() - startMs) / 60000
+
+      // Position ENU live de la menace (m, east/north) : reconstituée depuis
+      // la progression partagée + la trajectoire, seulement si un vol est en
+      // cours — sinon aucun radar ne peut être en détection.
+      const progress = flightProgressRef.current
+      let livePoint: { x: number; y: number; z: number } | null = null
+      if (flight && progress >= 0) {
+        const n = flight.trajectory.length
+        const idx = Math.min(n - 1, Math.max(0, Math.floor(progress * (n - 1))))
+        livePoint = flight.trajectory[idx]
+      }
+
+      placedRadars.forEach((radar) => {
+        const sweepSrc = map.getSource(`sweep-${radar.id}`) as maplibregl.GeoJSONSource | undefined
+        if (!sweepSrc) return
+
+        if (radar.rpm <= 0) return // radar statique : pas de faisceau à animer
+
+        const headingDeg = (elapsedMin * radar.rpm * 360 * SWEEP_DIRECTION) % 360
+
+        // Détection : la menace est dans l'enveloppe géométrique du radar ET
+        // son azimut (vu depuis le radar) tombe dans le secteur balayé.
+        let locked = false
+        if (livePoint) {
+          const inCoverage = isInCoverage(livePoint, radar.enu.eastM, radar.enu.northM, radar.config)
+          if (inCoverage) {
+            const dE = livePoint.x - radar.enu.eastM
+            const dN = livePoint.y - radar.enu.northM
+            const bearingToThreat = (Math.atan2(dE, dN) * 180) / Math.PI
+            const delta = ((bearingToThreat - headingDeg + 540) % 360) - 180
+            locked = Math.abs(delta) <= SWEEP_HALF_WIDTH_DEG
+          }
+        }
+
+        const features = buildSweepTrailFeatures(
+          radar.lng,
+          radar.lat,
+          headingDeg,
+          SWEEP_DIRECTION,
+          SWEEP_HALF_WIDTH_DEG,
+          SWEEP_TRAIL_DEG,
+          radar.config.rangeKm,
+        )
+        sweepSrc.setData({ type: 'FeatureCollection', features })
+
+        // Couleur mise à jour SEULEMENT au changement d'état (pas chaque
+        // frame) : évite de retrigger un repaint de couche pour rien.
+        if (lockedStateByRadar.get(radar.id) !== locked) {
+          lockedStateByRadar.set(radar.id, locked)
+          map.setPaintProperty(`sweep-${radar.id}`, 'fill-color', locked ? SWEEP_LOCKED_COLOR : SWEEP_SEARCH_COLOR)
+        }
+      })
+    }
+
+    raf = requestAnimationFrame(update)
+    return () => cancelAnimationFrame(raf)
+  }, [placedRadars, flight, flightProgressRef])
 
   return { containerRef }
 }

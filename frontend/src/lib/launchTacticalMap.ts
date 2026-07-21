@@ -1,23 +1,18 @@
 import { buildRangeCircle } from '@/lib/geoCircle'
-import { buildSightCone } from '@/lib/geoSightCone'
 import { createLabeledMarker } from '@/lib/mapMarker'
+import { SWEEP_SEARCH_COLOR } from '@/constants/tacticalRadar'
 import type maplibregl from 'maplibre-gl'
 import type { LaunchSite } from '@/types/simulation.types'
 import type { PlacedRadar } from '@/types/mission.types'
 
-// Config statique de la carte tactique de l'écran de lancement (couleurs HUD,
-// paliers de distance). Style de fond sombre gratuit, sans clé d'accès.
+// Config statique de la carte tactique de l'écran de lancement (couleurs HUD).
+// Style de fond sombre gratuit, sans clé d'accès.
 export const TACTICAL_MAP_STYLE = 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json'
 
-// Laiton du HUD. Couverture/liaison en laiton mat, cône de menace en laiton
-// clair. Épuré : pas de faisceau tournant (radars statiques).
+// Laiton du HUD. Couverture/liaison en laiton mat. Épurée : uniquement les
+// radars (marqueur + couverture + faisceau rotatif), pas d'anneaux de distance
+// ni de cône d'azimut de menace (redondant avec la piste de vol live).
 export const COVERAGE_COLOR = '#94866e'
-export const THREAT_CONE_COLOR = '#cdbb98'
-export const RING_COLOR = '#4a5340'
-
-// Paliers de distance (km) tracés autour du pas de tir, épurés (peu de repères
-// pour ne pas charger). Ceux qui dépassent la portée max sont ignorés.
-export const RING_STEPS_KM = [25, 50, 100] as const
 
 // Piste de la menace sur la carte (vue radar). TRACK_GHOST : portion NON encore
 // détectée (angle mort) — discret, pointillé. TRACK_LOCKED : portion accrochée
@@ -29,49 +24,17 @@ export const TRACK_LOCKED_COLOR = '#e0533a'
 export const TRACK_HEAD_COLOR = '#ffffff'
 
 /**
- * Dessine l'incrustation tactique statique : anneaux de distance, cône d'azimut
- * de la menace, couverture + liaison + marqueur de chaque radar posé, marqueur
- * du pas de tir, et les sources vides de la PISTE live (trace + tête) alimentées
- * ensuite par la boucle rAF du hook. Appelé une fois, au chargement du style.
+ * Dessine l'incrustation tactique statique : couverture + liaison + marqueur
+ * de chaque radar posé, marqueur du pas de tir, les sources vides du FAISCEAU
+ * rotatif par radar (traîne balayée, alimentée ensuite par la boucle rAF du
+ * hook — voir buildSweepTrailFeatures), et les sources vides de la PISTE live
+ * (trace + tête). Épurée : pas d'anneaux de distance ni de cône d'azimut de
+ * menace (redondant avec la piste de vol live). Appelé une fois, au
+ * chargement du style.
  */
-export function drawTacticalOverlay(
-  map: maplibregl.Map,
-  site: LaunchSite,
-  placed: PlacedRadar[],
-  azimuthDeg: number,
-  maxRangeKm: number,
-) {
-  // Anneaux de distance, discrets, centrés sur le pas de tir.
-  RING_STEPS_KM.filter((km) => km <= maxRangeKm).forEach((km) => {
-    const ring = buildRangeCircle(site.longitude, site.latitude, km)
-    map.addSource(`ring-${km}`, {
-      type: 'geojson',
-      data: { type: 'Feature', geometry: { type: 'LineString', coordinates: ring }, properties: {} },
-    })
-    map.addLayer({
-      id: `ring-${km}`,
-      type: 'line',
-      source: `ring-${km}`,
-      paint: { 'line-color': RING_COLOR, 'line-width': 1, 'line-opacity': 0.35 },
-    })
-  })
-
-  // Cône d'azimut de la MENACE (depuis le pas de tir), trait fin.
-  const cone = buildSightCone(site.longitude, site.latitude, azimuthDeg, maxRangeKm * 1.1)
-  map.addSource('cone', {
-    type: 'geojson',
-    data: { type: 'Feature', geometry: { type: 'Polygon', coordinates: [cone] }, properties: {} },
-  })
-  map.addLayer({ id: 'cone-fill', type: 'fill', source: 'cone', paint: { 'fill-color': THREAT_CONE_COLOR, 'fill-opacity': 0.12 } })
-  map.addLayer({
-    id: 'cone-line',
-    type: 'line',
-    source: 'cone',
-    layout: { 'line-cap': 'round', 'line-join': 'round' },
-    paint: { 'line-color': THREAT_CONE_COLOR, 'line-width': 1.4, 'line-opacity': 0.8 },
-  })
-
-  // Par radar posé : couverture (trait fin) + liaison discrète + marqueur.
+export function drawTacticalOverlay(map: maplibregl.Map, site: LaunchSite, placed: PlacedRadar[]) {
+  // Par radar posé : couverture (trait fin) + liaison discrète + marqueur +
+  // source vide du faisceau rotatif (secteurs de traîne, voir le hook).
   placed.forEach((radar, index) => {
     const { longitude: rLng, latitude: rLat } = radar.position!
     const label = placed.length > 1 ? `Radar ${index + 1}` : 'Radar'
@@ -103,6 +66,24 @@ export function drawTacticalOverlay(
       source: `link-${radar.id}`,
       layout: { 'line-cap': 'round' },
       paint: { 'line-color': COVERAGE_COLOR, 'line-width': 1.2, 'line-opacity': 0.6 },
+    })
+
+    // Faisceau rotatif : FeatureCollection vide, remplie chaque frame par la
+    // boucle rAF du hook avec la traîne balayée courante (fade par feature).
+    map.addSource(`sweep-${radar.id}`, {
+      type: 'geojson',
+      data: { type: 'FeatureCollection', features: [] },
+    })
+    map.addLayer({
+      id: `sweep-${radar.id}`,
+      type: 'fill',
+      source: `sweep-${radar.id}`,
+      // Faisceau de tête net (fade=1 → 0.55) puis traîne qui s'efface vite
+      // (fade² côté buildSweepTrailFeatures) : lecture immédiate du balayage.
+      paint: {
+        'fill-color': SWEEP_SEARCH_COLOR,
+        'fill-opacity': ['*', ['get', 'fade'], 0.55],
+      },
     })
 
     createLabeledMarker(map, [rLng, rLat], 'radar-marker', label)

@@ -9,7 +9,6 @@ interface LaunchTacticalMapProps {
   site: LaunchSite
   /** Tous les radars placés (1-2), tous affichés sur la carte. */
   radars: PlacedRadar[]
-  azimuthDeg: number
   /** Distance réelle pas de tir ↔ radar principal, déjà formatée. */
   distance: string
   /** Trajectoire RocketPy (null tant que non calculée) : tracée comme piste radar. */
@@ -34,13 +33,13 @@ const PANEL_WIDTH: Record<string, string> = {
  * Incrustation tactique 2D (bas-droite) de l'écran de lancement : vue de dessus
  * à l'échelle réelle, là où la distance est FIDÈLE — la scène 3D montre le pas
  * de tir à taille humaine. Trois crans (repliée → compacte → agrandie) via deux
- * boutons ; interactive (pan/zoom, faisceau radar) une fois agrandie. Logique
- * carte dans useLaunchTacticalMap.
+ * boutons ; pan/zoom souris actifs une fois agrandie. Chaque radar affiche son
+ * faisceau rotatif qui balaie en continu, vire à l'alarme quand il accroche la
+ * menace. Logique carte dans useLaunchTacticalMap.
  */
 export function LaunchTacticalMap({
   site,
   radars,
-  azimuthDeg,
   distance,
   flight,
   flightProgressRef,
@@ -49,7 +48,6 @@ export function LaunchTacticalMap({
   const { containerRef } = useLaunchTacticalMap({
     site,
     radars,
-    azimuthDeg,
     expanded: size === 'expanded',
     flight,
     flightProgressRef,

@@ -196,7 +196,6 @@ export function LancementScene({ state }: LancementSceneProps) {
       <LaunchTacticalMap
         site={state.site}
         radars={state.radars}
-        azimuthDeg={primary?.azimuthDeg ?? 0}
         distance={distance}
         flight={sequence.flight}
         flightProgressRef={flightProgressRef}
