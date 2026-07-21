@@ -49,6 +49,10 @@ export function LaunchTacticalMap({
     site,
     radars,
     expanded: size === 'expanded',
+    // Repliée (h-0, invisible) : inutile de faire tourner les boucles rAF
+    // (piste + faisceau radar) qui repeignent MapLibre à chaque frame et se
+    // disputent le thread principal avec le Canvas WebGL pour rien.
+    visible: size !== 'collapsed',
     flight,
     flightProgressRef,
   })

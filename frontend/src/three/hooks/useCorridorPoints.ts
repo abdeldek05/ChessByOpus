@@ -33,6 +33,14 @@ interface CorridorPoints {
 const MIN_POINT_SPACING = 0.6
 // Garde-fou mémoire pour un vol très long.
 const MAX_POINTS = 3000
+// Cadence de publication en state (donc re-render + rebuild géométrie <Line>).
+// Accumuler CHAQUE point en state (setState + spread à chaque frame utile)
+// reconstruit toute la fat-line à chaque appel — coût croissant avec la
+// longueur du corridor, cause d'une vibration qui empire au fil du vol. Les
+// points sont donc accumulés en ref à chaque frame (aucun re-render), et
+// publiés par lots à cette cadence seulement — invisible à l'œil sur une
+// ligne qui s'allonge.
+const PUBLISH_INTERVAL_SEC = 0.15
 
 const EMPTY: CorridorPoints = { points: [], colors: [] }
 
@@ -40,9 +48,10 @@ const EMPTY: CorridorPoints = { points: [], colors: [] }
  * Accumule EN DIRECT les points du corridor de visibilité à la position RÉELLE
  * de la fusée (positionRef, alimenté par FlyingMesange) : chaque nouveau point
  * est classé par radar (isInCoverage — géométrie partagée avec Analytics) et
- * coloré (vert/ambre = vu, rouge = trou). Le résultat n'est publié en state
- * (donc re-render) QUE lorsqu'un point est réellement ajouté — pas à chaque
- * frame — pour rester fluide. Suivre la position réellement rendue garantit
+ * coloré (vert/ambre = vu, rouge = trou). L'accumulation vit dans des refs
+ * (zéro re-render par point) ; le résultat n'est publié en state que par lots
+ * (PUBLISH_INTERVAL_SEC), pour éviter de reconstruire la géométrie <Line> à
+ * chaque frame utile. Suivre la position réellement rendue garantit
  * l'alignement du corridor, montée ET descente (physiques différentes).
  */
 export function useCorridorPoints({
@@ -55,6 +64,10 @@ export function useCorridorPoints({
   positionRef,
 }: UseCorridorPointsParams): CorridorPoints {
   const [data, setData] = useState<CorridorPoints>(EMPTY)
+  // Buffers bruts, remplis à chaque frame utile SANS déclencher de re-render.
+  const bufferedPoints = useRef<THREE.Vector3[]>([])
+  const bufferedColors = useRef<THREE.Color[]>([])
+  const timeSincePublish = useRef(0)
   const lastPoint = useRef<THREE.Vector3 | null>(null)
   const wasActive = useRef(false)
 
@@ -62,6 +75,9 @@ export function useCorridorPoints({
   // sans attendre le prochain tir (les néons repartent de zéro).
   useEffect(() => {
     if (armed) {
+      bufferedPoints.current = []
+      bufferedColors.current = []
+      timeSincePublish.current = 0
       setData(EMPTY)
       lastPoint.current = null
     }
@@ -80,41 +96,60 @@ export function useCorridorPoints({
     [site, radars],
   )
 
-  useFrame(() => {
+  // Publie le buffer accumulé en state (donc re-render + rebuild <Line>) :
+  // un SEUL nouveau tableau (immutabilité), pas un spread par point.
+  const publish = () => {
+    setData({ points: bufferedPoints.current.slice(), colors: bufferedColors.current.slice() })
+  }
+
+  useFrame((_, delta) => {
     // Nouveau vol (repos → vol) : repart d'un corridor vide.
     if (active && !wasActive.current) {
       lastPoint.current = null
+      bufferedPoints.current = []
+      bufferedColors.current = []
+      timeSincePublish.current = 0
       setData(EMPTY)
+    }
+    // Fin de vol : flush immédiat pour ne pas perdre le dernier segment
+    // resté dans le buffer depuis la dernière publication throttlée.
+    if (!active && wasActive.current) {
+      publish()
     }
     wasActive.current = active
     if (!active) return
 
     const p = positionRef.current
-    if (lastPoint.current && lastPoint.current.distanceToSquared(p) < MIN_POINT_SPACING * MIN_POINT_SPACING) return
+    if (!(lastPoint.current && lastPoint.current.distanceToSquared(p) < MIN_POINT_SPACING * MIN_POINT_SPACING)) {
+      // Position réelle en mètres ENU (inverse de toScene) → classification radar.
+      const eastM = (p.x - origin.x) * metersPerSceneUnit
+      const northM = (origin.z - p.z) * metersPerSceneUnit
+      const altM = (p.y - origin.y) * metersPerSceneUnit
+      const livePoint = { x: eastM, y: northM, z: altM }
 
-    // Position réelle en mètres ENU (inverse de toScene) → classification radar.
-    const eastM = (p.x - origin.x) * metersPerSceneUnit
-    const northM = (origin.z - p.z) * metersPerSceneUnit
-    const altM = (p.y - origin.y) * metersPerSceneUnit
-    const livePoint = { x: eastM, y: northM, z: altM }
+      let rgb: readonly [number, number, number] = CORRIDOR_BLIND_COLOR
+      for (const radar of placedRadars) {
+        if (isInCoverage(livePoint, radar.enu.eastM, radar.enu.northM, radar.config)) {
+          rgb = CORRIDOR_SEEN_COLORS[radar.colorIndex % CORRIDOR_SEEN_COLORS.length]
+          break
+        }
+      }
 
-    let rgb: readonly [number, number, number] = CORRIDOR_BLIND_COLOR
-    for (const radar of placedRadars) {
-      if (isInCoverage(livePoint, radar.enu.eastM, radar.enu.northM, radar.config)) {
-        rgb = CORRIDOR_SEEN_COLORS[radar.colorIndex % CORRIDOR_SEEN_COLORS.length]
-        break
+      lastPoint.current = (lastPoint.current ?? new THREE.Vector3()).copy(p)
+      if (bufferedPoints.current.length < MAX_POINTS) {
+        bufferedPoints.current.push(p.clone())
+        bufferedColors.current.push(new THREE.Color(rgb[0], rgb[1], rgb[2]))
       }
     }
 
-    lastPoint.current = (lastPoint.current ?? new THREE.Vector3()).copy(p)
-    // Nouveau tableau (immutabilité) → drei <Line> reconstruit sa géométrie.
-    setData((prev) => {
-      if (prev.points.length >= MAX_POINTS) return prev
-      return {
-        points: [...prev.points, p.clone()],
-        colors: [...prev.colors, new THREE.Color(rgb[0], rgb[1], rgb[2])],
-      }
-    })
+    // Publication THROTTLÉE : re-render + rebuild géométrie <Line> par lots,
+    // pas à chaque point — supprime le coût croissant avec la longueur du
+    // corridor qui causait une vibration s'aggravant au fil du vol.
+    timeSincePublish.current += delta
+    if (timeSincePublish.current >= PUBLISH_INTERVAL_SEC) {
+      timeSincePublish.current = 0
+      publish()
+    }
   })
 
   return data

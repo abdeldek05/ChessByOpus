@@ -23,11 +23,21 @@ interface UseLaunchTacticalMapParams {
   radars: PlacedRadar[]
   /** Agrandie : pan + zoom souris actifs ; compacte : figée. */
   expanded: boolean
+  /** Carte visible à l'écran (pas repliée) : coupe les boucles rAF sinon —
+   *  inutile de repeindre MapLibre en continu pour une carte à hauteur 0. */
+  visible: boolean
   /** Trajectoire RocketPy (null tant que non calculée). */
   flight: FlightData | null
   /** Progression du vol 0→1 (ref partagée, -1 = pas de vol). */
   flightProgressRef: React.RefObject<number>
 }
+
+// Cadence de rafraîchissement du faisceau radar (Hz) : un balayage 2D n'a pas
+// besoin d'un repaint MapLibre à 60fps pour paraître fluide, et setData() sur
+// une FeatureCollection à chaque frame partage inutilement le thread principal
+// avec le Canvas WebGL (source de vibration pendant le vol).
+const SWEEP_REFRESH_HZ = 24
+const SWEEP_REFRESH_INTERVAL_MS = 1000 / SWEEP_REFRESH_HZ
 
 interface UseLaunchTacticalMapResult {
   containerRef: React.RefObject<HTMLDivElement | null>
@@ -51,6 +61,7 @@ export function useLaunchTacticalMap({
   site,
   radars,
   expanded,
+  visible,
   flight,
   flightProgressRef,
 }: UseLaunchTacticalMapParams): UseLaunchTacticalMapResult {
@@ -136,7 +147,7 @@ export function useLaunchTacticalMap({
   //     redessine la trace + la tête, SANS re-render React (fluide 60fps). ---
   useEffect(() => {
     const map = mapRef.current
-    if (!map || trackLngLat.length < 2) return
+    if (!map || !visible || trackLngLat.length < 2) return
 
     let raf = 0
     let lastProgress = -2 // force un premier dessin
@@ -171,7 +182,7 @@ export function useLaunchTacticalMap({
 
     raf = requestAnimationFrame(update)
     return () => cancelAnimationFrame(raf)
-  }, [trackLngLat, flightProgressRef])
+  }, [trackLngLat, flightProgressRef, visible])
 
   // --- Faisceau rotatif : boucle rAF DÉDIÉE, tourne en CONTINU (même hors
   //     vol, contrairement à la piste ci-dessus qui ne redessine que si la
@@ -180,15 +191,22 @@ export function useLaunchTacticalMap({
   //     dessus) pour virer le faisceau à l'alarme. ---
   useEffect(() => {
     const map = mapRef.current
-    if (!map || placedRadars.length === 0) return
+    if (!map || !visible || placedRadars.length === 0) return
 
     let raf = 0
     const startMs = performance.now()
+    let lastUpdateMs = 0
     const lockedStateByRadar = new Map<string, boolean>()
 
     const update = () => {
       raf = requestAnimationFrame(update)
-      const elapsedMin = (performance.now() - startMs) / 60000
+      const nowMs = performance.now()
+      // Throttle : un balayage 2D reste lisible sans repeindre MapLibre à
+      // 60fps — évite de disputer le thread principal au Canvas WebGL à
+      // chaque frame (source de vibration pendant le vol).
+      if (nowMs - lastUpdateMs < SWEEP_REFRESH_INTERVAL_MS) return
+      lastUpdateMs = nowMs
+      const elapsedMin = (nowMs - startMs) / 60000
 
       // Position ENU live de la menace (m, east/north) : reconstituée depuis
       // la progression partagée + la trajectoire, seulement si un vol est en
@@ -245,7 +263,7 @@ export function useLaunchTacticalMap({
 
     raf = requestAnimationFrame(update)
     return () => cancelAnimationFrame(raf)
-  }, [placedRadars, flight, flightProgressRef])
+  }, [placedRadars, flight, flightProgressRef, visible])
 
   return { containerRef }
 }
