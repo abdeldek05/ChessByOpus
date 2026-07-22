@@ -1,66 +1,75 @@
 import { MissionThreatMap } from '../MissionThreatMap'
-import { HudRange } from '../HudRange'
-import { InclinationControl } from '../InclinationControl'
+import { ThreatCountStep } from '../ThreatCountStep'
+import { ThreatConfigBar } from '../ThreatConfigBar'
+import { useThreatWizard } from '@/hooks/useThreatWizard'
+import { MAX_MESANGE_COUNT } from '@/stores/scenarioStore'
 import type { LaunchSite } from '@/types/simulation.types'
 import type { MesangeLaunchConfig, PlacedRadar } from '@/types/mission.types'
 
 interface StepThreatsProps {
   site: LaunchSite
   radars: PlacedRadar[]
-  /** La menace principale (Roi) — une seule pour l'instant. */
-  king: MesangeLaunchConfig
-  onSetAzimut: (deg: number) => void
-  onChange: (patch: Partial<MesangeLaunchConfig>) => void
+  mesangeConfigs: MesangeLaunchConfig[]
+  onAddMesange: () => void
+  onRemoveMesange: (id: string) => void
+  onUpdateMesange: (id: string, patch: Partial<MesangeLaunchConfig>) => void
 }
 
 /**
- * Étape Menaces (Roi seul pour l'instant). Le pas de tir est fixe (= le site) ;
- * on oriente le tir en cliquant sur la carte — un cône fin suit l'azimut.
- * L'inclinaison (curseur) allonge/raccourcit le cône ; le délai T+ est réglable.
- * La Dame et les Pions viendront ensuite.
+ * Étape Menaces : la carte EST l'écran (plein espace, pas de colonne
+ * latérale qui lui dispute la place ni ne déborde) — tous les cônes de la
+ * flotte y sont saisissables/tournables en permanence (voir
+ * MissionThreatMap), l'azimut ne se règle QUE là. Un assistant séquentiel
+ * évite d'afficher toute la flotte d'un coup ("over communication" — retour
+ * client) : d'abord choisir COMBIEN de Mesanges (1 Roi obligatoire +
+ * Dames/Pions en option, max 5, superposé sur la carte), puis les configurer
+ * UNE À LA FOIS (rôle, élévation, délai de tir) dans un bandeau ancré en bas.
+ * Attraper un cône sur la carte sélectionne aussi sa Mesange dans le bandeau
+ * — carte et assistant restent synchronisés dans les deux sens.
  */
-export function StepThreats({ site, radars, king, onSetAzimut, onChange }: StepThreatsProps) {
+export function StepThreats({
+  site,
+  radars,
+  mesangeConfigs,
+  onAddMesange,
+  onRemoveMesange,
+  onUpdateMesange,
+}: StepThreatsProps) {
+  const wizard = useThreatWizard({ mesangeConfigs, onAddMesange, onRemoveMesange })
+
   return (
-    <div className="mx-auto flex h-full max-w-5xl flex-col gap-4 lg:flex-row">
-      <div className="min-h-[52vh] flex-1 overflow-hidden rounded-3xl bg-surface shadow-xl shadow-black/30">
-        <MissionThreatMap
-          site={site}
-          radars={radars}
-          azimuthDeg={king.azimuthDeg}
-          inclinationDeg={king.inclinationDeg}
-          onSetAzimut={onSetAzimut}
-        />
-      </div>
+    <div className="relative h-full overflow-hidden rounded-3xl bg-surface shadow-xl shadow-black/30">
+      <MissionThreatMap
+        site={site}
+        radars={radars}
+        mesangeConfigs={mesangeConfigs}
+        selectedId={wizard.current.id}
+        selectedAzimuthDeg={wizard.current.azimuthDeg}
+        onSetAzimut={(id, deg) => onUpdateMesange(id, { azimuthDeg: deg })}
+        onSelect={wizard.selectMesange}
+      />
 
-      <div className="w-full shrink-0 space-y-4 lg:w-72">
-        <div className="rounded-3xl bg-surface p-6">
-          <p className="mb-1 text-[10px] font-semibold tracking-[0.22em] text-danger uppercase">King</p>
-          <p className="mb-5 text-sm text-ink-dim">Main threat</p>
-
-          <div className="space-y-6">
-            <HudRange
-              label="Azimuth"
-              value={king.azimuthDeg}
-              min={0}
-              max={360}
-              unit="°"
-              onChange={(v) => onSetAzimut(v)}
-            />
-            <InclinationControl
-              value={king.inclinationDeg}
-              onChange={(v) => onChange({ inclinationDeg: v })}
-            />
-            <HudRange
-              label="Firing delay"
-              value={king.launchDelaySec}
-              min={0}
-              max={120}
-              unit="s"
-              onChange={(v) => onChange({ launchDelaySec: v })}
-            />
+      {wizard.phase === 'count' ? (
+        <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+          <div className="pointer-events-auto">
+            <ThreatCountStep current={mesangeConfigs.length} onChoose={wizard.setCount} />
           </div>
         </div>
-      </div>
+      ) : (
+        <ThreatConfigBar
+          configs={mesangeConfigs}
+          selected={wizard.current}
+          selectedIndex={wizard.currentIndex}
+          canAdd={mesangeConfigs.length < MAX_MESANGE_COUNT}
+          canRemove={mesangeConfigs.length > 1}
+          kingTakenElsewhere={mesangeConfigs.some((m) => m.role === 'KING' && m.id !== wizard.current.id)}
+          onSelect={wizard.selectMesange}
+          onAdd={onAddMesange}
+          onChange={(patch) => onUpdateMesange(wizard.current.id, patch)}
+          onBackToCount={wizard.backToCount}
+          onRemove={() => onRemoveMesange(wizard.current.id)}
+        />
+      )}
     </div>
   )
 }

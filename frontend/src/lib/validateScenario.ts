@@ -77,12 +77,19 @@ export function validateScenario(input: ScenarioInput): ScenarioValidation {
     })
   }
 
-  // 3. Au moins une menace principale (KING).
-  const hasKing = mesangeConfigs.some((m) => m.role === 'KING')
-  if (!hasKing) {
+  // 3. Exactement une menace principale (KING) : ni zéro (pas de vraie
+  //    menace à faire passer), ni plusieurs (radar.py n'en retient qu'un
+  //    seul comme référence — voir compute_detection, "roi = premier KING").
+  const kingCount = mesangeConfigs.filter((m) => m.role === 'KING').length
+  if (kingCount === 0) {
     violations.push({
       code: 'no-king',
       message: 'The scenario must include at least one KING Mesange (primary threat).',
+    })
+  } else if (kingCount > 1) {
+    violations.push({
+      code: 'multiple-kings',
+      message: 'There can be only one King — switch the others back to Queen or Pawn.',
     })
   }
 

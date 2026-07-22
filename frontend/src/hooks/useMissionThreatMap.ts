@@ -5,20 +5,25 @@ import { createLabeledMarker } from '@/lib/mapMarker'
 import {
   THREAT_MAP_STYLE,
   MAP_PITCH_DEG,
-  DRAG_LAYERS,
+  allDragLayers,
+  mesangeIdFromLayer,
   bearingToward,
+  computeDisplayRangeKm,
   drawRadarCoverage,
-  drawThreatCone,
+  drawThreatCones,
 } from '@/lib/missionThreatMap'
 import type { LaunchSite } from '@/types/simulation.types'
-import type { PlacedRadar } from '@/types/mission.types'
+import type { PlacedRadar, MesangeLaunchConfig } from '@/types/mission.types'
 
 interface UseMissionThreatMapParams {
   site: LaunchSite
   radars: PlacedRadar[]
-  azimuthDeg: number
-  inclinationDeg: number
-  onSetAzimut: (deg: number) => void
+  /** Toute la flotte (tous les cônes affichés) — voir drawThreatCones. */
+  mesangeConfigs: MesangeLaunchConfig[]
+  /** Mesange actuellement éditée : son cône est en surbrillance. */
+  selectedId: string
+  onSetAzimut: (id: string, deg: number) => void
+  onSelect: (id: string) => void
 }
 
 interface UseMissionThreatMapResult {
@@ -26,31 +31,57 @@ interface UseMissionThreatMapResult {
 }
 
 /**
- * Carte 3D (caméra inclinée) de définition de la menace. Le PAS DE TIR est fixe
- * (= le site). Deux façons de viser : cliquer dans la direction voulue, ou
- * SAISIR le cône (sa pastille d'impact ou son corps) et le faire glisser — le
- * cône suit le pointeur en continu, au dixième de degré. Les radars posés
- * restent en contexte, étiquetés et atténués. Dessin des couches → lib/missionThreatMap.
+ * Carte de la flotte de menaces : pas de tir fixe (= le site), partagé par
+ * toutes les Mesanges. Un cône par Mesange, teinté par rôle — TOUS
+ * attrapables (pas seulement la sélection), pour que le client puisse saisir
+ * directement la pièce qu'il veut sur la carte, comme sur un échiquier.
+ * Attraper un cône le sélectionne aussi (voir onSelect) — se répercute sur le
+ * panneau focus de l'assistant Menaces (voir ThreatConfigStep/useThreatWizard).
+ * Les radars posés restent en contexte, étiquetés et atténués. Dessin des
+ * couches → lib/missionThreatMap.
  */
 export function useMissionThreatMap({
   site,
   radars,
-  azimuthDeg,
-  inclinationDeg,
+  mesangeConfigs,
+  selectedId,
   onSetAzimut,
+  onSelect,
 }: UseMissionThreatMapParams): UseMissionThreatMapResult {
   const containerRef = useRef<HTMLDivElement>(null)
   const mapRef = useRef<maplibregl.Map | null>(null)
   const aimRef = useRef(onSetAzimut)
   aimRef.current = onSetAzimut
+  const selectRef = useRef(onSelect)
+  selectRef.current = onSelect
+  // Valeur COURANTE de selectedId : le clic simple doit viser avec la Mesange
+  // sélectionnée AU MOMENT du clic (les listeners sont posés une seule fois
+  // au montage, voir plus bas — ils ne voient donc jamais la prop à jour sans
+  // cette ref).
+  const selectedRef = useRef(selectedId)
+  selectedRef.current = selectedId
+  // Flotte COURANTE (jamais capturée dans une closure figée) : le hit-testing
+  // au clic interroge la carte (queryRenderedFeatures) pour SAVOIR quel cône
+  // est sous le curseur au moment précis du clic, plutôt que d'attacher un
+  // listener PAR COUCHE à chaque changement de flotte. L'ancienne approche
+  // (un useEffect séparé, réabonné à chaque ajout/retrait de Mesange)
+  // superposait plusieurs générations de listeners/closures dès qu'on
+  // dépassait 1 Mesange : le drag cessait totalement de répondre. Ici, les
+  // listeners sont posés UNE SEULE FOIS (même effect que la création de la
+  // carte) et lisent toujours la flotte la plus récente via cette ref.
+  const mesangeConfigsRef = useRef(mesangeConfigs)
+  mesangeConfigsRef.current = mesangeConfigs
 
-  // --- Création de la carte (une fois par site) ---
+  // --- Création de la carte + tous les listeners d'interaction (une fois par site) ---
   useEffect(() => {
     if (!containerRef.current) return
 
-    const maxRangeKm = Math.max(...radars.map((r) => r.config.rangeKm), 60)
+    // MÊME rayon que les cônes eux-mêmes (computeDisplayRangeKm) — sinon le
+    // point d'impact d'un cône (donc sa zone de saisie généreuse) tombe hors
+    // du cadrage initial et reste impossible à attraper tant qu'on n'a pas
+    // dézoomé/déplacé la carte manuellement.
     const bounds = new maplibregl.LngLatBounds()
-    buildRangeCircle(site.longitude, site.latitude, maxRangeKm).forEach(([lng, lat]) =>
+    buildRangeCircle(site.longitude, site.latitude, computeDisplayRangeKm(radars)).forEach(([lng, lat]) =>
       bounds.extend([lng, lat]),
     )
 
@@ -62,7 +93,10 @@ export function useMissionThreatMap({
       pitch: MAP_PITCH_DEG,
     })
     mapRef.current = map
-    map.addControl(new maplibregl.ScaleControl({ unit: 'metric' }), 'bottom-left')
+    // Pas d'échelle km ici (contrairement à la carte de placement radar) : on
+    // vise par AZIMUT (saisir le cône), pas par distance mesurée — l'échelle
+    // n'apportait rien et chevauchait le HUD de configuration ancré en bas
+    // (voir ThreatConfigBar).
 
     // Pas de tir FIXE (= le site), étiqueté.
     createLabeledMarker(map, [site.longitude, site.latitude], 'launch-marker launch-marker--origin', 'Launch pad')
@@ -82,68 +116,116 @@ export function useMissionThreatMap({
       )
     })
 
-    // --- Visée fluide : saisir le cône et le faire glisser autour du pas de tir.
-    let dragging = false
-    const canvas = map.getCanvas()
+    const resizeObserver = new ResizeObserver(() => map.resize())
+    resizeObserver.observe(containerRef.current)
 
-    const startDrag = (event: maplibregl.MapMouseEvent | maplibregl.MapTouchEvent) => {
+    // --- Visée fluide : saisir N'IMPORTE QUEL cône de la flotte pour le faire
+    // glisser autour du pas de tir (ça le sélectionne aussi). Cliquer ailleurs
+    // sur la carte oriente la Mesange COURAMMENT sélectionnée.
+    //
+    // Listeners posés UNE SEULE FOIS ici (jamais par nom de couche, jamais
+    // réabonnés à chaque changement de flotte) : au mousedown, on interroge
+    // la carte (queryRenderedFeatures) pour savoir SI le point cliqué touche
+    // une des couches de saisie de la flotte ACTUELLE (via mesangeConfigsRef),
+    // et LAQUELLE. C'est le pattern robuste pour du hit-testing sur un nombre
+    // de features qui varie dans le temps.
+    const canvas = map.getCanvas()
+    let draggingId: string | null = null
+
+    // IMPORTANT (vérifié dans le source MapLibre, Style.queryRenderedFeatures) :
+    // si NE SERAIT-CE QU'UNE seule couche de la liste `layers` n'existe pas
+    // encore sur le style, `queryRenderedFeatures` renvoie [] pour TOUT le lot
+    // (pas juste pour la couche manquante) — silencieux côté exception JS,
+    // mais ça aurait cassé le hit-test de TOUTE la flotte dès qu'une Mesange
+    // venait d'être ajoutée et que `drawThreatCones` n'avait pas encore fini
+    // de créer ses couches. On filtre donc aux couches RÉELLEMENT présentes.
+    const hitLayers = () =>
+      allDragLayers(mesangeConfigsRef.current.map((m) => m.id)).filter((layerId) => map.getLayer(layerId))
+
+    const hitTest = (point: maplibregl.Point): string | null => {
+      const layers = hitLayers()
+      if (layers.length === 0) return null
+      const features = map.queryRenderedFeatures(point, { layers })
+      if (features.length === 0) return null
+      return mesangeIdFromLayer(features[0].layer.id)
+    }
+
+    const onMouseDown = (event: maplibregl.MapMouseEvent) => {
+      const mesangeId = hitTest(event.point)
+      if (!mesangeId) return
       event.preventDefault() // bloque le pan de la carte pendant le réglage
-      dragging = true
+      draggingId = mesangeId
+      selectRef.current(mesangeId)
       canvas.style.cursor = 'grabbing'
     }
-    DRAG_LAYERS.forEach((layer) => {
-      map.on('mousedown', layer, startDrag)
-      map.on('touchstart', layer, startDrag)
-      map.on('mouseenter', layer, () => {
-        if (!dragging) canvas.style.cursor = 'grab'
-      })
-      map.on('mouseleave', layer, () => {
-        if (!dragging) canvas.style.cursor = ''
-      })
-    })
-    map.on('mousemove', (event) => {
-      if (dragging) aimRef.current(bearingToward(site, event.lngLat))
-    })
-    map.on('touchmove', (event) => {
-      if (dragging) aimRef.current(bearingToward(site, event.lngLat))
-    })
+    const onTouchStart = (event: maplibregl.MapTouchEvent) => {
+      const mesangeId = hitTest(event.point)
+      if (!mesangeId) return
+      event.preventDefault()
+      draggingId = mesangeId
+      selectRef.current(mesangeId)
+    }
+    const onMouseMove = (event: maplibregl.MapMouseEvent) => {
+      if (draggingId) {
+        aimRef.current(draggingId, bearingToward(site, event.lngLat))
+        return
+      }
+      // Survol hors drag : curseur "grab" au-dessus d'un cône saisissable.
+      canvas.style.cursor = hitTest(event.point) ? 'grab' : ''
+    }
+    const onTouchMove = (event: maplibregl.MapTouchEvent) => {
+      if (draggingId) aimRef.current(draggingId, bearingToward(site, event.lngLat))
+    }
     const endDrag = () => {
-      if (!dragging) return
-      dragging = false
+      if (!draggingId) return
+      draggingId = null
       canvas.style.cursor = ''
     }
+    // Clic simple (hors cône) = viser directement le point cliqué avec la
+    // Mesange COURAMMENT sélectionnée (ignoré en fin de drag : le drag a déjà
+    // posé la valeur exacte, pas de ressaut d'arrondi ; ignoré si le clic a
+    // touché un cône, déjà traité par onMouseDown/le drag).
+    const onClick = (event: maplibregl.MapMouseEvent) => {
+      if (draggingId) return
+      if (hitTest(event.point)) return
+      aimRef.current(selectedRef.current, bearingToward(site, event.lngLat))
+    }
+
+    map.on('mousedown', onMouseDown)
+    map.on('touchstart', onTouchStart)
+    map.on('mousemove', onMouseMove)
+    map.on('touchmove', onTouchMove)
     map.on('mouseup', endDrag)
     map.on('touchend', endDrag)
+    map.on('click', onClick)
     // Relâchement HORS de la carte : sans ça le cône resterait « collé » au
     // pointeur au retour sur la carte, bouton déjà relâché.
     document.addEventListener('pointerup', endDrag)
 
-    // Clic simple = viser directement le point cliqué (ignoré en fin de drag :
-    // le drag a déjà posé la valeur exacte, pas de ressaut d'arrondi).
-    map.on('click', (event) => {
-      aimRef.current(bearingToward(site, event.lngLat))
-    })
-
-    const resizeObserver = new ResizeObserver(() => map.resize())
-    resizeObserver.observe(containerRef.current)
-
     return () => {
       resizeObserver.disconnect()
+      map.off('mousedown', onMouseDown)
+      map.off('touchstart', onTouchStart)
+      map.off('mousemove', onMouseMove)
+      map.off('touchmove', onTouchMove)
+      map.off('mouseup', endDrag)
+      map.off('touchend', endDrag)
+      map.off('click', onClick)
       document.removeEventListener('pointerup', endDrag)
       map.remove()
       mapRef.current = null
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- carte créée une fois par site
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- carte + listeners créés une fois par site, tout le reste est lu via ref
   }, [site])
 
-  // --- Cône de menace : fin, arrondi, piloté par azimut/inclinaison ---
+  // --- Cônes de menace : un par Mesange, tous fins et arrondis ---
   useEffect(() => {
     const map = mapRef.current
     if (!map) return
-    const draw = () => drawThreatCone(map, site, radars, azimuthDeg)
+    const draw = () => drawThreatCones(map, site, radars, mesangeConfigs, selectedId)
     if (map.isStyleLoaded()) draw()
     else map.once('load', draw)
-  }, [site, radars, azimuthDeg, inclinationDeg])
+  }, [site, radars, mesangeConfigs, selectedId])
 
   return { containerRef }
 }

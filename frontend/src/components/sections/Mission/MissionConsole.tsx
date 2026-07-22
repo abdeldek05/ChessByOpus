@@ -1,7 +1,9 @@
+import { useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useMissionConfig } from '@/hooks/useMissionConfig'
 import { useMissionStepper } from '@/hooks/useMissionStepper'
 import { useSaveScenario } from '@/hooks/useSaveScenario'
+import { useScenarioStore } from '@/stores/scenarioStore'
 import { useSimulationCacheStore } from '@/stores/simulationCacheStore'
 import { buildSimulatePayload } from '@/lib/buildSimulatePayload'
 import { ROCKET_MAX_RANGE_KM } from '@/constants/rocket'
@@ -24,8 +26,27 @@ export function MissionConsole({ site, missionId }: MissionConsoleProps) {
   const config = useMissionConfig()
   const stepper = useMissionStepper()
   const { status, scenarioId, save } = useSaveScenario(missionId)
+  const resetScenario = useScenarioStore((s) => s.reset)
   const prefetchSimulation = useSimulationCacheStore((s) => s.prefetch)
   const navigate = useNavigate()
+
+  // Le scénario est persisté en sessionStorage (voir scenarioStore) : sans
+  // reset, un radar placé sur un PRÉCÉDENT site (ex. un test sur un autre
+  // pas de tir) réapparaît tel quel sur ce nouveau site — à une distance qui
+  // n'a plus aucun sens par rapport au nouveau pas de tir (ex. Radar posé au
+  // Yémen alors que le pas de tir vient d'être choisi en Italie). Reset
+  // SYSTÉMATIQUE au montage : chaque arrivée sur l'écran Mission = une
+  // nouvelle tentative de configuration, on ne veut jamais hériter d'un
+  // scénario précédent. `hasResetRef` garantit un SEUL reset par montage
+  // (le Strict Mode de React monte/démonte l'effet deux fois en dev — sans
+  // cette garde, ça n'aurait pas cassé le résultat mais aurait déclenché deux
+  // resets pour rien).
+  const hasResetRef = useRef(false)
+  useEffect(() => {
+    if (hasResetRef.current) return
+    hasResetRef.current = true
+    resetScenario()
+  }, [resetScenario])
 
   // Radar principal (radars[0], toujours présent) : sert de pont pour le
   // placement/save/lancement tant que le multi-radar complet n'est pas branché.
@@ -113,9 +134,10 @@ export function MissionConsole({ site, missionId }: MissionConsoleProps) {
           <StepThreats
             site={site}
             radars={config.radars}
-            king={king}
-            onSetAzimut={(deg) => config.updateMesangeConfig(king.id, { azimuthDeg: deg })}
-            onChange={(patch) => config.updateMesangeConfig(king.id, patch)}
+            mesangeConfigs={config.mesangeConfigs}
+            onAddMesange={config.addMesange}
+            onRemoveMesange={config.removeMesange}
+            onUpdateMesange={config.updateMesangeConfig}
           />
         )}
         {stepper.current === 'launch' && (

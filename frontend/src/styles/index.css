@@ -49,6 +49,14 @@
   /* Identité radar : même laiton que le pas de tir — une seule famille de
      couleur HUD dans toute l'app, pas de couleur dédiée par fonction. */
   --color-radar: #94866e;
+
+  /* Rôles CHESS (Roi/Dame/Pion) : mêmes teintes que les schémas de doctrine
+     partagés par le client — Roi = danger (menace réelle qui doit passer),
+     Dame = laiton vif (leurre principal, même famille que l'accent fusée),
+     Pion = neutre discret (leurre de saturation, nombreux mais secondaires). */
+  --color-role-king: var(--color-alert);
+  --color-role-queen: var(--color-accent-bright);
+  --color-role-pawn: #8a8d86;
 }
 
 /* Thème « aérien sombre » (scopé à /simulation) : ardoise froide + accent
