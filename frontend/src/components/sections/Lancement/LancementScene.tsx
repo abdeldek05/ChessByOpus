@@ -173,10 +173,7 @@ export function LancementScene({ state }: LancementSceneProps) {
         onToggle={() => setSceneMode((current) => (current === 'day' ? 'night' : 'day'))}
       />
 
-      {/* TEST DEBUG : bilan de mission (résultat radar) masqué le temps de
-          diagnostiquer le bug d'impact au sol de la fusée — évite de polluer
-          les tests visuels avec ce panneau. À réactiver une fois le bug résolu. */}
-      {false && (sequence.phase === 'done' || sequence.phase === 'error') && (
+      {(sequence.phase === 'done' || sequence.phase === 'error') && (
         <MissionBilan
           result={sequence.result}
           siteName={state.site.name}
@@ -187,7 +184,7 @@ export function LancementScene({ state }: LancementSceneProps) {
         />
       )}
 
-      {false && sequence.phase === 'done' && <FlightTelemetryChart flight={sequence.flight} />}
+      {sequence.phase === 'done' && <FlightTelemetryChart flight={sequence.flight} />}
 
       {/* Légende du corridor de visibilité : visible dès qu'un vol est lancé
           (running) et jusqu'à la fin, pour expliquer le tracé coloré. */}

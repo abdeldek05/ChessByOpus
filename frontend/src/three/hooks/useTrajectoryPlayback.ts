@@ -86,6 +86,7 @@ export function useTrajectoryPlayback({
     brokenElapsed.current = 0
     thrusting.current = true
     fallVelocity.current = null
+    prevPos.current = null
     setPhase('flying')
     // Orientation ET échelle INITIALES = pile la pose statique sur la rampe
     // (direction du fût, échelle 1) — sans ça la fusée « pop » d'un coup à la
@@ -108,6 +109,12 @@ export function useTrajectoryPlayback({
     [],
   )
 
+  // Position à la frame PRÉCÉDENTE (unités scène) : sert à détecter le
+  // franchissement du sol par SEGMENT plutôt que par position instantanée —
+  // voir le clamp d'impact plus bas. `null` = pas encore de frame précédente
+  // (première frame du vol, ou vient de rejouer).
+  const prevPos = useRef<THREE.Vector3 | null>(null)
+
   // Pré-calcule la spline (échelle réelle unique), les temps et l'impact au sol.
   const { curve, times, duration, impact } = useMemo(() => {
     if (!flight || flight.trajectory.length < 2) {
@@ -120,11 +127,17 @@ export function useTrajectoryPlayback({
     const curve = new THREE.CatmullRomCurve3(positions, false, 'centripetal')
 
     // Impact posé AU RAS du sol (relief OU dalle béton) : le dernier point de
-    // trajectoire est ramené à la hauteur du sol.
+    // trajectoire est ramené à la hauteur du sol. `sampleSceneGround` renvoie
+    // une hauteur en UNITÉS SCÈNE MONDE (même système que `origin`, qui est
+    // local au groupe pad décalé de PAD_TOP_Y) — PAS des mètres réels, donc
+    // AUCUNE division par `metersPerSceneUnit` ici (bug précédent : cette
+    // division écrasait le relief d'un facteur ~10, variable selon la portée
+    // du vol donc selon l'azimut/l'élévation — la fusée « cassait en l'air »
+    // ou « traversait » le relief selon le scénario testé).
     const last = positions[positions.length - 1]
     const impact = last.clone()
     const groundWorldY = sampleSceneGround(impact.x + LAUNCH_CENTER[0], impact.z + LAUNCH_CENTER[2]) - PAD_TOP_Y
-    impact.y = origin.y + groundWorldY / metersPerSceneUnit
+    impact.y = origin.y + groundWorldY
 
     return { curve, times, duration: flight.flightTimeSec, impact }
   }, [flight, origin, metersPerSceneUnit])
@@ -228,21 +241,60 @@ export function useTrajectoryPlayback({
         onFrame?.(scratch.pos, Math.min(1, rawT / duration))
       }
 
-      // CLAMP AU RELIEF + FIN DE VOL : le relief 3D fBm affiché n'a aucun
-      // rapport avec le sol plat que RocketPy connaît — dès que la fusée
-      // (montée OU chute) atteint le relief réel sous elle, l'impact se
-      // déclenche PILE là où elle est affichée (pas de saut visuel).
-      const groundWorldY =
-        sampleSceneGround(scratch.pos.x + LAUNCH_CENTER[0], scratch.pos.z + LAUNCH_CENTER[2]) - PAD_TOP_Y
-      const groundLocalY = origin.y + groundWorldY / metersPerSceneUnit
-      if (rawT > LIFTOFF_REAL_SEC && scratch.pos.y <= groundLocalY) {
-        scratch.pos.y = groundLocalY
-        group.position.copy(scratch.pos)
-        impact.copy(scratch.pos)
-        setPhase('broken')
-        onImpact?.()
-        return
+      // IMPACT PAR FRANCHISSEMENT DE SEGMENT : le relief 3D fBm est bosselé et
+      // n'a aucun rapport avec le sol plat que RocketPy connaît — à grande
+      // vitesse de chute, `pos` peut SAUTER par-dessus le sol d'une frame à
+      // l'autre (la comparaison instantanée `pos.y <= groundLocalY` ne se
+      // déclenche alors jamais → traverse). On teste donc le SEGMENT entre la
+      // position précédente et la position courante contre le sol échantillonné
+      // à SES DEUX BOUTS, et on interpole le point exact de franchissement
+      // plutôt que de clamper sur `pos` telle quelle.
+      //
+      // PAS de division par `metersPerSceneUnit` ici : `sampleSceneGround`
+      // renvoie une hauteur en UNITÉS SCÈNE MONDE, le même système que `origin`
+      // (local au groupe pad, décalé de PAD_TOP_Y) — diviser en plus par
+      // `metersPerSceneUnit` écrasait le relief perçu d'un facteur qui varie
+      // avec la portée du vol (donc avec l'azimut/l'élévation choisis), ce qui
+      // faisait dépendre le symptôme (casse en l'air / traverse) du scénario.
+      const groundAt = (x: number, z: number) =>
+        origin.y + sampleSceneGround(x + LAUNCH_CENTER[0], z + LAUNCH_CENTER[2]) - PAD_TOP_Y
+
+      const prev = prevPos.current
+      const groundLocalYAtPos = groundAt(scratch.pos.x, scratch.pos.z)
+
+      if (rawT > LIFTOFF_REAL_SEC && prev) {
+        const groundLocalYAtPrev = groundAt(prev.x, prev.z)
+        const prevAboveGround = prev.y - groundLocalYAtPrev
+        const currAboveGround = scratch.pos.y - groundLocalYAtPos
+
+        if (prevAboveGround > 0 && currAboveGround <= 0) {
+          // Franchissement détecté sur ce pas : interpolation linéaire du point
+          // exact où la trajectoire croise le relief (au lieu de la position de
+          // fin de frame, potentiellement déjà bien sous le sol à grande vitesse).
+          const span = prevAboveGround - currAboveGround || 1
+          const f = Math.min(1, Math.max(0, prevAboveGround / span))
+          scratch.pos.lerpVectors(prev, scratch.pos, f)
+          scratch.pos.y = groundAt(scratch.pos.x, scratch.pos.z)
+          group.position.copy(scratch.pos)
+          impact.copy(scratch.pos)
+          setPhase('broken')
+          onImpact?.()
+          return
+        }
+        if (currAboveGround <= 0) {
+          // Déjà sous le sol dès le premier test possible après le décollage
+          // (rare, ex. reprise après un lag important) : clamp direct plutôt
+          // que d'attendre un franchissement qui n'arrivera pas.
+          scratch.pos.y = groundLocalYAtPos
+          group.position.copy(scratch.pos)
+          impact.copy(scratch.pos)
+          setPhase('broken')
+          onImpact?.()
+          return
+        }
       }
+
+      prevPos.current = (prevPos.current ?? new THREE.Vector3()).copy(scratch.pos)
 
       // ÉCHELLE PROGRESSIVE : part de 1 (taille du modèle statique sur la
       // rampe) et grossit doucement vers FLYING_ROCKET_SCALE sur
