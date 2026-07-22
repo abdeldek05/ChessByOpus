@@ -2,6 +2,8 @@ import { useNavigate } from 'react-router-dom'
 import { useMissionConfig } from '@/hooks/useMissionConfig'
 import { useMissionStepper } from '@/hooks/useMissionStepper'
 import { useSaveScenario } from '@/hooks/useSaveScenario'
+import { useSimulationCacheStore } from '@/stores/simulationCacheStore'
+import { buildSimulatePayload } from '@/lib/buildSimulatePayload'
 import { ROCKET_MAX_RANGE_KM } from '@/constants/rocket'
 import { validateScenario } from '@/lib/validateScenario'
 import { MissionStepRail } from './MissionStepRail'
@@ -22,6 +24,7 @@ export function MissionConsole({ site, missionId }: MissionConsoleProps) {
   const config = useMissionConfig()
   const stepper = useMissionStepper()
   const { status, scenarioId, save } = useSaveScenario(missionId)
+  const prefetchSimulation = useSimulationCacheStore((s) => s.prefetch)
   const navigate = useNavigate()
 
   // Radar principal (radars[0], toujours présent) : sert de pont pour le
@@ -61,6 +64,19 @@ export function MissionConsole({ site, missionId }: MissionConsoleProps) {
         detectionThresholdSec: primaryRadar.config.detectionThresholdSec,
       },
     })
+  }
+
+  // Précalcule /simulate DÈS que l'utilisateur quitte l'étape Threats (azimut/
+  // élévation du Roi déjà figés) : le clic LANCER, plus tard sur /lancement,
+  // retrouve un résultat prêt (ou en vol) au lieu d'attendre le calcul RocketPy
+  // + météo GFS (~7 s, voir simulationCacheStore) — voir memory
+  // project_prefetch_simulation pour le raisonnement complet.
+  const handleContinue = () => {
+    if (stepper.current === 'trajectories') {
+      const payload = buildSimulatePayload({ site, radars: config.radars, mesangeConfigs: config.mesangeConfigs, king })
+      if (payload) prefetchSimulation(payload)
+    }
+    stepper.goNext()
   }
 
   return (
@@ -129,7 +145,7 @@ export function MissionConsole({ site, missionId }: MissionConsoleProps) {
           </button>
           <button
             type="button"
-            onClick={stepper.goNext}
+            onClick={handleContinue}
             disabled={!canProceed}
             className="group flex items-center gap-2 rounded-full bg-accent px-8 py-3 text-xs font-semibold tracking-wide text-bg shadow-lg shadow-black/30 transition-all duration-200 hover:-translate-y-0.5 hover:bg-accent-bright hover:shadow-xl active:translate-y-0 disabled:pointer-events-none disabled:opacity-30 disabled:shadow-none"
           >

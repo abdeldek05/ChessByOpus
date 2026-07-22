@@ -1,37 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { simulateFlight, type FlightData, type RadarSpec, type ThreatSpec } from '@/lib/api'
+import { simulateFlight, type FlightData } from '@/lib/api'
+import { buildSimulatePayload } from '@/lib/buildSimulatePayload'
+import { useSimulationCacheStore } from '@/stores/simulationCacheStore'
 import type { RadarConfig } from '@/types/radar.types'
 import type { RadarPosition, MesangeLaunchConfig } from '@/types/mission.types'
 import type { LaunchSite } from '@/types/simulation.types'
 import type { MissionResult } from '@/types/missionResult.types'
-
-/** Caractéristiques COMPLÈTES des radars posés → payload du moteur de détection. */
-function buildRadarSpecs(
-  radars: { config: RadarConfig; position: RadarPosition | null }[],
-): RadarSpec[] {
-  return radars
-    .filter((r) => r.position !== null)
-    .map((r) => ({
-      latitude: r.position!.latitude,
-      longitude: r.position!.longitude,
-      rangeKm: r.config.rangeKm,
-      ceilingM: r.config.ceilingM,
-      rotating: r.config.rotating,
-      rotationRpm: r.config.rotationRpm ?? 40,
-      minRcsM2: r.config.minDetectableRcsM2,
-      antennaHeightM: r.config.antennaHeightM ?? 4,
-      detectionThresholdSec: r.config.detectionThresholdSec ?? 30,
-    }))
-}
-
-/** Menaces du scénario (Roi + leurres) → payload du moteur de détection. */
-function buildThreatSpecs(mesangeConfigs: MesangeLaunchConfig[]): ThreatSpec[] {
-  return mesangeConfigs.map((m) => ({
-    role: m.role,
-    azimuthDeg: m.azimuthDeg,
-    launchDelaySec: m.launchDelaySec,
-  }))
-}
 
 export type LaunchPhase = 'armed' | 'countdown' | 'running' | 'done' | 'error'
 
@@ -109,18 +83,19 @@ export function useLaunchSequence({
     setPhase('countdown')
     setMessage('Simulation in progress…')
 
-    // 1) Lance RocketPy + moteur radar EN FOND, dès le clic (masqué par le
-    //    décompte) : trajectoire réelle ET détection physique en un appel.
-    const simPromise = simulateFlight({
-      latitude: site.latitude,
-      longitude: site.longitude,
-      elevationDeg: king.inclinationDeg,
-      azimuthDeg: king.azimuthDeg,
-      siteElevationM: site.elevation,
-      temperatureC,
-      radars: buildRadarSpecs(radars),
-      threats: buildThreatSpecs(mesangeConfigs),
-    }).catch(() => ({ status: 'failed' as const, error: 'Backend unreachable' }))
+    // 1) Réutilise le résultat PRÉCALCULÉ (voir simulationCacheStore) si
+    //    l'utilisateur a déjà quitté l'étape Threats avec ces mêmes réglages
+    //    — le calcul RocketPy + météo GFS (~7 s) a alors déjà eu lieu pendant
+    //    qu'il configurait la suite du scénario. Sinon (prefetch absent,
+    //    payload changé depuis), on relance l'appel comme avant : le décompte
+    //    de 3 s reste affiché dans tous les cas (effet dramatique voulu),
+    //    seul le risque d'ATTENTE au-delà du décompte disparaît.
+    const payload = buildSimulatePayload({ site, radars, mesangeConfigs, king, temperatureC })
+    const cached = payload ? useSimulationCacheStore.getState().get(payload) : null
+    const simPromise = (cached ?? (payload ? simulateFlight(payload) : Promise.reject())).catch(() => ({
+      status: 'failed' as const,
+      error: 'Backend unreachable',
+    }))
 
     // 2) Décompte visuel en parallèle.
     let value = COUNTDOWN_START
