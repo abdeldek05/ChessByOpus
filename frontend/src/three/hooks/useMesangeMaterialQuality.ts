@@ -4,9 +4,12 @@ import { MATERIAL_REFLECTIVITY_OVERRIDES } from '@/three/constants/materialOverr
 import { CARBON_FIBER_MATERIAL_NAMES } from '@/three/constants/carbonMaterialNames'
 import { createCarbonFiberTexture } from '@/lib/createCarbonFiberTexture'
 
+// Rendu maximal (voir feedback_gpu_budget) : anisotropie au plafond matériel
+// courant, reflets IBL plus présents sur la fusée — le gros plan au
+// décollage doit tenir la comparaison avec une vraie surface métal/composite.
 const ANISOTROPY = 16
-const ENV_MAP_INTENSITY = 1.0
-const REFLECTIVE_ENV_MAP_INTENSITY = 1.45
+const ENV_MAP_INTENSITY = 1.2
+const REFLECTIVE_ENV_MAP_INTENSITY = 1.85
 
 let cachedCarbonFiberTexture: THREE.CanvasTexture | null = null
 function getCarbonFiberTexture(): THREE.CanvasTexture {

@@ -43,8 +43,10 @@ export function GrassField() {
       side: THREE.DoubleSide,
       roughness: 0.9,
       metalness: 0,
-      // IBL réelle (HDRI) : brins d'herbe quasi mats (voir useGroundMaterial).
-      envMapIntensity: 0.3,
+      // IBL réelle (HDRI) : brins d'herbe restent mats (voir
+      // useGroundMaterial) mais remontés pour le rendu maximal (accroche
+      // mieux la lumière golden hour rasante sur les pointes des touffes).
+      envMapIntensity: 0.5,
     })
     mat.onBeforeCompile = (shader) => {
       shader.uniforms.uCamXZ = { value: camPos.current }

@@ -126,8 +126,10 @@ export function ExhaustPlume({ thrustingRef }: ExhaustPlumeProps) {
       </instancedMesh>
 
       {/* Lumière du jet : éclaire la fusée et le sol pendant la poussée — teinte
-          blanc-bleuté cohérente avec la flamme façon chalumeau (pas orange). */}
-      <pointLight color="#dceeff" intensity={60} distance={40} decay={2} position={[0, 1, 0]} />
+          blanc-bleuté cohérente avec la flamme façon chalumeau (pas orange).
+          Intensité/portée relevées (rendu maximal) pour un halo plus marqué
+          sur la fusée et le pad au décollage. */}
+      <pointLight color="#dceeff" intensity={95} distance={55} decay={2} position={[0, 1, 0]} />
     </group>
   )
 }

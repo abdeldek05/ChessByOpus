@@ -32,8 +32,8 @@ export function getSunDirection(): [number, number, number] {
 // nettes et cohérentes avec le soleil visible dans l'HDRI, l'IBL seul n'en
 // projette pas).
 export const LIGHTING = {
-  sunColor: '#ffdca8', // soleil doré chaud
-  sunIntensity: 1.6,
+  sunColor: '#ffcf94', // soleil doré chaud, légèrement plus saturé
+  sunIntensity: 1.75,
   skyTint: '#bcd3f0', // remplissage hémisphérique : ciel clair
   groundTint: '#3c5a2a', // rebond sol vert (prairie luxuriante, cf. LAWN/GRASS_COLORS)
   hemiIntensity: 1.2,
@@ -46,8 +46,11 @@ export const LIGHTING = {
 
 // Intensité de l'IBL (éclairage image) appliquée globalement aux matériaux —
 // reflets réalistes sur métaux/béton depuis la vraie HDRI. Baké une fois par
-// chargement, pas de coût continu.
-export const ENVIRONMENT_INTENSITY = 1.1
+// chargement, pas de coût continu. MODÉRÉMENT remontée (rendu maximal, voir
+// feedback_gpu_budget) : une valeur trop haute cumulée aux god rays/bloom a
+// fait cramer toute l'image en blanc uniforme (constaté à 1.35) — le gain de
+// qualité doit rester perceptible sans saturer le tone mapping AgX.
+export const ENVIRONMENT_INTENSITY = 1.15
 
 // Rendu : tone mapping AgX (voir LaunchSceneCanvas), exposition calée jour.
 // AgX gérant déjà le roll-off des hautes lumières, l'exposition reste neutre

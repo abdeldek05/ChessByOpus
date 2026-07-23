@@ -2,8 +2,10 @@
 // Purement visuel : aucune donnée physique ici. Deux nuages de particules qui
 // s'additionnent pour un volume continu, façon décollage filmé.
 
-/** Nombre de particules de FLAMME (cœur brûlant, court, lumineux, additif). */
-export const FLAME_COUNT = 30
+/** Nombre de particules de FLAMME (cœur brûlant, court, lumineux, additif) —
+ *  densité relevée (rendu maximal, voir feedback_gpu_budget) pour un panache
+ *  plus riche/continu au décollage. */
+export const FLAME_COUNT = 55
 
 /** Longueur du jet de flamme sous la fusée (unités scène). Façon CHALUMEAU :
  *  jet FIN et ALLONGÉ (pas large et diffus type lance-flamme). */
@@ -17,8 +19,9 @@ export const FLAME_SPEED = 42
 export const FLAME_LIFE = 0.18
 
 /** TRAÎNÉE de vapeur en MONTÉE (pas au sol) : fine, dans l'axe du jet, PAS un
- *  nuage qui entoure la fusée — s'étire derrière et se dissipe simplement. */
-export const TRAIL_COUNT = 40
+ *  nuage qui entoure la fusée — s'étire derrière et se dissipe simplement.
+ *  Densité relevée (rendu maximal) pour un sillage plus continu/visible. */
+export const TRAIL_COUNT = 70
 /** Dispersion latérale minime (jet fin, pas un cône qui s'évase). */
 export const TRAIL_SPREAD = 0.4
 /** Vitesse d'éjection vers l'arrière (le long de l'axe de poussée). */

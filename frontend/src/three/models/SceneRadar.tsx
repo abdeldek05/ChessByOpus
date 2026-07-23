@@ -11,9 +11,9 @@ interface SceneRadarProps {
 
 // Taille apparente des radars dans la scène : rayon englobant cible en unités.
 // Ce sont de gros véhicules/systèmes radar (grand camion radar) : rayon
-// nettement relevé (16 → 40) pour qu'ils dominent vraiment le pas de tir et
-// restent lisibles de loin — les modèles GLB paraissaient trop petits.
-const RADAR_TARGET_RADIUS = 40
+// CONSIDÉRABLEMENT relevé (40 → 95, rendu maximal, voir feedback_gpu_budget)
+// pour qu'ils dominent franchement le pas de tir, visibles de très loin.
+const RADAR_TARGET_RADIUS = 95
 
 /**
  * Un radar posé dans la scène de lancement, à sa direction géographique réelle
@@ -29,7 +29,9 @@ export function SceneRadar({ config, offset }: SceneRadarProps) {
         modelPath={config.modelPath}
         tintColor={config.tintColor}
         targetRadius={RADAR_TARGET_RADIUS}
-        shadows={false}
+        // Ombres portées activées (rendu maximal) : à cette taille, un radar
+        // sans ombre propre paraît flotter au-dessus du sol.
+        shadows
         spinMode="none"
       />
     </group>

@@ -91,10 +91,15 @@ export function PostFX({ quality = 'realistic', sunRef }: PostFxProps) {
     <EffectComposer multisampling={0}>
       {ao}
       {godRays}
-      <Bloom mipmapBlur intensity={1.25} luminanceThreshold={0.5} luminanceSmoothing={0.4} radius={0.75} />
-      <Noise premultiply blendFunction={BlendFunction.OVERLAY} opacity={0.12} />
+      {/* Seuil >= celui du mode 'realistic' (0.85) — JAMAIS plus bas : un
+          seuil réduit fait contribuer le ciel/sol golden hour entier au
+          bloom, qui se met alors à cramer toute l'image en blanc uniforme
+          (constaté : écran quasi entièrement blanc-flash). Voir le même
+          garde-fou documenté juste au-dessus pour 'realistic'. */}
+      <Bloom mipmapBlur intensity={0.7} luminanceThreshold={0.85} luminanceSmoothing={0.25} radius={0.6} />
+      <Noise premultiply blendFunction={BlendFunction.OVERLAY} opacity={0.06} />
       <SMAA />
-      <Vignette eskil={false} offset={0.2} darkness={0.7} />
+      <Vignette eskil={false} offset={0.22} darkness={0.75} />
     </EffectComposer>
   )
 }

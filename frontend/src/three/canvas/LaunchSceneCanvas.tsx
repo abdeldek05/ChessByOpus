@@ -8,6 +8,8 @@ import { GlContextReleaser } from './GlContextReleaser'
 import { PostFX } from './PostFX'
 import { POSTFX_ENABLED, POSTFX_QUALITY } from '@/three/constants/postFx'
 import { GroundMesh } from '@/three/models/GroundMesh'
+import { FarHorizon } from '@/three/models/FarHorizon'
+import { HorizonHaze } from '@/three/models/HorizonHaze'
 import { GrassField } from '@/three/models/GrassField'
 import { RockField } from '@/three/models/RockField'
 import { TreeField } from '@/three/models/TreeField'
@@ -30,9 +32,9 @@ import { LAUNCH_CENTER } from '@/three/constants/sceneLayout'
 import { DAYLIGHT_EXPOSURE } from '@/three/constants/launchDaylight'
 import { DETAIL_RADIUS, FAR_GROUND_RADIUS } from '@/lib/sceneScale'
 import type { SceneOffset } from '@/lib/computeRadarSceneOffset'
+import type { MesangeFlightPlan } from '@/lib/buildFleetFlightPlan'
 import type { RadarConfig } from '@/types/radar.types'
 import type { SceneMode } from '@/types/scene.types'
-import type { FlightData } from '@/lib/api'
 import type { LaunchSite } from '@/types/simulation.types'
 import type { PlacedRadar } from '@/types/mission.types'
 
@@ -50,7 +52,9 @@ export interface LaunchSceneCanvasProps {
   inclinationDeg: number
   azimuthDeg: number
   flying: boolean
-  flight: FlightData | null
+  /** Plan de vol de TOUTE la flotte (Roi + leurres) — voir buildFleetFlightPlan.
+   *  Vide tant que le backend n'a pas répondu (aucun vol à rendre). */
+  flightPlan: MesangeFlightPlan[]
   flightProgressRef?: React.RefObject<number>
   /** Impact réel de la fusée (fin de la chute sur le relief 3D) — voir
    *  useTrajectoryPlayback. Signal DÉCLENCHEUR de la fin de vol côté séquence,
@@ -80,6 +84,12 @@ export interface LaunchSceneCanvasProps {
 // dedans sans à-coup de couleur (plus de « mur » net au bout du monde).
 const FOG_COLOR = '#d9b98a'
 
+// Densité du fog exponentiel : à cette valeur, la transparence tombe à ~10%
+// autour de 2.5×DETAIL_RADIUS (formule inverse de exp(-density·distance)) —
+// la zone détaillée reste nette, le sol lointain (jusqu'à FAR_GROUND_RADIUS)
+// se fond en douceur, quelle que soit l'altitude de la caméra de suivi.
+const FOG_DENSITY = 2.3 / DETAIL_RADIUS
+
 // Demi-étendue de la shadow-camera (unités) : resserrée sur le pad (demi-côté
 // max ~42, cf. PAD_TIERS) + rampe/console/arbres immédiats — texel net là où
 // l'œil regarde le plus (2·200/4096 ≈ 0.1u). Au-delà, pas d'ombre portée fine
@@ -94,7 +104,7 @@ export function LaunchSceneCanvas({
   inclinationDeg,
   azimuthDeg,
   flying,
-  flight,
+  flightPlan,
   flightProgressRef,
   onImpact,
   onSceneReady,
@@ -106,9 +116,12 @@ export function LaunchSceneCanvas({
   className,
   onGlReady,
 }: LaunchSceneCanvasProps) {
-  // Position monde de la fusée en vol, partagée avec la caméra de suivi.
+  // Position monde du ROI en vol, partagée avec la caméra de suivi — seul le
+  // Roi pilote la caméra/le corridor (les leurres volent mais ne remontent
+  // pas leur position ; voir doctrine CHESS, R5 ajoutera les modes caméra
+  // essaim/radar qui regarderont toute la flotte autrement).
   const rocketPos = useRef<THREE.Vector3 | null>(null)
-  // Position LOCALE live de la fusée (repère du groupe pad) — alimente le
+  // Position LOCALE live du Roi (repère du groupe pad) — alimente le
   // corridor de visibilité (voir VisibilityCorridor), toujours une instance
   // valide (jamais null) pour une lecture sans garde côté hook.
   const corridorPosRef = useRef(new THREE.Vector3())
@@ -118,13 +131,39 @@ export function LaunchSceneCanvas({
   const radarDistance = Math.max(0, ...radars.map((r) => r.offset.sceneRadius))
   const maxDistance = Math.max(600, radarDistance * 1.5)
 
-  // Origine ET orientation du vol = pile la pose réelle de la fusée sur la
-  // rampe inclinée/orientée (mêmes formules géométriques que LaunchRail) — un
-  // point fixe indépendant de l'inclinaison/azimut causait un « pop » visuel
-  // (saut de position/orientation) au moment du décollage.
+  // Origine ET orientation du vol du ROI = pile la pose réelle de la fusée
+  // sur la rampe inclinée/orientée (mêmes formules géométriques que
+  // LaunchRail) — un point fixe indépendant de l'inclinaison/azimut causait
+  // un « pop » visuel (saut de position/orientation) au moment du décollage.
+  // La rampe VISUELLE (LaunchRail/RocketInfoHologram/VisibilityCorridor) reste
+  // unique et pilotée par le Roi — un seul pas de tir physique dans la scène.
   const railOrigin = useMemo(
     () => computeRailRocketOrigin(inclinationDeg, azimuthDeg),
     [inclinationDeg, azimuthDeg],
+  )
+
+  // Origine/direction de CHAQUE Mesange de la flotte (même géométrie de
+  // rampe que le Roi, un azimut/élévation différents suffisent en général à
+  // les distinguer) + un LÉGER offset latéral déterministe par index — évite
+  // la superposition visuelle exacte quand deux Mesange partagent le même
+  // azimut/élévation (ex. deux Pions réglés à l'identique).
+  const fleetOrigins = useMemo(
+    () =>
+      flightPlan.map(({ config }, index) => {
+        const origin = computeRailRocketOrigin(config.inclinationDeg, config.azimuthDeg)
+        if (index === 0) return origin
+        // Décale perpendiculairement à l'axe du fût (le plan XZ de la rampe),
+        // en alternant de part et d'autre pour que les offsets ne s'alignent
+        // pas tous du même côté.
+        const side = index % 2 === 0 ? 1 : -1
+        const magnitude = 0.6 * Math.ceil(index / 2)
+        const perpendicular = new THREE.Vector3(-origin.direction.z, 0, origin.direction.x).normalize()
+        return {
+          position: origin.position.clone().addScaledVector(perpendicular, side * magnitude),
+          direction: origin.direction,
+        }
+      }),
+    [flightPlan],
   )
 
   // Position de départ de la caméra : TOUJOURS derrière la fusée, quel que
@@ -141,9 +180,12 @@ export function LaunchSceneCanvas({
       // gratuites — testé isolément non fautif (crash venait du CUMUL avec
       // herbe/rochers/arbres à pleine charge simultanée).
       shadows="soft"
-      dpr={[1, 1.25]}
+      // Résolution pleine écran (rendu maximal, plus de plafond anti-charge —
+      // voir feedback_gpu_budget : le FPS n'est plus la contrainte, seule la
+      // stabilité du driver AMD l'est encore).
+      dpr={[1, 2]}
       gl={{
-        antialias: false,
+        antialias: true,
         powerPreference: 'high-performance',
         // AgX (remplace ACESFilmic) : courbe filmique moderne qui écrase les
         // hautes lumières en DOUCEUR (roll-off progressif) au lieu de les
@@ -171,9 +213,15 @@ export function LaunchSceneCanvas({
       <Suspense fallback={null}>
         <EnvironmentSky />
       </Suspense>
-      {/* Brume de distance : nette sur la zone détaillée, dissout le sol plat
-          lointain dans la couleur d'horizon de l'HDRI (horizon doux). */}
-      <fog attach="fog" args={[FOG_COLOR, DETAIL_RADIUS * 1.2, FAR_GROUND_RADIUS * 0.5]} />
+      {/* Brume de distance EXPONENTIELLE (FogExp2) : densité croissante en
+          douceur avec la distance, pas de bornes near/far linéaires — sans
+          ce dégradé, la caméra de suivi (translation rigide avec la fusée,
+          voir useOrbitTargetFollow) sortait vite de la fenêtre [near,far] en
+          montant, et ne voyait plus qu'un sol plat uniformément « pris »
+          dans le fog, sans transition. FOG_DENSITY calée sur DETAIL_RADIUS :
+          la zone détaillée (pad, herbe, arbres) reste nette, le sol lointain
+          se fond progressivement dans la couleur d'horizon de l'HDRI. */}
+      <fogExp2 attach="fog" args={[FOG_COLOR, FOG_DENSITY]} />
 
       {/* Soleil golden hour + hémisphérique, synchronisé avec le ciel (DaylightSky) :
           direction dérivée de la même source (SKY.elevationDeg/azimuthDeg) via
@@ -191,6 +239,16 @@ export function LaunchSceneCanvas({
 
       {/* Sol fixe en relief (source de vérité : sampleGroundHeight). */}
       <GroundMesh />
+
+      {/* Anneau de collines silhouette à l'horizon : casse la ligne plate du
+          sol lointain (voir FarHorizon), coût quasi nul (statique, low-poly). */}
+      <FarHorizon />
+
+      {/* Bande de brume atmosphérique à l'horizon (voir HorizonHaze) : avale
+          la ligne de coupure du paysage lointain, dégradé dense au sol → clair
+          en altitude, bruit organique qui dérive lentement (pas de sprites
+          « nuages » qui trahissent leur nature de billboard de près). */}
+      <HorizonHaze />
 
       {/* Herbe 3D (streaming par tuiles autour de la caméra) + rochers + arbres semés. */}
       <GrassField />
@@ -222,20 +280,34 @@ export function LaunchSceneCanvas({
               roleLabel={roleLabel}
             />
           )}
-          <FlyingMesange
-            flight={flight}
-            origin={railOrigin.position}
-            initialDirection={railOrigin.direction}
-            active={flying}
-            metersPerSceneUnit={metersPerSceneUnit}
-            onFlightFrame={(p, progress) => {
-              if (!rocketPos.current) rocketPos.current = new THREE.Vector3()
-              rocketPos.current.set(p.x, p.y + PAD_TOP_Y, p.z)
-              corridorPosRef.current.copy(p)
-              if (flightProgressRef) flightProgressRef.current = progress
-            }}
-            onImpact={onImpact}
-          />
+          {/* Une FlyingMesange par membre de la flotte (Roi + leurres) — voir
+              buildFleetFlightPlan. Seul le ROI remonte sa position (caméra de
+              suivi + corridor de visibilité) et déclenche onImpact (signal de
+              fin de séquence, voir useLaunchSequence) : les leurres jouent
+              leur propre animation/impact visuel sans piloter la séquence. */}
+          {flightPlan.map((plan, index) => (
+            <FlyingMesange
+              key={plan.config.id}
+              flight={plan.flight}
+              origin={fleetOrigins[index].position}
+              initialDirection={fleetOrigins[index].direction}
+              active={flying}
+              metersPerSceneUnit={metersPerSceneUnit}
+              detail={plan.isKing ? 'full' : 'lite'}
+              role={plan.config.role}
+              onFlightFrame={
+                plan.isKing
+                  ? (p, progress) => {
+                      if (!rocketPos.current) rocketPos.current = new THREE.Vector3()
+                      rocketPos.current.set(p.x, p.y + PAD_TOP_Y, p.z)
+                      corridorPosRef.current.copy(p)
+                      if (flightProgressRef) flightProgressRef.current = progress
+                    }
+                  : undefined
+              }
+              onImpact={plan.isKing ? onImpact : undefined}
+            />
+          ))}
           {/* Corridor de visibilité : la fusée réellement rendue, suivie EN
               DIRECT (voir VisibilityCorridor/useVisibilityCorridorTrail) —
               jamais démonté, pour ne jamais perdre le corridor accumulé entre

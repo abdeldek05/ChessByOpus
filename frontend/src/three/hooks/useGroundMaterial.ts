@@ -19,21 +19,33 @@ const MACRO_WORLD_RADIUS = DETAIL_RADIUS * 2
  * onBeforeCompile — les ombres/lumières standard restent intactes ; on ne fait
  * qu'assombrir/jaunir l'albédo selon la position MONDE du fragment.
  */
+// Anisotropie plein réglage (rendu maximal) : la texture d'herbe reste nette
+// à angle rasant, vue basse et proche depuis la caméra de suivi au décollage.
+const GROUND_ANISOTROPY = 16
+
 export function useGroundMaterial(lawn: LawnTextures): THREE.MeshStandardMaterial {
   const macroTex = useMemo(() => createGroundMacroTexture(), [])
 
   const material = useMemo(() => {
+    lawn.colorMap.anisotropy = GROUND_ANISOTROPY
+    lawn.normalMap.anisotropy = GROUND_ANISOTROPY
+    lawn.roughnessMap.anisotropy = GROUND_ANISOTROPY
+
     const mat = new THREE.MeshStandardMaterial({
       map: lawn.colorMap,
       normalMap: lawn.normalMap,
-      normalScale: new THREE.Vector2(0.8, 0.8),
+      // Relief plus marqué (rendu maximal) : les brins d'herbe accrochent
+      // davantage la lumière golden hour rasante en gros plan au décollage.
+      normalScale: new THREE.Vector2(1.15, 1.15),
       roughnessMap: lawn.roughnessMap,
-      roughness: 1,
+      roughness: 0.92,
       metalness: 0,
-      // IBL réelle (HDRI) : le sol organique (herbe/terre) ne doit quasiment
-      // pas réfléchir le ciel (contraste avec le métal de la rampe, voir
-      // RailBase/RailBoom) — sinon la prairie a l'air humide/vernie.
-      envMapIntensity: 0.35,
+      // IBL réelle (HDRI) : le sol organique (herbe/terre) reste moins
+      // réfléchissant que le métal de la rampe (voir RailBase/RailBoom),
+      // mais remonté (rendu maximal, voir feedback_gpu_budget) pour que la
+      // lumière golden hour accroche davantage la prairie sans la rendre
+      // franchement humide/vernie.
+      envMapIntensity: 0.55,
     })
 
     mat.onBeforeCompile = (shader) => {
