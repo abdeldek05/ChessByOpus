@@ -1,20 +1,22 @@
 import maplibregl from 'maplibre-gl'
 import { buildRangeCircle } from '@/lib/geoCircle'
 import { computeDistanceKm, formatDistance } from '@/lib/computeDistanceKm'
+import {
+  TACTICAL_MAP_STYLE,
+  COVERAGE_COLOR,
+  ALERT_COLOR,
+  ACCENT_BRIGHT_COLOR,
+  COVERAGE_DASHARRAY,
+} from '@/constants/tacticalMapTheme'
 import type { LaunchSite } from '@/types/simulation.types'
 import type { PlacedRadar } from '@/types/mission.types'
 
-// Style sombre gratuit, sans clé d'accès.
-export const PLACEMENT_MAP_STYLE = 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json'
-// Cercle de couverture + trait de liaison : laiton (pas de tir), rouge si hors
-// portée (miroir --color-radar / --color-alert).
-export const COVERAGE_COLOR = '#94866e'
-export const ALERT_COLOR = '#e0584f'
-// Cercle de portée max de la Mesange (laiton bright, plus clair que la
-// couverture radar) : REPÈRE PRINCIPAL de cette étape désormais — c'est lui
-// qui délimite où un radar peut être posé, donc net et bien visible (avant :
-// pointillé rouge à peine perceptible, hérité d'un rôle de simple indicateur).
-export const ROCKET_RANGE_COLOR = '#cdbb98'
+// Style + couleurs partagés avec les autres cartes radar — voir tacticalMapTheme.ts.
+export const PLACEMENT_MAP_STYLE = TACTICAL_MAP_STYLE
+export { COVERAGE_COLOR, ALERT_COLOR }
+// Cercle de portée max de la Mesange : REPÈRE PRINCIPAL de cette étape — c'est
+// lui qui délimite où un radar peut être posé, donc net et bien visible.
+export const ROCKET_RANGE_COLOR = ACCENT_BRIGHT_COLOR
 export const ROCKET_RANGE_SOURCE_ID = 'rocket-max-range'
 
 export function rangeLayerIds(radarId: string) {
@@ -95,7 +97,7 @@ export function applyCoverageLayer(
       paint: {
         'line-color': color,
         'line-width': active ? 1.5 : 1,
-        'line-dasharray': [3, 3],
+        'line-dasharray': COVERAGE_DASHARRAY,
         'line-opacity': active ? 0.6 : 0.3,
       },
     })

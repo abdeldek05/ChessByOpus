@@ -3,23 +3,28 @@ import { buildRangeCircle } from '@/lib/geoCircle'
 import { buildSightCone } from '@/lib/geoSightCone'
 import { destinationPoint } from '@/lib/geoDestination'
 import { bearingBetween } from '@/lib/geoBearing'
+import {
+  TACTICAL_MAP_STYLE,
+  TACTICAL_MAP_PITCH_DEG,
+  COVERAGE_COLOR,
+  COVERAGE_DASHARRAY,
+  ROLE_COLOR,
+} from '@/constants/tacticalMapTheme'
 import type { LaunchSite } from '@/types/simulation.types'
-import type { PlacedRadar, MesangeLaunchConfig, MesangeRole } from '@/types/mission.types'
+import type { PlacedRadar, MesangeLaunchConfig } from '@/types/mission.types'
 
-// Config statique de la carte 3D de définition de la menace (étape « Menaces »).
-export const THREAT_MAP_STYLE = 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json'
-// Cercles de couverture radar : laiton, en RETRAIT (contexte).
-export const COVERAGE_COLOR = '#94866e'
-// Vue 3D : inclinaison de la caméra carte (perspective terrain).
-export const MAP_PITCH_DEG = 55
+// Style + couleurs + pitch partagés avec les autres cartes radar — voir
+// tacticalMapTheme.ts (source unique, cette carte ne redéfinit plus rien).
+export const THREAT_MAP_STYLE = TACTICAL_MAP_STYLE
+export { COVERAGE_COLOR }
+// Pitch PLAT (0°) — aligné sur les 2 autres cartes radar (placement, tactique).
+// Cette carte était seule à 55° (vue 3D inclinée), rompant la continuité
+// visuelle du parcours placement → azimut → vol.
+export const MAP_PITCH_DEG = TACTICAL_MAP_PITCH_DEG
 
-/** Teinte de cône par rôle CHESS — mêmes hex que --color-role-* (styles/index.css),
- *  dupliqués ici car MapLibre paint properties ne lisent pas les custom properties CSS. */
-const ROLE_CONE_COLOR: Record<MesangeRole, string> = {
-  KING: '#e0584f',
-  QUEEN: '#cdbb98',
-  PAWN: '#8a8d86',
-}
+/** Teinte de cône par rôle CHESS — voir ROLE_COLOR (tacticalMapTheme.ts), même
+ *  source que la piste de vol tactique (fil de couleur par rôle bout en bout). */
+const ROLE_CONE_COLOR = ROLE_COLOR
 
 // Préfixe des couches saisissables ("hit zone" + remplissage du cône) : sert à
 // retrouver l'ID de Mesange depuis le nom de couche cliqué par MapLibre (voir
@@ -120,7 +125,7 @@ export function drawRadarCoverage(map: maplibregl.Map, radars: PlacedRadar[]) {
       id: `coverage-line-${radar.id}`,
       type: 'line',
       source: sourceId,
-      paint: { 'line-color': COVERAGE_COLOR, 'line-width': 1, 'line-dasharray': [3, 3], 'line-opacity': 0.3 },
+      paint: { 'line-color': COVERAGE_COLOR, 'line-width': 1, 'line-dasharray': COVERAGE_DASHARRAY, 'line-opacity': 0.3 },
     })
   })
 }
