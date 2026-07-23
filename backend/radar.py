@@ -32,6 +32,14 @@ EARTH_R = 6371000.0
 RCS_NOSE_M2 = 0.08  # vue de face (nez) : petite section
 RCS_SIDE_M2 = 1.2  # vue de flanc : cylindre 0.23 m × ~4.5 m
 
+# --- Signature radar par rôle (doctrine CHESS) ---
+# La Dame est un LEURRE PREMIUM : sa SER est délibérément amplifiée (réflecteurs
+# passifs type Luneburg, ou géométrie plus réfléchissante) pour "briller" sur le
+# radar et attirer l'accroche/la classification de l'opérateur AVANT le Roi — le
+# radar la détecte donc de plus loin (R_eff croît en σ^¼, voir _first_detection).
+# Le Roi (menace furtive) et le Pion (saturation, jetable) gardent la SER nue.
+RCS_ROLE_MULTIPLIER = {"QUEEN": 6.0}
+
 # --- Limites génériques d'un radar de veille ---
 CONE_OF_SILENCE_ELEV_DEG = 70.0  # au-delà : zone aveugle au zénith
 HORIZON_FACTOR = 4.12  # d_km = 4.12(√h1_m + √h2_m), réfraction 4/3 incluse
@@ -77,6 +85,7 @@ def _first_detection(
     radar_north: float,
     track: list[dict],
     delay_sec: float,
+    rcs_multiplier: float = 1.0,
 ) -> tuple[float | None, float, str | None]:
     """Premier instant (horloge mission) où CE radar accroche CETTE trajectoire.
 
@@ -116,7 +125,7 @@ def _first_detection(
             continue
 
         # 2. + 3. Portée effective selon la SER d'aspect vs sensibilité réglée.
-        sigma = _aspect_rcs(vx, vy, vz, lx, ly, lz)
+        sigma = _aspect_rcs(vx, vy, vz, lx, ly, lz) * rcs_multiplier
         r_eff = min(range_m, range_m * (sigma / min_rcs) ** 0.25)
         if slant > r_eff:
             if best_block is None or slant < best_block[0]:
@@ -196,11 +205,14 @@ def compute_detection(
                 for p in track
             ]
 
+        rcs_multiplier = RCS_ROLE_MULTIPLIER.get(role, 1.0)
         best_t: float | None = None
         best_dist = 0.0
         block_reason: str | None = None
         for radar, (r_east, r_north) in zip(radars, radar_offsets):
-            t_detect, dist_km, reason = _first_detection(radar, r_east, r_north, threat_track, delay)
+            t_detect, dist_km, reason = _first_detection(
+                radar, r_east, r_north, threat_track, delay, rcs_multiplier
+            )
             if t_detect is not None and (best_t is None or t_detect < best_t):
                 best_t, best_dist = t_detect, dist_km
             elif t_detect is None and block_reason is None:

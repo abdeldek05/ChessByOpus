@@ -33,6 +33,26 @@ interface UseTrajectoryPlaybackParams {
   initialDirection: THREE.Vector3
   /** Mètres réels → unités scène (map fixe, voir computeSceneScale). */
   metersPerSceneUnit: number
+  /** Suit la spline `flight` jusqu'au dernier point (montée ET descente),
+   *  sans jamais basculer sur l'intégration PGRV maison — voir la bascule à
+   *  l'apogée plus bas. Par défaut `false` (comportement historique, pensé
+   *  pour le ROI — et pour la DAME, qui rejoue le vol du Roi tel quel, voir
+   *  buildQueenTrajectory : sa vraie chute RocketPy sur sol plat n'est pas
+   *  fiable face au relief 3D réel). À passer `true` pour un PION : sa
+   *  trajectoire (voir buildPawnTrajectory) calcule déjà toute la descente —
+   *  la bascule PGRV générique écrasait ce travail avec un raccord de vitesse
+   *  discontinu à l'apogée, visible comme une cassure brusque en plein vol. */
+  useRealDescent?: boolean
+  /** Durée de poussée (s) pilotant le panache (`thrusting`) — celle du Roi
+   *  (BURN_TIME_SEC, 35.7s) par défaut (Roi ET Dame, qui rejoue son vol) ; à
+   *  passer explicitement pour un PION, dont le burn est bien plus court
+   *  (voir PAWN_BURN_TIME_SEC dans decoyTrajectory.ts) — sinon le panache
+   *  resterait visuellement allumé bien après la fin réelle de sa poussée. */
+  burnTimeSec?: number
+  /** Multiplicateur appliqué à FLYING_ROCKET_SCALE — la Dame (leurre premium,
+   *  doctrine CHESS) affiche une "grosse signature" plus proche du Roi que
+   *  les Pions. Défaut 1 (échelle standard). */
+  scaleMultiplier?: number
   /** Remontée de la position monde à chaque frame (caméra de suivi). */
   onFrame?: (position: THREE.Vector3, progress: number) => void
   /** Impact réel (fin de la chute physique sur le relief 3D) : signale la fin
@@ -48,6 +68,11 @@ interface UseTrajectoryPlaybackResult {
   brokenElapsed: React.RefObject<number>
   /** Point d'impact posé AU RAS du relief (coords locales au groupe du pad). */
   impact: THREE.Vector3
+  /** Vrai dès que ce vol a démarré une fois, indépendamment de `active` par la
+   *  suite (voir le loquet `started` plus haut) — à utiliser pour la garde de
+   *  rendu du composant appelant, PAS `active` directement (sinon la Mesange
+   *  disparaît dès que `active` global repasse à `false`, ex. Roi atterri). */
+  hasStarted: boolean
 }
 
 /**
@@ -63,6 +88,9 @@ export function useTrajectoryPlayback({
   origin,
   initialDirection,
   metersPerSceneUnit,
+  useRealDescent = false,
+  burnTimeSec = BURN_TIME_SEC,
+  scaleMultiplier = 1,
   onFrame,
   onImpact,
 }: UseTrajectoryPlaybackParams): UseTrajectoryPlaybackResult {
@@ -71,6 +99,14 @@ export function useTrajectoryPlayback({
   const brokenElapsed = useRef(0)
   const thrusting = useRef(true)
   const [phase, setPhase] = useState<PlaybackPhase>('flying')
+  // Loquet UNE FOIS DÉCLENCHÉ, reste vrai indépendamment de `active` par la
+  // suite : `active` est partagé par TOUTE la flotte (voir LaunchSceneCanvas,
+  // `flying` global) et repasse à `false` dès que le ROI atterrit — sans ce
+  // loquet, un leurre encore en l'air (ou déjà posé) à ce moment-là disparaît
+  // brutalement en même temps que le Roi au lieu de vivre sa propre durée de
+  // vol. Se réarme au prochain vol via le même effet de reset (`flight` change).
+  const started = useRef(false)
+  if (active) started.current = true
   // Chute PGRV (dès l'apogée) : vitesse courante (unités scène/s RÉEL, pas
   // accéléré) une fois qu'on a quitté la spline RocketPy pour l'intégration
   // physique maison. `null` = encore sur la spline (montée).
@@ -87,6 +123,7 @@ export function useTrajectoryPlayback({
     thrusting.current = true
     fallVelocity.current = null
     prevPos.current = null
+    started.current = false
     setPhase('flying')
     // Orientation ET échelle INITIALES = pile la pose statique sur la rampe
     // (direction du fût, échelle 1) — sans ça la fusée « pop » d'un coup à la
@@ -144,7 +181,7 @@ export function useTrajectoryPlayback({
 
   useFrame((_, delta) => {
     const group = groupRef.current
-    if (!group || !active || !curve || times.length < 2 || !flight) return
+    if (!group || !started.current || !curve || times.length < 2 || !flight) return
 
     if (phase === 'flying') {
       const dt = Math.min(delta, 0.05) // borne : pas de saut si lag
@@ -153,9 +190,13 @@ export function useTrajectoryPlayback({
       const rawT = realTimeFromAnim(animElapsed.current)
       const apogeeT = flight.apogeeTimeSec
 
-      if (rawT < apogeeT) {
-        // --- MONTÉE : suit fidèlement la spline RocketPy (vraie physique
-        //     aéro jusqu'à l'apogée). ---
+      // Avec useRealDescent, on suit la spline jusqu'au BOUT (montée ET
+      // descente) — sinon, seulement jusqu'à l'apogée puis bascule PGRV (voir
+      // la branche else). `duration` = flightTimeSec, la fin réelle du vol.
+      if (rawT < apogeeT || (useRealDescent && rawT < duration)) {
+        // --- Suit fidèlement la spline (vraie trajectoire, montée seule pour
+        //     le Roi ; montée + descente avec portance pour un leurre — voir
+        //     useRealDescent). ---
         const t = rawT
 
         // Paramètre spline u ∈ [0,1] : segment encadrant t + fraction locale.
@@ -180,7 +221,7 @@ export function useTrajectoryPlayback({
         // prenait enfin le relais et la positionnait pour la première fois.
         group.position.copy(scratch.pos)
 
-        thrusting.current = t <= BURN_TIME_SEC
+        thrusting.current = t <= burnTimeSec
         onFrame?.(scratch.pos, t / duration)
       } else {
         // --- CHUTE PGRV : dès l'apogée, on quitte la spline RocketPy (chute
@@ -302,11 +343,11 @@ export function useTrajectoryPlayback({
       // phase 'flying' donnait l'impression que la fusée « apparaissait »
       // d'un coup plus grosse au lieu de décoller naturellement.
       const scaleProgress = Math.min(1, rawT / SCALE_TRANSITION_SEC)
-      group.scale.setScalar(THREE.MathUtils.lerp(1, FLYING_ROCKET_SCALE, scaleProgress))
+      group.scale.setScalar(THREE.MathUtils.lerp(1, FLYING_ROCKET_SCALE * scaleMultiplier, scaleProgress))
     } else {
       brokenElapsed.current += delta
     }
   })
 
-  return { groupRef, phase, thrusting, brokenElapsed, impact }
+  return { groupRef, phase, thrusting, brokenElapsed, impact, hasStarted: started.current }
 }

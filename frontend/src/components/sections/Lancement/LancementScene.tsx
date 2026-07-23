@@ -17,6 +17,7 @@ import { computeDistanceKm, formatDistance } from '@/lib/computeDistanceKm'
 import { computeSceneScale } from '@/lib/sceneScale'
 import { getRadarName } from '@/lib/getRadarName'
 import { getMesangeRoleLabel } from '@/lib/getMesangeRoleLabel'
+import { buildFleetFlightPlan } from '@/lib/buildFleetFlightPlan'
 import type { LaunchSite } from '@/types/simulation.types'
 import type { PlacedRadar, MesangeLaunchConfig } from '@/types/mission.types'
 import type { SceneMode } from '@/types/scene.types'
@@ -92,17 +93,30 @@ export function LancementScene({ state }: LancementSceneProps) {
       .filter((radar) => radar.position !== null)
       .map((radar) => computeDistanceKm(state.site, radar.position!) * 1000),
   )
+
+  // Plan de vol de TOUTE la flotte (Roi = vraie trajectoire RocketPy, leurres
+  // = dérivée JS calibrée dessus — voir buildFleetFlightPlan). Vide tant que
+  // le backend n'a pas répondu (sequence.flight === null) : rien à calibrer.
+  const flightPlan = useMemo(
+    () => buildFleetFlightPlan(state.mesangeConfigs, sequence.flight),
+    [state.mesangeConfigs, sequence.flight],
+  )
+
   // Portée du vol figée dès qu'elle est connue (state, pas juste une ref) :
   // remise à null quand on réarme (replay), pour qu'un nouveau vol puisse à
   // nouveau capturer sa propre portée sans jamais changer PENDANT l'animation.
+  // Portée = MAX de TOUTE la flotte (pas juste le Roi) : un leurre moins
+  // incliné va PLUS LOIN que le Roi (portée balistique maximale vers 45°) —
+  // sans ce max, un tel leurre sortirait du cadre de la scène normalisée.
   const [flightRangeAtLaunch, setFlightRangeAtLaunch] = useState<number | null>(null)
   useEffect(() => {
     if (sequence.phase === 'armed') {
       setFlightRangeAtLaunch(null)
-    } else if (sequence.flight) {
-      setFlightRangeAtLaunch((prev) => prev ?? sequence.flight!.rangeM)
+    } else if (flightPlan.length > 0) {
+      const maxFleetRangeM = Math.max(...flightPlan.map((p) => p.flight.rangeM))
+      setFlightRangeAtLaunch((prev) => prev ?? maxFleetRangeM)
     }
-  }, [sequence.phase, sequence.flight])
+  }, [sequence.phase, flightPlan])
   const sceneScale = useMemo(
     () => computeSceneScale(Math.max(maxRadarDistanceM, flightRangeAtLaunch ?? 0)),
     [maxRadarDistanceM, flightRangeAtLaunch],
@@ -141,7 +155,7 @@ export function LancementScene({ state }: LancementSceneProps) {
         inclinationDeg={primary?.inclinationDeg ?? 80}
         azimuthDeg={primary?.azimuthDeg ?? 0}
         flying={sequence.phase === 'running'}
-        flight={sequence.flight}
+        flightPlan={flightPlan}
         flightProgressRef={flightProgressRef}
         onImpact={sequence.reportImpact}
         onSceneReady={loadingOverlay.reportSceneReady}
