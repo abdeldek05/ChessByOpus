@@ -7,13 +7,10 @@ import { toScene, realTimeFromAnim } from '@/lib/trajectoryPlayback'
 import { PAD_TOP_Y } from '@/three/constants/launchComplex'
 import { LAUNCH_CENTER } from '@/three/constants/sceneLayout'
 import {
-  TIME_SCALE,
   LIFTOFF_REAL_SEC,
   BURN_TIME_SEC,
   FLYING_ROCKET_SCALE,
   SCALE_TRANSITION_SEC,
-  GRAVITY_MS2,
-  FALL_DRAG_COEFF,
 } from '@/three/constants/flightPlayback'
 
 export type PlaybackPhase = 'flying' | 'broken'
@@ -21,6 +18,62 @@ export type PlaybackPhase = 'flying' | 'broken'
 // Rigidité du lissage d'orientation du nez (slerp) : haut = suit vite la
 // tangente, bas = plus amorti. Indépendant du framerate via 1-exp(-k·dt).
 const HEADING_STIFFNESS = 7
+
+/** Interpolation Catmull-Rom d'un point de trajectoire À UN TEMPS DONNÉ.
+ *
+ *  Le cœur du réalisme gravitationnel : on interpole entre les points RocketPy
+ *  par le TEMPS de vol (leur horodatage réel `times[]`), PAS par un paramètre
+ *  d'arc de spline. Les points RocketPy encodent déjà la gravité (resserrés à
+ *  l'apogée où la fusée ralentit, espacés près du sol où elle accélère) — en
+ *  respectant leur timing, on reproduit EXACTEMENT cette cadence. L'ancienne
+ *  version convertissait t en `u = index/(N-1)` puis appelait `curve.getPoint(u)`,
+ *  mais la spline centripetal répartit `u` par LONGUEUR D'ARC, pas par index :
+ *  décalage temps/position → la fusée « volait » à cadence quasi constante au
+ *  lieu de subir la gravité, avec des à-coups. Catmull-Rom sur les 4 points
+ *  encadrants (p0..p3) garde le lissage sans jamais osciller.
+ *
+ *  Écrit la position dans `out`. Fonction pure, zéro allocation (temporaires
+ *  fournis par l'appelant). */
+function samplePositionAtTime(
+  positions: THREE.Vector3[],
+  times: number[],
+  t: number,
+  out: THREE.Vector3,
+): void {
+  const n = positions.length
+  // Segment [i-1, i] encadrant t (recherche linéaire, trajectoires courtes).
+  let i = 1
+  while (i < n && times[i] < t) i++
+  const i1 = Math.min(i, n - 1)
+  const i0 = i1 - 1
+  const a = times[i0]
+  const b = times[i1]
+  const span = b - a || 1
+  const f = Math.min(1, Math.max(0, (t - a) / span))
+
+  // 4 points pour Catmull-Rom (bornés aux extrémités).
+  const p0 = positions[Math.max(0, i0 - 1)]
+  const p1 = positions[i0]
+  const p2 = positions[i1]
+  const p3 = positions[Math.min(n - 1, i1 + 1)]
+
+  // Catmull-Rom uniforme composante par composante (f ∈ [0,1] dans [p1,p2]).
+  const f2 = f * f
+  const f3 = f2 * f
+  out.set(
+    catmullRom(p0.x, p1.x, p2.x, p3.x, f, f2, f3),
+    catmullRom(p0.y, p1.y, p2.y, p3.y, f, f2, f3),
+    catmullRom(p0.z, p1.z, p2.z, p3.z, f, f2, f3),
+  )
+}
+
+/** Un axe de Catmull-Rom uniforme (f, f², f³ pré-calculés pour les 3 axes). */
+function catmullRom(v0: number, v1: number, v2: number, v3: number, f: number, f2: number, f3: number): number {
+  return (
+    0.5 *
+    (2 * v1 + (-v0 + v2) * f + (2 * v0 - 5 * v1 + 4 * v2 - v3) * f2 + (-v0 + 3 * v1 - 3 * v2 + v3) * f3)
+  )
+}
 
 interface UseTrajectoryPlaybackParams {
   flight: FlightData | null
@@ -33,15 +86,13 @@ interface UseTrajectoryPlaybackParams {
   initialDirection: THREE.Vector3
   /** Mètres réels → unités scène (map fixe, voir computeSceneScale). */
   metersPerSceneUnit: number
-  /** Suit la spline `flight` jusqu'au dernier point (montée ET descente),
-   *  sans jamais basculer sur l'intégration PGRV maison — voir la bascule à
-   *  l'apogée plus bas. Par défaut `false` (comportement historique, pensé
-   *  pour le ROI — et pour la DAME, qui rejoue le vol du Roi tel quel, voir
-   *  buildQueenTrajectory : sa vraie chute RocketPy sur sol plat n'est pas
-   *  fiable face au relief 3D réel). À passer `true` pour un PION : sa
-   *  trajectoire (voir buildPawnTrajectory) calcule déjà toute la descente —
-   *  la bascule PGRV générique écrasait ce travail avec un raccord de vitesse
-   *  discontinu à l'apogée, visible comme une cassure brusque en plein vol. */
+  /** @deprecated SANS EFFET depuis la refonte gravitationnelle : TOUTE mésange
+   *  (Roi comme leurres) suit désormais sa trajectoire complète interpolée PAR
+   *  LE TEMPS, de bout en bout (voir samplePositionAtTime). L'ancienne bascule
+   *  PGRV maison à l'apogée — que ce flag activait/désactivait — a été
+   *  supprimée : elle remplaçait la vraie chute RocketPy (déjà dans les données)
+   *  par une approximation, ce qui faisait « voler » la fusée au lieu de la
+   *  faire tomber. Paramètre conservé pour ne pas casser les appels existants. */
   useRealDescent?: boolean
   /** Durée de poussée (s) pilotant le panache (`thrusting`) — celle du Roi
    *  (BURN_TIME_SEC, 35.7s) par défaut (Roi ET Dame, qui rejoue son vol) ; à
@@ -53,6 +104,14 @@ interface UseTrajectoryPlaybackParams {
    *  doctrine CHESS) affiche une "grosse signature" plus proche du Roi que
    *  les Pions. Défaut 1 (échelle standard). */
   scaleMultiplier?: number
+  /** Délai de mise à feu (s RÉELLES de scénario, PAS de temps d'animation
+   *  accéléré) avant que cette mésange décolle réellement — même unité que
+   *  `launchDelaySec` calculé côté backend (radar.py : `t_mission = p.t +
+   *  delay_sec`), pour que le rendu visuel reste synchronisé avec la logique
+   *  de détection qui tourne derrière. Défaut 0 (décolle avec le Roi). Tant
+   *  que ce délai n'est pas écoulé, la mésange reste posée sur sa rampe,
+   *  visuellement immobile — comme si elle attendait son tour. */
+  launchDelaySec?: number
   /** Remontée de la position monde à chaque frame (caméra de suivi). */
   onFrame?: (position: THREE.Vector3, progress: number) => void
   /** Impact réel (fin de la chute physique sur le relief 3D) : signale la fin
@@ -91,6 +150,7 @@ export function useTrajectoryPlayback({
   useRealDescent = false,
   burnTimeSec = BURN_TIME_SEC,
   scaleMultiplier = 1,
+  launchDelaySec = 0,
   onFrame,
   onImpact,
 }: UseTrajectoryPlaybackParams): UseTrajectoryPlaybackResult {
@@ -98,6 +158,13 @@ export function useTrajectoryPlayback({
   const animElapsed = useRef(0)
   const brokenElapsed = useRef(0)
   const thrusting = useRef(true)
+  // Compteur de délai AVANT décollage (s réelles écoulées, PAS de temps
+  // d'animation accéléré) : tant qu'il n'a pas atteint `launchDelaySec`,
+  // `animElapsed` ne s'incrémente pas — la mésange reste posée, immobile.
+  // Séparé d'`animElapsed` plutôt que d'inverser realTimeFromAnim (non
+  // linéaire par morceaux, une inversion serait fragile) : plus simple et
+  // robuste de compter le délai indépendamment, en temps réel non transformé.
+  const delayElapsed = useRef(0)
   const [phase, setPhase] = useState<PlaybackPhase>('flying')
   // Loquet UNE FOIS DÉCLENCHÉ, reste vrai indépendamment de `active` par la
   // suite : `active` est partagé par TOUTE la flotte (voir LaunchSceneCanvas,
@@ -107,10 +174,6 @@ export function useTrajectoryPlayback({
   // vol. Se réarme au prochain vol via le même effet de reset (`flight` change).
   const started = useRef(false)
   if (active) started.current = true
-  // Chute PGRV (dès l'apogée) : vitesse courante (unités scène/s RÉEL, pas
-  // accéléré) une fois qu'on a quitté la spline RocketPy pour l'intégration
-  // physique maison. `null` = encore sur la spline (montée).
-  const fallVelocity = useRef<THREE.Vector3 | null>(null)
 
   // Rejeu d'un scénario (replay) : `flight` reçoit une NOUVELLE trajectoire à
   // chaque lancement, mais ce hook reste monté en permanence (le composant
@@ -120,8 +183,8 @@ export function useTrajectoryPlayback({
   useEffect(() => {
     animElapsed.current = 0
     brokenElapsed.current = 0
+    delayElapsed.current = 0
     thrusting.current = true
-    fallVelocity.current = null
     prevPos.current = null
     started.current = false
     setPhase('flying')
@@ -152,16 +215,13 @@ export function useTrajectoryPlayback({
   // (première frame du vol, ou vient de rejouer).
   const prevPos = useRef<THREE.Vector3 | null>(null)
 
-  // Pré-calcule la spline (échelle réelle unique), les temps et l'impact au sol.
-  const { curve, times, duration, impact } = useMemo(() => {
+  // Pré-calcule les positions scène, les temps et l'impact au sol.
+  const { positions, times, duration, impact } = useMemo(() => {
     if (!flight || flight.trajectory.length < 2) {
-      return { curve: null, times: [] as number[], duration: 0, impact: origin.clone() }
+      return { positions: [] as THREE.Vector3[], times: [] as number[], duration: 0, impact: origin.clone() }
     }
     const positions = flight.trajectory.map((p) => toScene(p, origin, metersPerSceneUnit))
     const times = flight.trajectory.map((p) => p.t)
-
-    // Spline centripète : passe par tous les points sans oscillation parasite.
-    const curve = new THREE.CatmullRomCurve3(positions, false, 'centripetal')
 
     // Impact posé AU RAS du sol (relief OU dalle béton) : le dernier point de
     // trajectoire est ramené à la hauteur du sol. `sampleSceneGround` renvoie
@@ -176,111 +236,55 @@ export function useTrajectoryPlayback({
     const groundWorldY = sampleSceneGround(impact.x + LAUNCH_CENTER[0], impact.z + LAUNCH_CENTER[2]) - PAD_TOP_Y
     impact.y = origin.y + groundWorldY
 
-    return { curve, times, duration: flight.flightTimeSec, impact }
+    return { positions, times, duration: flight.flightTimeSec, impact }
   }, [flight, origin, metersPerSceneUnit])
 
   useFrame((_, delta) => {
     const group = groupRef.current
-    if (!group || !started.current || !curve || times.length < 2 || !flight) return
+    if (!group || !started.current || positions.length < 2 || times.length < 2 || !flight) return
 
     if (phase === 'flying') {
       const dt = Math.min(delta, 0.05) // borne : pas de saut si lag
+
+      // Délai de mise à feu (voir launchDelaySec) : tant qu'il n'est pas
+      // écoulé, la mésange reste posée sur sa rampe — ni thrusting, ni
+      // onFrame, ni avance de l'animation. Compté en secondes RÉELLES (pas
+      // accélérées), cohérent avec le délai calculé côté backend (radar.py).
+      if (delayElapsed.current < launchDelaySec) {
+        delayElapsed.current += dt
+        return
+      }
+
       animElapsed.current += dt
       // Temps de vol réel correspondant (accéléré, décollage ralenti).
       const rawT = realTimeFromAnim(animElapsed.current)
-      const apogeeT = flight.apogeeTimeSec
+      const t = Math.min(rawT, duration)
 
-      // Avec useRealDescent, on suit la spline jusqu'au BOUT (montée ET
-      // descente) — sinon, seulement jusqu'à l'apogée puis bascule PGRV (voir
-      // la branche else). `duration` = flightTimeSec, la fin réelle du vol.
-      if (rawT < apogeeT || (useRealDescent && rawT < duration)) {
-        // --- Suit fidèlement la spline (vraie trajectoire, montée seule pour
-        //     le Roi ; montée + descente avec portance pour un leurre — voir
-        //     useRealDescent). ---
-        const t = rawT
+      // POSITION interpolée PAR LE TEMPS sur la vraie trajectoire (montée ET
+      // descente, de bout en bout — voir samplePositionAtTime). Plus de bascule
+      // PGRV à l'apogée : la trajectoire RocketPy contient déjà la vraie chute
+      // (gravité + traînée jusqu'à l'atterrissage, backend simulate.py) — la
+      // dupliquer par une intégration maison ne faisait que remplacer la vraie
+      // physique par une approximation, d'où l'impression que la fusée
+      // « volait ». `useRealDescent` n'a plus lieu d'être : tout le monde suit
+      // sa trajectoire complète (paramètre conservé pour rétrocompat d'API).
+      void useRealDescent
+      samplePositionAtTime(positions, times, t, scratch.pos)
 
-        // Paramètre spline u ∈ [0,1] : segment encadrant t + fraction locale.
-        let i = 1
-        while (i < times.length && times[i] < t) i++
-        const a = times[i - 1]
-        const b = times[Math.min(i, times.length - 1)]
-        const span = b - a || 1
-        const f = Math.min(1, Math.max(0, (t - a) / span))
-        const u = (i - 1 + f) / (times.length - 1)
-
-        curve.getPoint(u, scratch.pos)
-        curve.getTangent(u, scratch.tangent)
-        if (scratch.tangent.lengthSq() > 1e-6) {
-          scratch.desiredQuat.setFromUnitVectors(scratch.up, scratch.tangent.normalize())
-          group.quaternion.slerp(scratch.desiredQuat, 1 - Math.exp(-HEADING_STIFFNESS * dt))
-        }
-        // POSITION : sans cette ligne, le groupe restait figé à l'origine
-        // pendant TOUTE la montée (seul le clamp au sol plus bas le
-        // positionnait, mais il ne se déclenche qu'en fin de vol) — la fusée
-        // semblait invisible/immobile jusqu'à l'apogée, où la branche chute
-        // prenait enfin le relais et la positionnait pour la première fois.
-        group.position.copy(scratch.pos)
-
-        thrusting.current = t <= burnTimeSec
-        onFrame?.(scratch.pos, t / duration)
-      } else {
-        // --- CHUTE PGRV : dès l'apogée, on quitte la spline RocketPy (chute
-        //     balistique réelle trop rapide/complexe à dupliquer fidèlement)
-        //     pour une intégration physique simple, garantissant un impact
-        //     exact sur le relief 3D affiché. ---
-        if (!fallVelocity.current) {
-          // Initialisation UNIQUE, au moment du switch : vitesse de départ =
-          // dérivée numérique de la spline PILE à l'apogée (position à u et
-          // u+ε), pour un raccord CONTINU (pas de saut de vitesse visible).
-          // À l'apogée, la composante verticale réelle est quasi nulle et
-          // l'essentiel de la vitesse est horizontale (dérive latérale) —
-          // c'est cette vitesse-là qu'on prolonge en chute libre.
-          const apogeeU = Math.min(1, apogeeT / duration)
-          const eps = 0.002
-          const uA = Math.max(0, apogeeU - eps)
-          const uB = Math.min(1, apogeeU + eps)
-          const pA = new THREE.Vector3()
-          const pB = new THREE.Vector3()
-          curve.getPoint(uA, pA)
-          curve.getPoint(uB, pB)
-          const spanSec = Math.max(1e-3, (uB - uA) * duration)
-          fallVelocity.current = pB.sub(pA).divideScalar(spanSec)
-          curve.getPoint(apogeeU, scratch.pos)
-        }
-
-        const v = fallVelocity.current
-        // Temps réel écoulé cette frame, à la MÊME accélération temporelle
-        // que le reste du vol (cohérence visuelle avec TIME_SCALE).
-        const dtReal = dt * TIME_SCALE
-
-        // Gravité réelle (m/s²), convertie en unités scène/s² : accélère la
-        // chute exactement comme la vraie pesanteur.
-        const gScene = GRAVITY_MS2 / metersPerSceneUnit
-        v.y -= gScene * dtReal
-
-        // Traînée quadratique approximée (freine dans le sens opposé à la
-        // vitesse, proportionnelle à v²) : évite une vitesse infinie, donne
-        // un ordre de grandeur crédible sans reproduire la vraie courbe Cd(Mach).
-        const speed = v.length()
-        if (speed > 1e-4) {
-          const dragMag = FALL_DRAG_COEFF * speed * speed * dtReal
-          scratch.tangent.copy(v).normalize().multiplyScalar(-Math.min(dragMag, speed))
-          v.add(scratch.tangent)
-        }
-
-        scratch.pos.addScaledVector(v, dtReal)
-        group.position.copy(scratch.pos)
-
-        // Orientation : suit la direction de la vitesse (nez vers le bas en
-        // chute), même lissage que la phase montée.
-        if (v.lengthSq() > 1e-6) {
-          scratch.desiredQuat.setFromUnitVectors(scratch.up, scratch.tangent.copy(v).normalize())
-          group.quaternion.slerp(scratch.desiredQuat, 1 - Math.exp(-HEADING_STIFFNESS * dt))
-        }
-
-        thrusting.current = false
-        onFrame?.(scratch.pos, Math.min(1, rawT / duration))
+      // Tangente par différence temporelle avant/arrière (direction du vol
+      // réel à cet instant) : oriente le nez. Prise sur un petit Δt pour
+      // suivre la courbure sans bruit.
+      const tAhead = Math.min(duration, t + 0.05)
+      samplePositionAtTime(positions, times, tAhead, scratch.tangent)
+      scratch.tangent.sub(scratch.pos)
+      if (scratch.tangent.lengthSq() > 1e-9) {
+        scratch.desiredQuat.setFromUnitVectors(scratch.up, scratch.tangent.normalize())
+        group.quaternion.slerp(scratch.desiredQuat, 1 - Math.exp(-HEADING_STIFFNESS * dt))
       }
+      group.position.copy(scratch.pos)
+
+      thrusting.current = t <= burnTimeSec
+      onFrame?.(scratch.pos, t / duration)
 
       // IMPACT PAR FRANCHISSEMENT DE SEGMENT : le relief 3D fBm est bosselé et
       // n'a aucun rapport avec le sol plat que RocketPy connaît — à grande
@@ -333,6 +337,22 @@ export function useTrajectoryPlayback({
           onImpact?.()
           return
         }
+      }
+
+      // FILET DE SÉCURITÉ FIN DE TRAJECTOIRE : la trajectoire RocketPy atterrit
+      // sur un sol PLAT à z=0, mais le relief 3D à ce point peut être en
+      // CONTREBAS (vallée) — le franchissement de segment ne se déclenche alors
+      // jamais et la fusée se figerait en l'air au dernier point, SANS fin de
+      // scénario (onImpact jamais appelé). Dès qu'on a consommé toute la
+      // trajectoire (rawT >= duration), on force donc l'atterrissage au ras du
+      // relief sous le dernier point.
+      if (rawT >= duration) {
+        scratch.pos.y = groundLocalYAtPos
+        group.position.copy(scratch.pos)
+        impact.copy(scratch.pos)
+        setPhase('broken')
+        onImpact?.()
+        return
       }
 
       prevPos.current = (prevPos.current ?? new THREE.Vector3()).copy(scratch.pos)

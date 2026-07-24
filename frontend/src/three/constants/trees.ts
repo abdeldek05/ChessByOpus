@@ -23,11 +23,15 @@ export const TREE = {
 
 // Semis : nombre total d'arbres, portée et échelle — même levier que le semis
 // des rochers (useScatterInstances), positions posées via sampleGroundHeight.
+// Densité RELEVÉE (220 → 420) pour remplir un paysage jugé trop vide : à 6
+// blobs de feuillage par arbre ça reste ~2500 instances, très loin du pic
+// qui avait grillé le driver (voir feedback_gpu_budget). innerRadius resserré
+// (90 → 60) pour peupler aussi les abords proches du pas de tir.
 export const TREE_SCATTER = {
-  count: 220,
+  count: 420,
   seed: 4177,
   baseScale: 1,
-  scaleJitter: 0.4,
-  innerRadius: 90, // dégagement autour du pas de tir
+  scaleJitter: 0.5,
+  innerRadius: 60, // dégagement autour du pas de tir
   cutoffRadius: 30000,
 } as const

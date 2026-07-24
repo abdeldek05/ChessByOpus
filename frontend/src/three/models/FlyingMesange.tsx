@@ -40,6 +40,9 @@ interface FlyingMesangeProps {
    *  durée du panache et la signature visuelle des leurres (voir
    *  useTrajectoryPlayback). Défaut `'KING'`. */
   role?: MesangeRole
+  /** Délai de mise à feu (s réelles de scénario) avant le décollage réel de
+   *  CETTE mésange — voir useTrajectoryPlayback. Défaut 0 (décolle avec le Roi). */
+  launchDelaySec?: number
   /** Position monde de la fusée à chaque frame (caméra de suivi). */
   onFlightFrame?: (position: THREE.Vector3, progress: number) => void
   /** Impact réel (fin de la chute sur le relief 3D) — voir useTrajectoryPlayback. */
@@ -62,6 +65,7 @@ export function FlyingMesange({
   metersPerSceneUnit,
   detail = 'full',
   role = 'KING',
+  launchDelaySec = 0,
   onFlightFrame,
   onImpact,
 }: FlyingMesangeProps) {
@@ -89,6 +93,7 @@ export function FlyingMesange({
     useRealDescent: isPawn,
     burnTimeSec: isPawn ? PAWN_BURN_TIME_SEC : undefined,
     scaleMultiplier: role === 'QUEEN' ? QUEEN_SCALE_MULTIPLIER : 1,
+    launchDelaySec,
     onFrame: onFlightFrame,
     onImpact,
   })

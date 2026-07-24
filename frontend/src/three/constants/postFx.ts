@@ -15,7 +15,10 @@ export const POSTFX_ENABLED = true
  * naturel, pas stylisé).
  * 'full' : idem + Bloom fort + grain + vignette (rendu cinéma, plus dramatique).
  */
-export const POSTFX_QUALITY: PostFxQuality = 'full'
+// 'realistic' (plus 'full') : on RETIRE grain de pellicule + vignette — ces
+// deux couches « salissaient » l'air (texture sur toute l'image + bords
+// assombris) et tuaient la netteté du DPR plein écran. Air propre demandé.
+export const POSTFX_QUALITY: PostFxQuality = 'realistic'
 
 // N8AO (occlusion ambiante GTAO) : ombres de contact douces dans les creux
 // (base des touffes d'herbe, jointures des gradins du pad, socles des mâts) —
@@ -38,8 +41,10 @@ export const AO_QUALITY: 'performance' | 'low' | 'medium' | 'high' | 'ultra' = '
 // relevée et au bloom ont fait cramer toute l'image en blanc uniforme —
 // gain modéré au lieu du maximum brut, voir le même correctif sur Bloom
 // (PostFX.tsx) et ENVIRONMENT_INTENSITY (launchDaylight.ts).
-export const GOD_RAYS_DENSITY = 0.96
-export const GOD_RAYS_DECAY = 0.93
-export const GOD_RAYS_WEIGHT = 0.7
-export const GOD_RAYS_EXPOSURE = 0.8
-export const GOD_RAYS_SAMPLES = 90
+// Reculés encore (0.7/0.8 → 0.45/0.55) : les god rays contribuaient au voile
+// lumineux dans l'air. On garde un halo golden hour discret, plus un filtre.
+export const GOD_RAYS_DENSITY = 0.9
+export const GOD_RAYS_DECAY = 0.92
+export const GOD_RAYS_WEIGHT = 0.45
+export const GOD_RAYS_EXPOSURE = 0.55
+export const GOD_RAYS_SAMPLES = 60

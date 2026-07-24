@@ -22,9 +22,11 @@ export const ROCK_BASE_RADIUS = 3.2
 export const ROCK_VARIANT_SEED = 7331
 
 // Semis : nombre total d'instances, portée et échelle — mêmes leviers que le
-// scatter GLB (useScatterInstances), pas de position fixe.
+// scatter GLB (useScatterInstances), pas de position fixe. Densité RELEVÉE
+// (260 → 420) pour crédibiliser un sol trop nu — 8 variantes instanciées, coût
+// GPU négligeable (voir feedback_gpu_budget, on reste très en deçà du pic).
 export const ROCK_SCATTER = {
-  count: 260,
+  count: 420,
   seed: 8823,
   baseScale: 1,
   scaleJitter: 0.75,

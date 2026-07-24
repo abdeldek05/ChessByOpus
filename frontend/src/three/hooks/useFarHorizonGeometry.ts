@@ -8,12 +8,15 @@ import {
   HORIZON_HILL_FREQUENCY,
 } from '@/three/constants/farHorizon'
 
-/** Hauteur déterministe d'une colline à l'angle `theta` (silhouette non
- *  répétitive : somme de 2 fréquences décalées, jamais deux crêtes identiques). */
+/** Hauteur déterministe d'une colline à l'angle `theta` — silhouette non
+ *  répétitive : somme de TROIS fréquences décalées (grandes masses + crêtes
+ *  moyennes + dentelure fine), jamais deux profils identiques, effet chaîne de
+ *  montagnes plutôt que houle régulière. */
 function hillHeight(theta: number): number {
-  const a = Math.sin(theta * HORIZON_HILL_FREQUENCY) * 0.6
-  const b = Math.sin(theta * HORIZON_HILL_FREQUENCY * 2.3 + 1.7) * 0.4
-  return Math.max(0, (a + b) * 0.5 + 0.5) * HORIZON_HILL_HEIGHT
+  const a = Math.sin(theta * HORIZON_HILL_FREQUENCY) * 0.5
+  const b = Math.sin(theta * HORIZON_HILL_FREQUENCY * 2.3 + 1.7) * 0.32
+  const c = Math.sin(theta * HORIZON_HILL_FREQUENCY * 4.7 + 0.6) * 0.18
+  return Math.max(0, (a + b + c) * 0.5 + 0.5) * HORIZON_HILL_HEIGHT
 }
 
 /**

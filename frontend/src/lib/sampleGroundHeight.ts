@@ -22,9 +22,9 @@ const NOISE = createValueNoise2D(20260717, 512)
 // Les longueurs d'onde sont exprimées en unités scène ; on divise x/z par elles
 // pour obtenir les coordonnées de bruit (indépendant de la taille de grille).
 const BIG_WAVELENGTH = 22000 // ~5-6 grandes collines sur la largeur du sol
-const BIG_AMPLITUDE = 320 // hauteur des grandes collines (léger mais présent)
+const BIG_AMPLITUDE = 480 // collines RELEVÉES (320 → 480) : casse la platitude
 const DETAIL_WAVELENGTH = 3200 // ondulations moyennes
-const DETAIL_AMPLITUDE = 70
+const DETAIL_AMPLITUDE = 110 // relevé (70 → 110) : relief moyen plus présent
 const FINE_WAVELENGTH = 900 // micro-relief (visible seulement de près)
 const FINE_AMPLITUDE = 22
 
