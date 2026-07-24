@@ -16,16 +16,52 @@ export interface VisibilityWindow {
   durationSec: number
 }
 
+/** Raison exacte pour laquelle un point de trajectoire est vu/masqué par un
+ *  radar — chacune correspond à UNE des 4 conditions testées par
+ *  `classifyCoverage`, dans l'ordre où elles sont vérifiées (la première qui
+ *  échoue devient la cause : un point peut être à la fois hors-portée ET
+ *  au-dessus du plafond, seule la première rencontrée est rapportée, comme
+ *  un radariste lirait la limite la plus proche). */
+export type CoverageReason = 'visible' | 'out-of-range' | 'above-ceiling' | 'cone-of-silence' | 'below-horizon-mask'
+
 /**
- * Le point de trajectoire est-il dans l'enveloppe INSTRUMENTÉE du radar ?
- * Pure géométrie (suggestion Thales) : distance 3D ≤ portée, altitude ≤
- * plafond, élévation dans [min, max]. Ne préjuge PAS de la détection réelle
- * (RCS, balayage d'antenne) — c'est le rôle du moteur backend.
+ * Classifie POURQUOI un point de trajectoire est vu ou masqué par un radar —
+ * même géométrie que l'ancien `isInCoverage` (portée, plafond, élévation
+ * min/max), mais retourne la cause au lieu d'un simple booléen : c'est cette
+ * cause qui alimente le bandeau HUD live (« perdu — cône de silence ») et,
+ * plus tard, la coupe verticale. Pure géométrie (suggestion Thales) — ne
+ * préjuge pas de la détection réelle (RCS, balayage d'antenne), rôle du
+ * moteur backend.
  *
  * N'a besoin QUE des coordonnées ENU (x, y, z) — type élargi (au lieu du
  * TrajectoryPoint complet) pour accepter aussi une position LIVE reconstituée
  * frame par frame (voir useVisibilityCorridorTrail), pas seulement un point
  * d'échantillon de la trajectoire brute.
+ */
+export function classifyCoverage(
+  point: Pick<TrajectoryPoint, 'x' | 'y' | 'z'>,
+  radarEastM: number,
+  radarNorthM: number,
+  config: RadarConfig,
+): CoverageReason {
+  const elevMaxDeg = config.elevationMaxDeg ?? COVERAGE_ELEVATION_MAX_DEG
+  const dE = point.x - radarEastM
+  const dN = point.y - radarNorthM
+  const dAlt = point.z - config.antennaHeightM
+  const dGround = Math.hypot(dE, dN)
+  const d3 = Math.hypot(dGround, dAlt)
+  if (d3 > config.rangeKm * 1000) return 'out-of-range'
+  if (point.z > config.ceilingM) return 'above-ceiling'
+  const elevDeg = (Math.atan2(dAlt, dGround) * 180) / Math.PI
+  if (elevDeg > elevMaxDeg) return 'cone-of-silence'
+  if (elevDeg < COVERAGE_ELEVATION_MIN_DEG) return 'below-horizon-mask'
+  return 'visible'
+}
+
+/**
+ * Le point de trajectoire est-il dans l'enveloppe INSTRUMENTÉE du radar ?
+ * Wrapper booléen de `classifyCoverage`, pour les appelants qui n'ont besoin
+ * que du vu/pas-vu (fenêtres de visibilité, corridor 3D) sans la cause.
  */
 export function isInCoverage(
   point: Pick<TrajectoryPoint, 'x' | 'y' | 'z'>,
@@ -33,16 +69,7 @@ export function isInCoverage(
   radarNorthM: number,
   config: RadarConfig,
 ): boolean {
-  const elevMaxDeg = config.elevationMaxDeg ?? COVERAGE_ELEVATION_MAX_DEG
-  const dE = point.x - radarEastM
-  const dN = point.y - radarNorthM
-  const dAlt = point.z - config.antennaHeightM
-  const dGround = Math.hypot(dE, dN)
-  const d3 = Math.hypot(dGround, dAlt)
-  if (d3 > config.rangeKm * 1000) return false
-  if (point.z > config.ceilingM) return false
-  const elevDeg = (Math.atan2(dAlt, dGround) * 180) / Math.PI
-  return elevDeg >= COVERAGE_ELEVATION_MIN_DEG && elevDeg <= elevMaxDeg
+  return classifyCoverage(point, radarEastM, radarNorthM, config) === 'visible'
 }
 
 /**

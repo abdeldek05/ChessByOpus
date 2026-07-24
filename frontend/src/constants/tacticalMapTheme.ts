@@ -46,3 +46,10 @@ export const ROLE_COLOR: Record<MesangeRole, string> = {
   QUEEN: ACCENT_BRIGHT_COLOR,
   PAWN: '#8a8d86',
 }
+
+/** Couleur par radar (1er/2e posé) — mêmes hex que .corridor-dot--r1/r2
+ *  (styles/index.css) et CORRIDOR_SEEN_COLORS (three/constants/visibilityCorridor.ts,
+ *  équivalents HDR néon pour le rendu 3D) : le corridor de visibilité, la
+ *  légende et les blips de détection radar (carte tactique) partagent le
+ *  même code couleur par radar. Index = ordre de pose (radar 1, radar 2). */
+export const RADAR_TRACK_COLORS: readonly string[] = ['#3bff9e', '#ffb648']
