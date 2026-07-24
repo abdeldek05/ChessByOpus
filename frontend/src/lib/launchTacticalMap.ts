@@ -1,13 +1,23 @@
 import { buildRangeCircle } from '@/lib/geoCircle'
 import { createLabeledMarker } from '@/lib/mapMarker'
+import { applyRocketRangeLayer, applyLinkLayer } from '@/lib/missionPlacementMap'
 import { SWEEP_SEARCH_COLOR } from '@/constants/tacticalRadar'
 import { TACTICAL_MAP_STYLE, COVERAGE_COLOR, COVERAGE_DASHARRAY, ROLE_COLOR } from '@/constants/tacticalMapTheme'
+import { ROCKET_MAX_RANGE_KM } from '@/constants/rocket'
 import type maplibregl from 'maplibre-gl'
 import type { LaunchSite } from '@/types/simulation.types'
-import type { PlacedRadar } from '@/types/mission.types'
+import type { PlacedRadar, MesangeRole } from '@/types/mission.types'
+import type { FlightData } from '@/lib/api'
 
 // Style + couleurs partagés avec les autres cartes radar — voir tacticalMapTheme.ts.
 export { TACTICAL_MAP_STYLE, COVERAGE_COLOR }
+
+/** Trajectoire d'un leurre à tracer (statique, entière) sur la carte tactique. */
+export interface DecoyTrack {
+  id: string
+  role: MesangeRole
+  flight: FlightData
+}
 
 // Piste de la menace sur la carte (vue radar) : le Roi, seule menace tracée
 // ici (voir useLaunchTacticalMap) — teinte alignée sur ROLE_COLOR.KING, le
@@ -51,21 +61,13 @@ export function drawTacticalOverlay(map: maplibregl.Map, site: LaunchSite, place
       paint: { 'line-color': COVERAGE_COLOR, 'line-width': 1, 'line-dasharray': COVERAGE_DASHARRAY, 'line-opacity': 0.5 },
     })
 
-    map.addSource(`link-${radar.id}`, {
-      type: 'geojson',
-      data: {
-        type: 'Feature',
-        geometry: { type: 'LineString', coordinates: [[site.longitude, site.latitude], [rLng, rLat]] },
-        properties: {},
-      },
-    })
-    map.addLayer({
-      id: `link-${radar.id}`,
-      type: 'line',
-      source: `link-${radar.id}`,
-      layout: { 'line-cap': 'round' },
-      paint: { 'line-color': COVERAGE_COLOR, 'line-width': 1.2, 'line-opacity': 0.6 },
-    })
+    // Trait radar → pas de tir + distance chiffrée au milieu : MÊME dessin
+    // que la carte de placement (applyLinkLayer, voir missionPlacementMap.ts)
+    // — avant, ce trait existait ici SANS label, seule vraie différence
+    // visuelle perçue entre les deux cartes malgré des couleurs déjà unifiées.
+    // `outOfRange` toujours faux ici : un radar affiché en vol a déjà passé
+    // la validation du scénario (voir validateScenario), jamais hors de portée.
+    applyLinkLayer(map, site, radar, true, false)
 
     // Faisceau rotatif : FeatureCollection vide, remplie chaque frame par la
     // boucle rAF du hook avec la traîne balayée courante (fade par feature).
@@ -87,6 +89,13 @@ export function drawTacticalOverlay(map: maplibregl.Map, site: LaunchSite, place
 
     createLabeledMarker(map, [rLng, rLat], 'radar-marker', label)
   })
+
+  // Cercle de portée max de la Mesange : MÊME repère principal que la carte
+  // de placement (applyRocketRangeLayer) — avant, absent ici alors qu'il
+  // délimite pourtant la même zone (les radars n'ont pu être posés que dans
+  // ce cercle, voir validateScenario), rendant les deux cartes visuellement
+  // différentes malgré la même donnée sous-jacente.
+  applyRocketRangeLayer(map, site, ROCKET_MAX_RANGE_KM)
 
   createLabeledMarker(map, [site.longitude, site.latitude], 'launch-marker launch-marker--origin', 'Launch pad')
 
@@ -118,5 +127,182 @@ export function drawTacticalOverlay(map: maplibregl.Map, site: LaunchSite, place
       'circle-stroke-width': 1.5,
       'circle-stroke-color': '#0b0d10',
     },
+  })
+
+  // Blips d'ACCROCHAGE radar : un plot par instant où un radar a détecté la
+  // menace (voir useLaunchTacticalMap, front montant de `locked`), coloré par
+  // le radar accrocheur (`color` en propriété de feature — data-driven, une
+  // seule paire de couches sert TOUS les radars). S'ACCUMULENT en une trace
+  // persistante (jamais vidée pendant le vol), remise à zéro seulement au
+  // replay — comme les plots successifs d'un vrai écran radar PPI.
+  map.addSource('detections', {
+    type: 'geojson',
+    data: { type: 'FeatureCollection', features: [] },
+  })
+  // Halo large et flou : rend le blip « éclatant », lisible même à petit zoom.
+  map.addLayer({
+    id: 'detections-halo',
+    type: 'circle',
+    source: 'detections',
+    paint: {
+      'circle-radius': 9,
+      'circle-color': ['get', 'color'],
+      'circle-blur': 1,
+      'circle-opacity': 0.35,
+    },
+  })
+  map.addLayer({
+    id: 'detections-core',
+    type: 'circle',
+    source: 'detections',
+    paint: {
+      // Rayon DATA-DRIVEN sur l'altitude (m) : plus la menace est haute au
+      // moment du plot, plus le point est gros — seconde piste de lecture,
+      // REDONDANTE avec l'étiquette chiffrée (track-label ci-dessous), jamais
+      // seule source de vérité (un canal graphique isolé se lit mal sous
+      // stress — voir la recherche UX). Couleur reste celle du radar
+      // accrocheur : l'altitude n'emprunte SURTOUT PAS ce canal (sinon la
+      // couleur porterait deux sens à la fois, illisible).
+      'circle-radius': ['interpolate', ['linear'], ['get', 'altitudeM'], 0, 2, 20000, 6],
+      'circle-color': ['get', 'color'],
+      'circle-opacity': 0.95,
+      'circle-stroke-width': 1,
+      'circle-stroke-color': '#0b0d10',
+    },
+  })
+
+  // Étiquette de piste (data block) sur la TÊTE de piste live : altitude
+  // chiffrée en mètres, seule vraie garantie de lecture — la vue de dessus
+  // écrase l'axe vertical, ce texte est ce qui empêche la carte de « mentir ».
+  // Alimentée par la même boucle rAF que track-head (voir useLaunchTacticalMap).
+  map.addSource('track-label', {
+    type: 'geojson',
+    data: { type: 'Feature', geometry: { type: 'Point', coordinates: [] }, properties: { text: '' } },
+  })
+  map.addLayer({
+    id: 'track-label',
+    type: 'symbol',
+    source: 'track-label',
+    layout: {
+      'text-field': ['get', 'text'],
+      'text-size': 11,
+      'text-font': ['Open Sans Regular'],
+      'text-offset': [0, -1.4],
+      'text-anchor': 'bottom',
+      // TOUJOURS visible : sans ces deux réglages, MapLibre masque le label
+      // dès qu'il entre en collision avec un autre symbole (ex. le label de
+      // distance radar↔pas de tir, voir applyLinkLayer) — la donnée la plus
+      // importante en vol ne doit jamais disparaître selon la position de la
+      // tête de piste sur l'écran.
+      'text-allow-overlap': true,
+      'text-ignore-placement': true,
+    },
+    paint: {
+      'text-color': TRACK_COLOR,
+      'text-halo-color': '#0b0d10',
+      'text-halo-width': 1.4,
+    },
+  })
+}
+
+// Préfixe des couches/sources de trace de leurre — sert à les retrouver pour
+// Préfixes des sources de piste LIVE par leurre — sert à la mise à jour
+// idempotente (replay = nouvelle flotte) et au nettoyage des leurres disparus.
+const DECOY_SOURCE_PREFIX = 'decoy-track-'
+
+/** IDs des sources/couches live d'un leurre donné (piste + tête + étiquette). */
+export function decoyLayerIds(id: string) {
+  return {
+    trackSource: `${DECOY_SOURCE_PREFIX}${id}`,
+    trackLayer: `decoy-line-${id}`,
+    headSource: `decoy-head-src-${id}`,
+    headLayer: `decoy-head-${id}`,
+    labelSource: `decoy-label-src-${id}`,
+    labelLayer: `decoy-label-${id}`,
+  }
+}
+
+/**
+ * Crée (ou met à jour) les couches de piste LIVE de chaque leurre sur la carte
+ * tactique — MÊME traitement que le Roi (piste qui s'allonge + tête + étiquette
+ * altitude·distance), teinté par rôle CHESS (ROLE_COLOR). Sources créées VIDES,
+ * alimentées ensuite par la boucle rAF du hook (voir useLaunchTacticalMap) qui
+ * fait avancer chaque piste sur la même progression 0→1 que le Roi, mappée sur
+ * la trajectoire propre du leurre — toutes les pistes arrivent donc au bout
+ * ensemble. Idempotent : nettoie les leurres disparus (replay différent).
+ * Trait un peu plus fin que le Roi (la menace réelle reste prioritaire). */
+export function drawDecoyTracks(map: maplibregl.Map, decoys: DecoyTrack[]) {
+  const currentIds = new Set(decoys.map((d) => d.id))
+
+  // Nettoyage des pistes de leurres qui n'existent plus (replay différent).
+  const style = map.getStyle()
+  const existingSources = style?.sources ? Object.keys(style.sources) : []
+  existingSources
+    .filter((id) => id.startsWith(DECOY_SOURCE_PREFIX))
+    .map((id) => id.slice(DECOY_SOURCE_PREFIX.length))
+    .filter((id) => !currentIds.has(id))
+    .forEach((staleId) => {
+      const ids = decoyLayerIds(staleId)
+      ;[ids.trackLayer, ids.headLayer, ids.labelLayer].forEach((l) => {
+        if (map.getLayer(l)) map.removeLayer(l)
+      })
+      ;[ids.trackSource, ids.headSource, ids.labelSource].forEach((s) => {
+        if (map.getSource(s)) map.removeSource(s)
+      })
+    })
+
+  decoys.forEach((decoy) => {
+    const ids = decoyLayerIds(decoy.id)
+    const color = ROLE_COLOR[decoy.role]
+    const emptyLine = { type: 'Feature' as const, geometry: { type: 'LineString' as const, coordinates: [] }, properties: {} }
+    const emptyPoint = { type: 'Feature' as const, geometry: { type: 'Point' as const, coordinates: [] }, properties: { text: '' } }
+
+    // Déjà créées (re-render) : on rafraîchit juste la couleur (rôle inchangé
+    // en pratique, mais robuste au cas où) et on laisse la boucle rAF piloter.
+    if (map.getSource(ids.trackSource)) {
+      map.setPaintProperty(ids.trackLayer, 'line-color', color)
+      map.setPaintProperty(ids.headLayer, 'circle-color', color)
+      map.setPaintProperty(ids.labelLayer, 'text-color', color)
+      return
+    }
+
+    map.addSource(ids.trackSource, { type: 'geojson', data: emptyLine })
+    map.addLayer({
+      id: ids.trackLayer,
+      type: 'line',
+      source: ids.trackSource,
+      layout: { 'line-cap': 'round', 'line-join': 'round' },
+      paint: { 'line-color': color, 'line-width': 1.6, 'line-opacity': 0.85 },
+    })
+
+    map.addSource(ids.headSource, { type: 'geojson', data: { ...emptyPoint, properties: {} } })
+    map.addLayer({
+      id: ids.headLayer,
+      type: 'circle',
+      source: ids.headSource,
+      paint: {
+        'circle-radius': 3.5,
+        'circle-color': color,
+        'circle-stroke-width': 1.5,
+        'circle-stroke-color': '#0b0d10',
+      },
+    })
+
+    map.addSource(ids.labelSource, { type: 'geojson', data: emptyPoint })
+    map.addLayer({
+      id: ids.labelLayer,
+      type: 'symbol',
+      source: ids.labelSource,
+      layout: {
+        'text-field': ['get', 'text'],
+        'text-size': 10,
+        'text-font': ['Open Sans Regular'],
+        'text-offset': [0, -1.2],
+        'text-anchor': 'bottom',
+        'text-allow-overlap': true,
+        'text-ignore-placement': true,
+      },
+      paint: { 'text-color': color, 'text-halo-color': '#0b0d10', 'text-halo-width': 1.2 },
+    })
   })
 }

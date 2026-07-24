@@ -19,7 +19,10 @@ const ORDER: MapSize[] = ['collapsed', 'compact', 'expanded']
  * (juste la barre de titre) quand elle gêne.
  */
 export function useMapExpansion(): UseMapExpansionResult {
-  const [size, setSize] = useState<MapSize>('compact')
+  // Grand format PAR DÉFAUT (avant 'compact') : la carte tactique est
+  // désormais la vue principale des leurres (pistes live des Pions/Dame),
+  // elle doit être lisible d'emblée sans que l'utilisateur ait à l'agrandir.
+  const [size, setSize] = useState<MapSize>('expanded')
 
   const step = (delta: number) =>
     setSize((current) => ORDER[Math.min(ORDER.length - 1, Math.max(0, ORDER.indexOf(current) + delta))])

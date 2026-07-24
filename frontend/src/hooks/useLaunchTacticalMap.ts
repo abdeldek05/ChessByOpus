@@ -1,10 +1,13 @@
 import { useEffect, useMemo, useRef } from 'react'
 import maplibregl from 'maplibre-gl'
 import { enuToLatLon } from '@/lib/enuToLatLon'
-import { TACTICAL_MAP_STYLE, drawTacticalOverlay } from '@/lib/launchTacticalMap'
+import { TACTICAL_MAP_STYLE, drawTacticalOverlay, drawDecoyTracks, decoyLayerIds, type DecoyTrack } from '@/lib/launchTacticalMap'
 import { buildSweepTrailFeatures } from '@/lib/geoRadarSector'
+import { buildRangeCircle } from '@/lib/geoCircle'
 import { computeRadarEnu } from '@/lib/coverage/computeRadarEnu'
 import { isInCoverage } from '@/lib/coverage/computeVisibilityWindows'
+import { useDetectionBlips } from '@/hooks/useDetectionBlips'
+import { ROCKET_MAX_RANGE_KM } from '@/constants/rocket'
 import {
   SWEEP_HALF_WIDTH_DEG,
   SWEEP_TRAIL_DEG,
@@ -28,6 +31,8 @@ interface UseLaunchTacticalMapParams {
   visible: boolean
   /** Trajectoire RocketPy (null tant que non calculée). */
   flight: FlightData | null
+  /** Trajectoires des leurres (Dame/Pions) — tracées en entier, statiques. */
+  decoyTracks?: DecoyTrack[]
   /** Progression du vol 0→1 (ref partagée, -1 = pas de vol). */
   flightProgressRef: React.RefObject<number>
 }
@@ -63,14 +68,19 @@ export function useLaunchTacticalMap({
   expanded,
   visible,
   flight,
+  decoyTracks,
   flightProgressRef,
 }: UseLaunchTacticalMapParams): UseLaunchTacticalMapResult {
   const containerRef = useRef<HTMLDivElement>(null)
   const mapRef = useRef<maplibregl.Map | null>(null)
+  const detectionBlips = useDetectionBlips()
 
   // Points [lng, lat] de la trajectoire, convertis une fois depuis l'ENU
   // RocketPy (x=est, y=nord, en m) autour du pas de tir. Projection au sol :
-  // l'altitude (z) est ignorée (vue de dessus) — on la lira dans les graphiques.
+  // l'altitude (z) est ignorée pour le TRACÉ (vue de dessus) — mais reste
+  // disponible via flight.trajectory[idx].z pour l'étiquette de piste
+  // (track-label) : c'est ELLE qui empêche la carte de « mentir » sur la
+  // hauteur réelle malgré la projection à plat.
   const trackLngLat = useMemo<[number, number][]>(() => {
     if (!flight) return []
     return flight.trajectory.map((p) => enuToLatLon(p.x, p.y, site.longitude, site.latitude))
@@ -100,13 +110,16 @@ export function useLaunchTacticalMap({
 
     const placed = radars.filter((radar) => radar.position !== null)
 
-    // Cadrage SERRÉ : englobe pas de tir + radars. Padding réduit + maxZoom
-    // relevé (14 au lieu de 11) pour zoomer nettement plus près — la carte
-    // épurée (radars + faisceau seuls, plus d'anneaux ni de cône) reste
-    // lisible même resserrée. Padding gauche encore asymétrique pour décaler
-    // l'ensemble (scène plus dynamique, pas de tir pas pile au centre).
+    // Cadrage MÊME ÉCHELLE que la carte de placement (englobe le cercle de
+    // portée max Mesange, pas juste pas de tir + radars — sinon les deux
+    // cartes ne montrent pas la même étendue de terrain pour la même donnée),
+    // mais ZOOMÉ (maxZoom 14, padding réduit) : la tactique reste une
+    // incrustation compacte, pas le grand cadrage de l'étape de placement.
     const bounds = new maplibregl.LngLatBounds()
     bounds.extend([site.longitude, site.latitude])
+    buildRangeCircle(site.longitude, site.latitude, ROCKET_MAX_RANGE_KM).forEach(([lng, lat]) =>
+      bounds.extend([lng, lat]),
+    )
     placed.forEach((radar) => bounds.extend([radar.position!.longitude, radar.position!.latitude]))
 
     const map = new maplibregl.Map({
@@ -143,6 +156,35 @@ export function useLaunchTacticalMap({
     return () => clearTimeout(timer)
   }, [expanded])
 
+  // Trajectoires lat/lon des leurres, converties une fois (comme trackLngLat
+  // pour le Roi) — la boucle rAF live y puise la portion parcourue de chaque
+  // pion. Garde aussi le rôle (couleur) et les points z/x/y (altitude·distance).
+  const decoyLngLat = useMemo(
+    () =>
+      (decoyTracks ?? []).map((d) => ({
+        id: d.id,
+        points: d.flight.trajectory.map((p) => enuToLatLon(p.x, p.y, site.longitude, site.latitude)),
+        traj: d.flight.trajectory,
+      })),
+    [decoyTracks, site.longitude, site.latitude],
+  )
+
+  // --- Couches de piste LIVE des leurres : créées/mises à jour quand la flotte
+  //     change (replay). drawDecoyTracks est idempotent + nettoie les leurres
+  //     disparus. On attend le style prêt (re-tuilage possible). ---
+  useEffect(() => {
+    const map = mapRef.current
+    if (!map || !decoyTracks) return
+    const draw = () => drawDecoyTracks(map, decoyTracks)
+    if (map.isStyleLoaded()) draw()
+    else {
+      map.once('load', draw)
+      return () => {
+        map.off('load', draw)
+      }
+    }
+  }, [decoyTracks])
+
   // --- Piste live : boucle rAF DÉDIÉE qui lit la progression partagée et
   //     redessine la trace + la tête, SANS re-render React (fluide 60fps). ---
   useEffect(() => {
@@ -160,14 +202,59 @@ export function useLaunchTacticalMap({
 
       const trackSrc = map.getSource('track') as maplibregl.GeoJSONSource | undefined
       const headSrc = map.getSource('track-head') as maplibregl.GeoJSONSource | undefined
-      if (!trackSrc || !headSrc) return
+      const labelSrc = map.getSource('track-label') as maplibregl.GeoJSONSource | undefined
+      if (!trackSrc || !headSrc || !labelSrc) return
 
-      // Hors vol (-1) : piste vide.
+      // Dessine la piste live d'UN leurre (piste + tête + étiquette) à la
+      // fraction `p` (0→1) — MÊME logique que le Roi, mappée sur la trajectoire
+      // propre du leurre : toutes les pistes avancent ensemble et arrivent au
+      // bout ensemble. `p < 0` (hors vol) vide tout.
+      const drawDecoy = (decoy: (typeof decoyLngLat)[number], p: number) => {
+        const ids = decoyLayerIds(decoy.id)
+        const dTrackSrc = map.getSource(ids.trackSource) as maplibregl.GeoJSONSource | undefined
+        const dHeadSrc = map.getSource(ids.headSource) as maplibregl.GeoJSONSource | undefined
+        const dLabelSrc = map.getSource(ids.labelSource) as maplibregl.GeoJSONSource | undefined
+        if (!dTrackSrc || !dHeadSrc || !dLabelSrc || decoy.points.length < 2) return
+
+        if (p < 0) {
+          dTrackSrc.setData({ type: 'Feature', geometry: { type: 'LineString', coordinates: [] }, properties: {} })
+          dHeadSrc.setData({ type: 'Feature', geometry: { type: 'Point', coordinates: [] }, properties: {} })
+          dLabelSrc.setData({ type: 'Feature', geometry: { type: 'Point', coordinates: [] }, properties: { text: '' } })
+          return
+        }
+        const dn = decoy.points.length
+        const di = Math.min(dn - 1, Math.max(1, Math.floor(p * (dn - 1)) + 1))
+        const dHead = decoy.points[di]
+        const dPoint = decoy.traj[di]
+        const dAltKm = dPoint ? dPoint.z / 1000 : 0
+        const dRangeKm = dPoint ? Math.hypot(dPoint.x, dPoint.y) / 1000 : 0
+        dTrackSrc.setData({
+          type: 'Feature',
+          geometry: { type: 'LineString', coordinates: decoy.points.slice(0, di + 1) },
+          properties: {},
+        })
+        dHeadSrc.setData({ type: 'Feature', geometry: { type: 'Point', coordinates: dHead }, properties: {} })
+        dLabelSrc.setData({
+          type: 'Feature',
+          geometry: { type: 'Point', coordinates: dHead },
+          properties: { text: `${dAltKm.toFixed(1)} km · ${dRangeKm.toFixed(1)} km` },
+        })
+      }
+
+      // Hors vol (-1) : piste vide + trace de blips remise à zéro (nouveau
+      // vol/replay — sinon les accrochages du vol précédent resteraient affichés).
       if (progress < 0) {
         trackSrc.setData({ type: 'Feature', geometry: { type: 'LineString', coordinates: [] }, properties: {} })
         headSrc.setData({ type: 'Feature', geometry: { type: 'Point', coordinates: [] }, properties: {} })
+        labelSrc.setData({ type: 'Feature', geometry: { type: 'Point', coordinates: [] }, properties: { text: '' } })
+        decoyLngLat.forEach((d) => drawDecoy(d, -1))
+        detectionBlips.reset(map)
         return
       }
+
+      // Pistes des leurres : même fraction de progression que le Roi, mappée
+      // sur leur trajectoire propre (voir drawDecoy) — toutes arrivent au bout.
+      decoyLngLat.forEach((d) => drawDecoy(d, progress))
 
       // Portion parcourue : les points jusqu'à l'index correspondant à la
       // progression. La trace s'allonge donc au fil du vol.
@@ -175,14 +262,29 @@ export function useLaunchTacticalMap({
       const idx = Math.min(n - 1, Math.max(1, Math.floor(progress * (n - 1)) + 1))
       const coords = trackLngLat.slice(0, idx + 1)
       const head = trackLngLat[idx]
+      // Altitude RÉELLE au point de tête (km, cohérent avec le reste de
+      // l'étiquette — pas de mélange m/km) : c'est ce chiffre qui empêche la
+      // carte de mentir sur la hauteur malgré la projection à plat.
+      const point = flight?.trajectory[idx]
+      const altitudeKm = point ? point.z / 1000 : 0
+      // Distance parcourue au SOL depuis le pas de tir (km) : norme du vecteur
+      // ENU (x=est, y=nord) au point courant — DONNÉE DE VOL, indépendante de
+      // la détection radar (contrairement au bandeau de statut ou au blip),
+      // donc affichée en continu tant qu'un vol est en cours, jamais masquée.
+      const downrangeKm = point ? Math.hypot(point.x, point.y) / 1000 : 0
 
       trackSrc.setData({ type: 'Feature', geometry: { type: 'LineString', coordinates: coords }, properties: {} })
       headSrc.setData({ type: 'Feature', geometry: { type: 'Point', coordinates: head }, properties: {} })
+      labelSrc.setData({
+        type: 'Feature',
+        geometry: { type: 'Point', coordinates: head },
+        properties: { text: `${altitudeKm.toFixed(1)} km · ${downrangeKm.toFixed(1)} km` },
+      })
     }
 
     raf = requestAnimationFrame(update)
     return () => cancelAnimationFrame(raf)
-  }, [trackLngLat, flightProgressRef, visible])
+  }, [trackLngLat, decoyLngLat, flight, flightProgressRef, visible, detectionBlips])
 
   // --- Faisceau rotatif : boucle rAF DÉDIÉE, tourne en CONTINU (même hors
   //     vol, contrairement à la piste ci-dessus qui ne redessine que si la
@@ -213,13 +315,16 @@ export function useLaunchTacticalMap({
       // cours — sinon aucun radar ne peut être en détection.
       const progress = flightProgressRef.current
       let livePoint: { x: number; y: number; z: number } | null = null
+      let liveLngLat: [number, number] | null = null
       if (flight && progress >= 0) {
         const n = flight.trajectory.length
         const idx = Math.min(n - 1, Math.max(0, Math.floor(progress * (n - 1))))
         livePoint = flight.trajectory[idx]
+        liveLngLat = enuToLatLon(livePoint.x, livePoint.y, site.longitude, site.latitude)
       }
+      const nowSec = nowMs / 1000
 
-      placedRadars.forEach((radar) => {
+      placedRadars.forEach((radar, radarIndex) => {
         const sweepSrc = map.getSource(`sweep-${radar.id}`) as maplibregl.GeoJSONSource | undefined
         if (!sweepSrc) return
 
@@ -239,6 +344,13 @@ export function useLaunchTacticalMap({
             const delta = ((bearingToThreat - headingDeg + 540) % 360) - 180
             locked = Math.abs(delta) <= SWEEP_HALF_WIDTH_DEG
           }
+        }
+
+        // Blip d'accrochage (voir useDetectionBlips) : posé au front montant
+        // de `locked`, à la position live de la menace, coloré par radar,
+        // dimensionné par son altitude réelle (livePoint.z).
+        if (liveLngLat && livePoint) {
+          detectionBlips.recordSample(map, radar.id, radarIndex, locked, liveLngLat, livePoint.z, nowSec)
         }
 
         const features = buildSweepTrailFeatures(
@@ -263,7 +375,7 @@ export function useLaunchTacticalMap({
 
     raf = requestAnimationFrame(update)
     return () => cancelAnimationFrame(raf)
-  }, [placedRadars, flight, flightProgressRef, visible])
+  }, [placedRadars, flight, flightProgressRef, visible, site.longitude, site.latitude, detectionBlips])
 
   return { containerRef }
 }

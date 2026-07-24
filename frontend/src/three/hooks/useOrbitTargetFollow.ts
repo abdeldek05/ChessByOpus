@@ -25,6 +25,14 @@ interface UseOrbitTargetFollowParams {
    * fusée statique (pourtant bien réaffichée) devient indiscernable à cette
    * distance/zoom (elle semble "avoir disparu"). */
   armed?: boolean
+  /** Ce mode caméra est-il ACTIF ? Deux hooks de suivi coexistent (Roi /
+   *  flotte) et tournent toujours (règle des Hooks) — mais un seul doit
+   *  toucher la caméra à la fois. Désactivé, ce hook ne fait STRICTEMENT
+   *  rien : ni suivi, ni retour au pad. Sans ça, le hook inactif (qui reçoit
+   *  `flying=false`) croyait le vol fini et ramenait la caméra au pas de tir
+   *  en boucle, pendant que l'autre mode essayait de suivre — les deux se
+   *  battaient sur la même caméra. Défaut `true` (rétrocompatible). */
+  enabled?: boolean
 }
 
 /**
@@ -35,7 +43,7 @@ interface UseOrbitTargetFollowParams {
  * distance/l'angle choisis par l'utilisateur sont préservés. À la fin du vol,
  * après une courte pause sur l'impact, tout revient en douceur au pas de tir.
  */
-export function useOrbitTargetFollow({ controlsRef, rocketRef, flying, armed = false }: UseOrbitTargetFollowParams) {
+export function useOrbitTargetFollow({ controlsRef, rocketRef, flying, armed = false, enabled = true }: UseOrbitTargetFollowParams) {
   const { camera } = useThree()
   const shift = useRef(new THREE.Vector3())
   const home = useRef(new THREE.Vector3(...CAMERA_TARGET))
@@ -54,7 +62,7 @@ export function useOrbitTargetFollow({ controlsRef, rocketRef, flying, armed = f
   // si le clic REPLAY intervient avant la fin du retour doux, et la fusée
   // statique (bien réaffichée) devient indiscernable à cette distance/zoom.
   useEffect(() => {
-    if (!armed) return
+    if (!enabled || !armed) return
     const controls = controlsRef.current
     if (!controls) return
     controls.target.copy(home.current)
@@ -62,9 +70,17 @@ export function useOrbitTargetFollow({ controlsRef, rocketRef, flying, armed = f
     controls.update()
     returning.current = false
     wasFlying.current = false
-  }, [armed, camera, controlsRef])
+  }, [enabled, armed, camera, controlsRef])
 
   useFrame(({ camera }, delta) => {
+    // Mode inactif : ne touche JAMAIS la caméra (l'autre hook de suivi a la
+    // main). Reset des loquets pour repartir proprement si ce mode redevient
+    // actif plus tard (pas de « retour au pad » fantôme hérité).
+    if (!enabled) {
+      wasFlying.current = false
+      returning.current = false
+      return
+    }
     const controls = controlsRef.current
     if (!controls) return
     const dt = Math.min(delta, 0.05) // borne anti-saut après un lag

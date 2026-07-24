@@ -10,6 +10,8 @@ import { POSTFX_ENABLED, POSTFX_QUALITY } from '@/three/constants/postFx'
 import { GroundMesh } from '@/three/models/GroundMesh'
 import { FarHorizon } from '@/three/models/FarHorizon'
 import { HorizonHaze } from '@/three/models/HorizonHaze'
+import { VolumetricClouds } from '@/three/models/VolumetricClouds'
+import { VOLUMETRIC_CLOUDS_ENABLED } from '@/three/constants/volumetricClouds'
 import { GrassField } from '@/three/models/GrassField'
 import { RockField } from '@/three/models/RockField'
 import { TreeField } from '@/three/models/TreeField'
@@ -79,16 +81,16 @@ export interface LaunchSceneCanvasProps {
   onGlReady?: (gl: THREE.WebGLRenderer) => void
 }
 
-// Couleur du fog (horizon golden hour) — proche de la teinte d'horizon du
-// ciel Preetham à cette élévation solaire, pour que le bord du sol se fonde
-// dedans sans à-coup de couleur (plus de « mur » net au bout du monde).
-const FOG_COLOR = '#d9b98a'
+// Couleur du fog — gris à PEINE réchauffé (avant `#d9b98a`, un beige-orange
+// FRANC qui teintait tout l'horizon en orange sale, le « voile dégueulasse »
+// signalé). Désaturé : le fog fond le lointain SANS imposer sa couleur à tout
+// l'air ni au ciel. Reste un soupçon chaud pour rester cohérent golden hour.
+const FOG_COLOR = '#c2c0bb'
 
-// Densité du fog exponentiel : à cette valeur, la transparence tombe à ~10%
-// autour de 2.5×DETAIL_RADIUS (formule inverse de exp(-density·distance)) —
-// la zone détaillée reste nette, le sol lointain (jusqu'à FAR_GROUND_RADIUS)
-// se fond en douceur, quelle que soit l'altitude de la caméra de suivi.
-const FOG_DENSITY = 2.3 / DETAIL_RADIUS
+// Densité du fog exponentiel ENCORE réduite (0.9 → 0.5 / DETAIL_RADIUS) : à
+// cette valeur, seul le tout-dernier plan (bord du monde) se fond ; l'air et
+// le ciel restent nets, plus de voile permanent sur toute la scène.
+const FOG_DENSITY = 0.5 / DETAIL_RADIUS
 
 // Demi-étendue de la shadow-camera (unités) : resserrée sur le pad (demi-côté
 // max ~42, cf. PAD_TIERS) + rampe/console/arbres immédiats — texel net là où
@@ -116,10 +118,9 @@ export function LaunchSceneCanvas({
   className,
   onGlReady,
 }: LaunchSceneCanvasProps) {
-  // Position monde du ROI en vol, partagée avec la caméra de suivi — seul le
-  // Roi pilote la caméra/le corridor (les leurres volent mais ne remontent
-  // pas leur position ; voir doctrine CHESS, R5 ajoutera les modes caméra
-  // essaim/radar qui regarderont toute la flotte autrement).
+  // Position monde du ROI en vol, partagée avec la caméra de suivi et le
+  // corridor de visibilité. Seul le King pilote la caméra 3D ; les leurres se
+  // suivent sur la carte tactique (voir LaunchTacticalMap).
   const rocketPos = useRef<THREE.Vector3 | null>(null)
   // Position LOCALE live du Roi (repère du groupe pad) — alimente le
   // corridor de visibilité (voir VisibilityCorridor), toujours une instance
@@ -250,6 +251,12 @@ export function LaunchSceneCanvas({
           « nuages » qui trahissent leur nature de billboard de près). */}
       <HorizonHaze />
 
+      {/* Couche de nuages VOLUMÉTRIQUES à hauteur de vol (voir VolumetricClouds) :
+          raymarching court dans une tranche bornée, la fusée les traverse en
+          montant — vrais nuages 3D, pas le fond HDRI plat. Désactivable d'un
+          flag (VOLUMETRIC_CLOUDS_ENABLED) si le driver AMD faiblit. */}
+      {VOLUMETRIC_CLOUDS_ENABLED && <VolumetricClouds />}
+
       {/* Herbe 3D (streaming par tuiles autour de la caméra) + rochers + arbres semés. */}
       <GrassField />
       <RockField terrainRadius={DETAIL_RADIUS} />
@@ -281,10 +288,12 @@ export function LaunchSceneCanvas({
             />
           )}
           {/* Une FlyingMesange par membre de la flotte (Roi + leurres) — voir
-              buildFleetFlightPlan. Seul le ROI remonte sa position (caméra de
-              suivi + corridor de visibilité) et déclenche onImpact (signal de
-              fin de séquence, voir useLaunchSequence) : les leurres jouent
-              leur propre animation/impact visuel sans piloter la séquence. */}
+              buildFleetFlightPlan. Seul le ROI pilote la caméra (suivi 3D),
+              remonte sa position (corridor de visibilité) et déclenche onImpact
+              (signal de fin de séquence, voir useLaunchSequence) — les leurres
+              jouent leur animation/impact visuel en 3D sans piloter la séquence
+              (ils se suivent en détail sur la carte tactique, voir
+              LaunchTacticalMap). */}
           {flightPlan.map((plan, index) => (
             <FlyingMesange
               key={plan.config.id}
@@ -295,6 +304,7 @@ export function LaunchSceneCanvas({
               metersPerSceneUnit={metersPerSceneUnit}
               detail={plan.isKing ? 'full' : 'lite'}
               role={plan.config.role}
+              launchDelaySec={plan.config.launchDelaySec}
               onFlightFrame={
                 plan.isKing
                   ? (p, progress) => {
@@ -325,13 +335,18 @@ export function LaunchSceneCanvas({
         </group>
 
         {radars.map((radar) => (
-          <SceneRadar key={radar.id} config={radar.config} offset={radar.offset} />
+          <SceneRadar
+            key={radar.id}
+            config={radar.config}
+            offset={radar.offset}
+            metersPerSceneUnit={metersPerSceneUnit}
+          />
         ))}
       </group>
       </Suspense>
 
       {/* Caméra UNIQUE : orbite libre en permanence (même en vol). Pendant le
-          vol, la cible suit la fusée ; à la fin, retour doux vers le pad. */}
+          vol, elle suit le King de près ; à la fin, retour doux vers le pad. */}
       <LaunchCameraControls
         rocketRef={rocketPos}
         flying={flying}

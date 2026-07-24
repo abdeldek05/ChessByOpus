@@ -5,6 +5,8 @@ import { DayNightToggle } from './DayNightToggle'
 import { LaunchHud } from './LaunchHud'
 import { LaunchTacticalMap } from './LaunchTacticalMap'
 import { CorridorLegend } from './CorridorLegend'
+import { DetectionStatusHud } from './DetectionStatusHud'
+import { useDetectionStatus } from '@/hooks/useDetectionStatus'
 import { MissionBilan } from './MissionBilan'
 import { FlightTelemetryChart } from './FlightTelemetryChart'
 import { SceneLoadingOverlay } from './SceneLoadingOverlay'
@@ -102,6 +104,17 @@ export function LancementScene({ state }: LancementSceneProps) {
     [state.mesangeConfigs, sequence.flight],
   )
 
+  // Trajectoires des LEURRES (tout sauf le Roi) pour la carte tactique :
+  // tracées en entier, statiques, teintées par rôle (voir drawDecoyTracks).
+  // Le Roi garde sa piste live séparée (prop `flight`).
+  const decoyTracks = useMemo(
+    () =>
+      flightPlan
+        .filter((plan) => !plan.isKing)
+        .map((plan) => ({ id: plan.config.id, role: plan.config.role, flight: plan.flight })),
+    [flightPlan],
+  )
+
   // Portée du vol figée dès qu'elle est connue (state, pas juste une ref) :
   // remise à null quand on réarme (replay), pour qu'un nouveau vol puisse à
   // nouveau capturer sa propre portée sans jamais changer PENDANT l'animation.
@@ -145,6 +158,10 @@ export function LancementScene({ state }: LancementSceneProps) {
   useEffect(() => {
     if (sequence.phase !== 'running') flightProgressRef.current = -1
   }, [sequence.phase])
+
+  // Statut de détection LIVE du Roi (voir DetectionStatusHud) : recalculé
+  // dans une boucle rAF dédiée, indépendante de ce re-render (useDetectionStatus).
+  const detectionStatus = useDetectionStatus(state.site, state.radars, sequence.flight, flightProgressRef)
 
   return (
     <div className="relative h-screen w-screen overflow-hidden bg-bg">
@@ -204,12 +221,21 @@ export function LancementScene({ state }: LancementSceneProps) {
           (running) et jusqu'à la fin, pour expliquer le tracé coloré. */}
       {(sequence.phase === 'running' || sequence.phase === 'done') && <CorridorLegend />}
 
+      {/* Bandeau « pourquoi » : nomme en direct la raison de détection/perte
+          du Roi (voir DetectionStatusHud) — seulement pendant le vol actif
+          (running), pas après l'atterrissage (le statut n'aurait plus de sens). */}
+      {sequence.phase === 'running' && (
+        <DetectionStatusHud status={detectionStatus} radarCount={state.radars.length} />
+      )}
+
       <LaunchTacticalMap
         site={state.site}
         radars={state.radars}
         distance={distance}
         flight={sequence.flight}
+        decoyTracks={decoyTracks}
         flightProgressRef={flightProgressRef}
+        azimuthDeg={primary?.azimuthDeg ?? 0}
       />
 
       <LaunchHud
