@@ -2,6 +2,12 @@ import { useHorizonHazeGeometry } from '@/three/hooks/useHorizonHazeGeometry'
 import { useHorizonHazeMaterial } from '@/three/hooks/useHorizonHazeMaterial'
 import { LAUNCH_CENTER } from '@/three/constants/sceneLayout'
 import { HAZE_BASE_Y } from '@/three/constants/horizonHaze'
+import type { SceneMode } from '@/types/scene.types'
+
+interface HorizonHazeProps {
+  /** Ambiance : jour (brume golden hour) ou nuit (froide, discrète). */
+  mode?: SceneMode
+}
 
 /**
  * Coque cylindrique de brume à l'horizon (voir useHorizonHazeGeometry /
@@ -12,9 +18,9 @@ import { HAZE_BASE_Y } from '@/three/constants/horizonHaze'
  * l'INTÉRIEUR uniquement (BackSide, voir le matériau) — jamais franchie par
  * la caméra dans le jeu normal (rayon bien au-delà de la zone jouable).
  */
-export function HorizonHaze() {
+export function HorizonHaze({ mode = 'day' }: HorizonHazeProps) {
   const geometry = useHorizonHazeGeometry()
-  const material = useHorizonHazeMaterial()
+  const material = useHorizonHazeMaterial(mode)
 
   return (
     <mesh

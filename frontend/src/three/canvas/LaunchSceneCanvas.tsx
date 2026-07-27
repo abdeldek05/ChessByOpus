@@ -28,10 +28,12 @@ import { EnvironmentSky } from './EnvironmentSky'
 import { SunMesh } from './SunMesh'
 import { SunLight } from './SunLight'
 import { FreezeShadows } from './FreezeShadows'
+import { ExposureController } from './ExposureController'
 import { LaunchCameraControls } from './LaunchCameraControls'
 import { PAD_TOP_Y } from '@/three/constants/launchComplex'
 import { LAUNCH_CENTER } from '@/three/constants/sceneLayout'
 import { DAYLIGHT_EXPOSURE } from '@/three/constants/launchDaylight'
+import { NIGHT_FOG_COLOR } from '@/three/constants/launchNight'
 import { DETAIL_RADIUS, FAR_GROUND_RADIUS } from '@/lib/sceneScale'
 import type { SceneOffset } from '@/lib/computeRadarSceneOffset'
 import type { MesangeFlightPlan } from '@/lib/buildFleetFlightPlan'
@@ -115,6 +117,7 @@ export function LaunchSceneCanvas({
   roleLabel,
   site,
   placedRadars,
+  mode = 'day',
   className,
   onGlReady,
 }: LaunchSceneCanvasProps) {
@@ -212,7 +215,7 @@ export function LaunchSceneCanvas({
           Suspense LOCAL : le chargement (réseau/disque) ne doit jamais
           blanchir le reste de la scène en attendant. */}
       <Suspense fallback={null}>
-        <EnvironmentSky />
+        <EnvironmentSky mode={mode} />
       </Suspense>
       {/* Brume de distance EXPONENTIELLE (FogExp2) : densité croissante en
           douceur avec la distance, pas de bornes near/far linéaires — sans
@@ -222,7 +225,7 @@ export function LaunchSceneCanvas({
           dans le fog, sans transition. FOG_DENSITY calée sur DETAIL_RADIUS :
           la zone détaillée (pad, herbe, arbres) reste nette, le sol lointain
           se fond progressivement dans la couleur d'horizon de l'HDRI. */}
-      <fogExp2 attach="fog" args={[FOG_COLOR, FOG_DENSITY]} />
+      <fogExp2 attach="fog" args={[mode === 'night' ? NIGHT_FOG_COLOR : FOG_COLOR, FOG_DENSITY]} />
 
       {/* Soleil golden hour + hémisphérique, synchronisé avec le ciel (DaylightSky) :
           direction dérivée de la même source (SKY.elevationDeg/azimuthDeg) via
@@ -230,32 +233,36 @@ export function LaunchSceneCanvas({
           (pas DETAIL_RADIUS entier, 4000 unités noierait les 2048² texels en
           gros blocs flous) — couvre le pad + le décor dense proche (herbe/arbres),
           net là où l'œil regarde ; le reste se fond dans le fog sans ombre fine. */}
-      <SunLight shadowRadius={SHADOW_RADIUS} />
+      <SunLight shadowRadius={SHADOW_RADIUS} mode={mode} />
       {/* Mesh du soleil : source de l'effet God Rays (voir PostFX/SunMesh). */}
       <SunMesh ref={sunMeshRef} />
       {/* Ré-cuit la shadow map quand la rampe se réoriente ou qu'un vol
           démarre/s'arrête (sinon l'ombre resterait figée dans l'ancienne
           pose) : quelques frames de shadow pass, puis regel — coût quasi nul. */}
-      <FreezeShadows resetKey={`${inclinationDeg}:${azimuthDeg}:${flying}`} />
+      <FreezeShadows resetKey={`${inclinationDeg}:${azimuthDeg}:${flying}:${mode}`} />
+
+      {/* Applique l'exposition selon l'ambiance (jour/nuit) — la valeur du
+          Canvas n'étant lue qu'à la création, la bascule ☀/☾ passe par ici. */}
+      <ExposureController mode={mode} />
 
       {/* Sol fixe en relief (source de vérité : sampleGroundHeight). */}
       <GroundMesh />
 
       {/* Anneau de collines silhouette à l'horizon : casse la ligne plate du
           sol lointain (voir FarHorizon), coût quasi nul (statique, low-poly). */}
-      <FarHorizon />
+      <FarHorizon mode={mode} />
 
       {/* Bande de brume atmosphérique à l'horizon (voir HorizonHaze) : avale
           la ligne de coupure du paysage lointain, dégradé dense au sol → clair
           en altitude, bruit organique qui dérive lentement (pas de sprites
           « nuages » qui trahissent leur nature de billboard de près). */}
-      <HorizonHaze />
+      <HorizonHaze mode={mode} />
 
       {/* Couche de nuages VOLUMÉTRIQUES à hauteur de vol (voir VolumetricClouds) :
           raymarching court dans une tranche bornée, la fusée les traverse en
           montant — vrais nuages 3D, pas le fond HDRI plat. Désactivable d'un
           flag (VOLUMETRIC_CLOUDS_ENABLED) si le driver AMD faiblit. */}
-      {VOLUMETRIC_CLOUDS_ENABLED && <VolumetricClouds />}
+      {VOLUMETRIC_CLOUDS_ENABLED && mode !== 'night' && <VolumetricClouds />}
 
       {/* Herbe 3D (streaming par tuiles autour de la caméra) + rochers + arbres semés. */}
       <GrassField />
@@ -335,12 +342,7 @@ export function LaunchSceneCanvas({
         </group>
 
         {radars.map((radar) => (
-          <SceneRadar
-            key={radar.id}
-            config={radar.config}
-            offset={radar.offset}
-            metersPerSceneUnit={metersPerSceneUnit}
-          />
+          <SceneRadar key={radar.id} config={radar.config} offset={radar.offset} />
         ))}
       </group>
       </Suspense>

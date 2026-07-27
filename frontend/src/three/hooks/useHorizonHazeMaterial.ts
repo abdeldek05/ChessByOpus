@@ -3,6 +3,7 @@ import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 import { createHazeNoiseTexture } from '@/lib/createHazeNoiseTexture'
 import { FOG_COLOR, getSunDirection } from '@/three/constants/launchDaylight'
+import { getMoonDirection, NIGHT_FOG_COLOR, NIGHT_HAZE } from '@/three/constants/launchNight'
 import {
   HAZE_HEIGHT,
   HAZE_DENSITY,
@@ -10,6 +11,7 @@ import {
   HAZE_NOISE_SCALE,
   HAZE_SUN_TINT,
 } from '@/three/constants/horizonHaze'
+import type { SceneMode } from '@/types/scene.types'
 
 const VERTEX_SHADER = `
   varying float vLocalY;
@@ -85,21 +87,26 @@ const FRAGMENT_SHADER = `
  * raymarching. Couleur de base alignée sur FOG_COLOR pour se fondre avec le
  * fog exponentiel de la scène sans raccord visible.
  */
-export function useHorizonHazeMaterial(): THREE.ShaderMaterial {
+export function useHorizonHazeMaterial(mode: SceneMode = 'day'): THREE.ShaderMaterial {
+  const night = mode === 'night'
   const noiseTexture = useMemo(() => createHazeNoiseTexture(), [])
-  const sunDirection = useMemo(() => getSunDirection(), [])
+  // Direction de la source lumineuse (soleil le jour, lune la nuit) : la brume
+  // « attrape » sa lumière côté source, froide et faible la nuit.
+  const lightDirection = useMemo(() => (night ? getMoonDirection() : getSunDirection()), [night])
 
   const material = useMemo(() => {
     return new THREE.ShaderMaterial({
       vertexShader: VERTEX_SHADER,
       fragmentShader: FRAGMENT_SHADER,
       uniforms: {
-        uColor: { value: new THREE.Color(FOG_COLOR) },
-        uSunTint: { value: new THREE.Color(HAZE_SUN_TINT) },
-        uSunDir: { value: new THREE.Vector3(...sunDirection) },
+        // Nuit : bande d'horizon bleu nuit (NIGHT_FOG_COLOR) plus discrète —
+        // sans ça, la teinte gris-jour délavait le ciel étoilé sombre.
+        uColor: { value: new THREE.Color(night ? NIGHT_FOG_COLOR : FOG_COLOR) },
+        uSunTint: { value: new THREE.Color(night ? NIGHT_HAZE.moonTint : HAZE_SUN_TINT) },
+        uSunDir: { value: new THREE.Vector3(...lightDirection) },
         uCameraPos: { value: new THREE.Vector3() },
         uHeight: { value: HAZE_HEIGHT },
-        uDensity: { value: HAZE_DENSITY },
+        uDensity: { value: night ? HAZE_DENSITY * NIGHT_HAZE.densityFactor : HAZE_DENSITY },
         uNoiseScale: { value: HAZE_NOISE_SCALE },
         uDrift: { value: 0 },
         uNoiseTex: { value: noiseTexture },
@@ -109,7 +116,7 @@ export function useHorizonHazeMaterial(): THREE.ShaderMaterial {
       side: THREE.BackSide,
       fog: false,
     })
-  }, [noiseTexture, sunDirection])
+  }, [noiseTexture, lightDirection, night])
 
   useFrame(({ camera }, delta) => {
     material.uniforms.uDrift.value += HAZE_DRIFT_SPEED * delta

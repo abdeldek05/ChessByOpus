@@ -1,58 +1,69 @@
 import { useMemo } from 'react'
 import * as THREE from 'three'
 import { getSunDirection, LIGHTING } from '@/three/constants/launchDaylight'
+import { getMoonDirection, NIGHT_LIGHTING } from '@/three/constants/launchNight'
 import { LAUNCH_CENTER } from '@/three/constants/sceneLayout'
+import type { SceneMode } from '@/types/scene.types'
 
 interface SunLightProps {
   /** Demi-étendue (unités) de la shadow-camera : couvre le pas de tir + décor. */
   shadowRadius?: number
+  /** Ambiance : jour (soleil golden hour chaud) ou nuit (lune froide faible). */
+  mode?: SceneMode
 }
 
 /**
- * Éclairage de jour (golden hour) : soleil directionnel chaud et rasant (ombres
- * longues sur la pelouse et la base) + hémisphérique ciel/sol pour un
- * remplissage doux + un rim/fill light froid en CONTRE du soleil (simule le
- * bounce light que Three.js ne calcule pas nativement — évite les faces
- * d'ombre plates et totalement noires sur le béton du pad). Position du
- * soleil dérivée de `getSunDirection()` (même source que le ciel physique
- * `<Sky>`) — soleil visuel et ombres portées restent TOUJOURS alignés. La
- * shadow-camera est recentrée sur le pas de tir et dimensionnée par
- * `shadowRadius` pour englober le décor proche.
+ * Éclairage directionnel + hémisphérique de la scène, selon l'ambiance :
+ *
+ * - JOUR (golden hour) : soleil chaud et rasant (ombres longues) + rim froid en
+ *   contre-jour. Direction dérivée de getSunDirection (alignée sur l'HDRI).
+ * - NUIT : « lune » froide et faible, plus haute (clair de lune vertical doux),
+ *   hémisphérique bleu nuit — voir launchNight. Bien plus sombre.
+ *
+ * La shadow-camera (recentrée sur le pad, dimensionnée par shadowRadius) est
+ * identique dans les deux modes. `mode` prend enfin effet ici (bouton ☀/☾).
  */
-export function SunLight({ shadowRadius = 60 }: SunLightProps) {
+export function SunLight({ shadowRadius = 60, mode = 'day' }: SunLightProps) {
   const target = useMemo(() => {
     const object = new THREE.Object3D()
     object.position.set(LAUNCH_CENTER[0], 0, LAUNCH_CENTER[2])
     return object
   }, [])
 
-  // Distance du soleil : suffisamment grande devant shadowRadius pour des
-  // rayons quasi parallèles (pas de perspective visible sur les ombres).
-  const sunDirection = useMemo(() => getSunDirection(), [])
+  const night = mode === 'night'
+  // Direction de la source (soleil le jour, lune la nuit) + jeu de lumière.
+  const direction = useMemo(() => (night ? getMoonDirection() : getSunDirection()), [night])
+  const keyColor = night ? NIGHT_LIGHTING.moonColor : LIGHTING.sunColor
+  const keyIntensity = night ? NIGHT_LIGHTING.moonIntensity : LIGHTING.sunIntensity
+  const skyTint = night ? NIGHT_LIGHTING.skyTint : LIGHTING.skyTint
+  const groundTint = night ? NIGHT_LIGHTING.groundTint : LIGHTING.groundTint
+  const hemiIntensity = night ? NIGHT_LIGHTING.hemiIntensity : LIGHTING.hemiIntensity
+  const rimColor = night ? NIGHT_LIGHTING.rimColor : LIGHTING.rimColor
+  const rimIntensity = night ? NIGHT_LIGHTING.rimIntensity : LIGHTING.rimIntensity
+
+  // Distance de la source : grande devant shadowRadius → rayons quasi parallèles.
   const lightPosition = useMemo((): [number, number, number] => {
-    const [dx, dy, dz] = sunDirection
+    const [dx, dy, dz] = direction
     const distance = shadowRadius * 6
     return [LAUNCH_CENTER[0] + dx * distance, dy * distance, LAUNCH_CENTER[2] + dz * distance]
-  }, [shadowRadius, sunDirection])
+  }, [shadowRadius, direction])
 
-  // Rim light : même distance, direction OPPOSÉE au soleil (contre-jour),
-  // hauteur modérée — éclaire juste assez les faces à l'ombre pour qu'elles
-  // ne tombent pas à un noir total, sans ombre propre (coût quasi nul).
+  // Rim light : direction OPPOSÉE à la source (contre-jour), hauteur modérée.
   const rimPosition = useMemo((): [number, number, number] => {
-    const [dx, dy, dz] = sunDirection
+    const [dx, dy, dz] = direction
     const distance = shadowRadius * 4
     return [LAUNCH_CENTER[0] - dx * distance, Math.max(dy, 0.3) * distance * 0.5, LAUNCH_CENTER[2] - dz * distance]
-  }, [shadowRadius, sunDirection])
+  }, [shadowRadius, direction])
 
   return (
     <>
-      <hemisphereLight args={[LIGHTING.skyTint, LIGHTING.groundTint, LIGHTING.hemiIntensity]} />
+      <hemisphereLight args={[skyTint, groundTint, hemiIntensity]} />
       <primitive object={target} />
       <directionalLight
         position={lightPosition}
         target={target}
-        color={LIGHTING.sunColor}
-        intensity={LIGHTING.sunIntensity}
+        color={keyColor}
+        intensity={keyIntensity}
         castShadow
         // RELEVÉ (avant 2048) : texel plus fin (2·200/4096 ≈ 0.1u), contour
         // d'ombre plus net. FPS relâché pendant cette passe de rendu.
@@ -67,12 +78,7 @@ export function SunLight({ shadowRadius = 60 }: SunLightProps) {
         shadow-bias={-0.0003}
         shadow-normalBias={0.045}
       />
-      <directionalLight
-        position={rimPosition}
-        target={target}
-        color={LIGHTING.rimColor}
-        intensity={LIGHTING.rimIntensity}
-      />
+      <directionalLight position={rimPosition} target={target} color={rimColor} intensity={rimIntensity} />
     </>
   )
 }
