@@ -1,9 +1,6 @@
 import 'maplibre-gl/dist/maplibre-gl.css'
-import { useState } from 'react'
 import { useLaunchTacticalMap } from '@/hooks/useLaunchTacticalMap'
 import { useMapExpansion } from '@/hooks/useMapExpansion'
-import { useLiveCoverageProfile } from '@/hooks/useLiveCoverageProfile'
-import { LaunchVerticalProfile } from './LaunchVerticalProfile'
 import { TacticalLegend } from './TacticalLegend'
 import type { DecoyTrack } from '@/lib/launchTacticalMap'
 import type { LaunchSite } from '@/types/simulation.types'
@@ -24,25 +21,6 @@ interface LaunchTacticalMapProps {
   decoyTracks?: DecoyTrack[]
   /** Progression du vol 0→1 (ref partagée, -1 = pas de vol) : pilote la piste live. */
   flightProgressRef: React.RefObject<number>
-  /** Azimut de tir du Roi (deg) — oriente le plan de coupe du profil vertical. */
-  azimuthDeg: number
-}
-
-type TacticalView = 'plan' | 'profile'
-
-// Flight vide, valide pour le typage : useLiveCoverageProfile/useCoverageCut
-// doivent être appelés INCONDITIONNELLEMENT (règle des Hooks) même quand
-// `flight` est encore null (pas de vol connu). trajectory=[] fait sortir tous
-// les calculs immédiatement sans crash ; `active=false` (passé plus bas)
-// empêche par ailleurs tout calcul de tête live sur ces données bidon.
-const EMPTY_FLIGHT: FlightData = {
-  trajectory: [],
-  apogeeM: 0,
-  apogeeTimeSec: 0,
-  rangeM: 0,
-  maxSpeedMs: 0,
-  flightTimeSec: 0,
-  weather: { source: 'standard_atmosphere', groundWindSpeedMs: 0, groundWindHeadingDeg: 0, groundTemperatureC: 15 },
 }
 
 // Hauteur du canvas carte par cran (repliée = 0, carte masquée).
@@ -72,36 +50,19 @@ export function LaunchTacticalMap({
   flight,
   decoyTracks,
   flightProgressRef,
-  azimuthDeg,
 }: LaunchTacticalMapProps) {
   const { size, grow, shrink } = useMapExpansion()
-  const [view, setView] = useState<TacticalView>('plan')
   const { containerRef } = useLaunchTacticalMap({
     site,
     radars,
     expanded: size === 'expanded',
-    // Repliée (h-0, invisible) OU sur l'onglet PROFIL : inutile de faire
-    // tourner les boucles rAF (piste + faisceau radar) qui repeignent
-    // MapLibre à chaque frame et se disputent le thread principal avec le
-    // Canvas WebGL pour rien pendant qu'on ne regarde pas le plan.
-    visible: size !== 'collapsed' && view === 'plan',
+    // Repliée (h-0, invisible) : inutile de faire tourner les boucles rAF
+    // (piste + faisceau radar) qui repeignent MapLibre à chaque frame.
+    visible: size !== 'collapsed',
     flight,
     decoyTracks,
     flightProgressRef,
   })
-
-  // Le profil n'existe QUE si un vol est connu (useCoverageCut exige un
-  // FlightData non-null) — sinon rien à couper. Le hook est toujours appelé
-  // (règle des Hooks), mais `active` (calcul de la tête live) reste faux et
-  // l'onglet PROFIL est masqué tant que `flight` est null.
-  const profile = useLiveCoverageProfile(
-    flight ?? EMPTY_FLIGHT,
-    site,
-    radars,
-    azimuthDeg,
-    flightProgressRef,
-    flight !== null && view === 'profile',
-  )
 
   return (
     <div
@@ -110,31 +71,6 @@ export function LaunchTacticalMap({
       <div className="relative z-10 flex items-center justify-between px-3.5 py-2">
         <div className="flex items-center gap-2">
           <span className="font-fine text-[11px] font-light tracking-[0.28em] text-ink-dim uppercase">Tactical view</span>
-          {/* Sélecteur PLAN / PROFIL : le profil n'a de sens qu'une fois le
-              vol connu (trajectoire complète disponible dès la réponse
-              backend, pas besoin d'attendre le lancement visuel). */}
-          {size !== 'collapsed' && flight && (
-            <div className="flex items-center gap-0.5 rounded-md bg-surface/60 p-0.5">
-              <button
-                type="button"
-                onClick={() => setView('plan')}
-                className={`rounded px-1.5 py-0.5 font-mono text-[9px] tracking-[0.14em] uppercase transition-colors ${
-                  view === 'plan' ? 'bg-accent-bright/20 text-accent-bright' : 'text-ink-faint hover:text-ink-dim'
-                }`}
-              >
-                Plan
-              </button>
-              <button
-                type="button"
-                onClick={() => setView('profile')}
-                className={`rounded px-1.5 py-0.5 font-mono text-[9px] tracking-[0.14em] uppercase transition-colors ${
-                  view === 'profile' ? 'bg-accent-bright/20 text-accent-bright' : 'text-ink-faint hover:text-ink-dim'
-                }`}
-              >
-                Profile
-              </button>
-            </div>
-          )}
         </div>
         <div className="flex items-center gap-3">
           {size !== 'collapsed' && <span className="font-mono text-xs text-accent-bright">{distance}</span>}
@@ -161,20 +97,14 @@ export function LaunchTacticalMap({
         </div>
       </div>
 
-      {/* Le plan MapLibre reste TOUJOURS monté (jamais démonté) pour ne
-          jamais perdre son cycle de vie/état — juste masqué derrière le
-          profil quand l'onglet PROFIL est actif (superposition, pas
-          remplacement). */}
+      {/* Plan MapLibre (vue de dessus). Le profil de couverture (coupe Thales)
+          a été SORTI d'ici vers un grand panneau latéral dédié (voir
+          CoverageProfilePanel) où il respire — l'incrustation était trop
+          exiguë pour lui. Cette carte ne fait donc plus que le PLAN. */}
       <div className="relative">
         <div ref={containerRef} className={`w-full transition-all duration-300 ${MAP_HEIGHT[size]}`} />
-        {view === 'profile' && flight && size !== 'collapsed' && (
-          <div className={`absolute inset-0 flex items-center justify-center bg-bg/95 px-2 ${MAP_HEIGHT[size]}`}>
-            <LaunchVerticalProfile cut={profile.cut} head={profile.head} />
-          </div>
-        )}
-        {/* Légende du code couleur (Roi/Dame/Pion + faisceau) — sur le PLAN
-            seulement (le profil a sa propre lecture), carte non repliée. */}
-        {view === 'plan' && size !== 'collapsed' && <TacticalLegend />}
+        {/* Légende du code couleur (Roi/Dame/Pion + faisceau), carte non repliée. */}
+        {size !== 'collapsed' && <TacticalLegend />}
       </div>
     </div>
   )

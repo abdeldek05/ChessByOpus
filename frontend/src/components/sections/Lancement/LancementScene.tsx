@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom'
 import { LaunchStage } from './LaunchStage'
 import { DayNightToggle } from './DayNightToggle'
 import { CameraModeSelector } from './CameraModeSelector'
+import { ProfileToggleButton } from './ProfileToggleButton'
+import { CoverageProfilePanel } from './CoverageProfilePanel'
 import { LaunchHud } from './LaunchHud'
 import { LaunchTacticalMap } from './LaunchTacticalMap'
 import { CorridorLegend } from './CorridorLegend'
@@ -53,6 +55,8 @@ export function LancementScene({ state }: LancementSceneProps) {
   const [sceneMode, setSceneMode] = useState<SceneMode>('day')
   // Mode de caméra en vol (sélecteur HUD) : suivi King / vue radar / vue large.
   const [cameraMode, setCameraMode] = useState<CameraMode>('follow')
+  // Panneau latéral du profil de couverture (coupe Thales) : ouvert/fermé.
+  const [profileOpen, setProfileOpen] = useState(false)
 
   // Radar principal (1er placé) : sert au HUD, à la séquence et à la carte
   // tactique. Sa position est garantie non-nulle (validée par la garde de route).
@@ -114,7 +118,12 @@ export function LancementScene({ state }: LancementSceneProps) {
     () =>
       flightPlan
         .filter((plan) => !plan.isKing)
-        .map((plan) => ({ id: plan.config.id, role: plan.config.role, flight: plan.flight })),
+        .map((plan) => ({
+          id: plan.config.id,
+          role: plan.config.role,
+          flight: plan.flight,
+          launchDelaySec: plan.config.launchDelaySec,
+        })),
     [flightPlan],
   )
 
@@ -225,6 +234,26 @@ export function LancementScene({ state }: LancementSceneProps) {
           vue large). Masqué au sol (rien à suivre encore). */}
       {sequence.phase === 'running' && <CameraModeSelector mode={cameraMode} onSelect={setCameraMode} />}
 
+      {/* Profil de couverture (coupe Thales) : bouton (sous les caméras) + panneau
+          latéral, dès qu'un vol est connu (trajectoire dispo). Dans un grand
+          panneau à part, le graphe respire — plus dans l'incrustation exiguë. */}
+      {sequence.flight && (
+        <>
+          <ProfileToggleButton open={profileOpen} onToggle={() => setProfileOpen((v) => !v)} />
+          <CoverageProfilePanel
+            open={profileOpen}
+            onClose={() => setProfileOpen(false)}
+            flight={sequence.flight}
+            decoyTracks={decoyTracks}
+            kingDelaySec={primary?.launchDelaySec ?? 0}
+            site={state.site}
+            radars={state.radars}
+            azimuthDeg={primary?.azimuthDeg ?? 0}
+            flightProgressRef={flightProgressRef}
+          />
+        </>
+      )}
+
       {(sequence.phase === 'done' || sequence.phase === 'error') && (
         <MissionBilan
           result={sequence.result}
@@ -256,7 +285,6 @@ export function LancementScene({ state }: LancementSceneProps) {
         flight={sequence.flight}
         decoyTracks={decoyTracks}
         flightProgressRef={flightProgressRef}
-        azimuthDeg={primary?.azimuthDeg ?? 0}
       />
 
       <LaunchHud

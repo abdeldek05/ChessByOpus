@@ -11,6 +11,7 @@ import {
   BURN_TIME_SEC,
   FLYING_ROCKET_SCALE,
   SCALE_TRANSITION_SEC,
+  TIME_SCALE,
 } from '@/three/constants/flightPlayback'
 
 export type PlaybackPhase = 'flying' | 'broken'
@@ -270,12 +271,24 @@ export function useTrajectoryPlayback({
       // ci-dessous pour rester fluide même quand la frame est longue.
       const frameDelta = Math.min(delta, 0.1)
 
-      // Délai de mise à feu (voir launchDelaySec) : tant qu'il n'est pas
-      // écoulé, la mésange reste posée sur sa rampe — ni thrusting, ni
-      // onFrame, ni avance de l'animation. Compté en secondes RÉELLES (pas
-      // accélérées), cohérent avec le délai calculé côté backend (radar.py).
+      // Délai de mise à feu (voir launchDelaySec) : tant qu'il n'est pas écoulé,
+      // la mésange ATTEND, posée au point de départ (t=0) de sa trajectoire —
+      // PAS figée où le dernier render l'a laissée (sinon elle « flotte » en
+      // l'air pendant que les autres décollent, cf. bug délai). On la POSE
+      // explicitement à sa position de départ ET on signale progress=0 via
+      // onFrame — sinon la progression partagée (caméra/détection/corridor du
+      // Roi) restait gelée à l'ancienne valeur au lieu de repartir de zéro.
+      // Compté en secondes RÉELLES (pas accélérées), cohérent avec radar.py.
       if (delayElapsed.current < launchDelaySec) {
-        delayElapsed.current += frameDelta
+        // Délai écoulé à la MÊME cadence accélérée que le vol (TIME_SCALE) —
+        // sinon un délai de 10 s de scénario = 10 s d'attente RÉELLE, la fusée
+        // paraît « bloquée » pendant que les autres volent. Ainsi les décalages
+        // relatifs entre mésanges restent justes, mais à l'échelle du replay.
+        delayElapsed.current += frameDelta * TIME_SCALE
+        samplePositionAtTime(positions, times, 0, scratch.pos)
+        group.position.copy(scratch.pos)
+        thrusting.current = false
+        onFrame?.(scratch.pos, 0)
         return
       }
 

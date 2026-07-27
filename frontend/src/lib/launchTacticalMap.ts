@@ -17,6 +17,10 @@ export interface DecoyTrack {
   id: string
   role: MesangeRole
   flight: FlightData
+  /** Délai de mise à feu (s de scénario) de ce leurre : il décolle APRÈS le
+   *  t=0 mission. Sert au profil 3D pour révéler sa trace à son VRAI timing
+   *  (sinon un pion tiré plus tôt/tard qu'un autre serait désynchronisé). */
+  launchDelaySec?: number
 }
 
 // Piste de la menace sur la carte (vue radar) : le Roi, seule menace tracée

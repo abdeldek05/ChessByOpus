@@ -60,16 +60,18 @@ export function CoverageLobe({ radarCut, cutPoints, sx, sy }: CoverageLobeProps)
         />
       ))}
 
-      {/* Marqueurs première/dernière visibilité : position + T+. */}
+      {/* Marqueurs première/dernière visibilité : TEMPS + POSITION (distance
+          sol / altitude, en km) — exigence Thales : lire l'instant ET l'endroit
+          exacts de l'acquisition et de la perte, directement sur la coupe. */}
       {windows.map((window) => (
         <g key={`markers-${window.iIn}`} className="font-mono">
           <circle cx={sx(window.sInM)} cy={sy(window.altInM)} r={4} fill={color} />
-          <text x={sx(window.sInM)} y={sy(window.altInM) - 9} textAnchor="middle" fontSize={11} fill={color}>
-            ▲ T+{Math.round(window.tIn)}s
+          <text x={sx(window.sInM)} y={sy(window.altInM) - 9} textAnchor="middle" fontSize={9} fill={color}>
+            ▲ T+{Math.round(window.tIn)}s · {(Math.abs(window.sInM) / 1000).toFixed(1)}/{(window.altInM / 1000).toFixed(1)} km
           </text>
           <circle cx={sx(window.sOutM)} cy={sy(window.altOutM)} r={4} fill={color} fillOpacity={0.45} stroke={color} />
-          <text x={sx(window.sOutM)} y={sy(window.altOutM) - 9} textAnchor="middle" fontSize={11} fill={color}>
-            ▼ T+{Math.round(window.tOut)}s
+          <text x={sx(window.sOutM)} y={sy(window.altOutM) - 9} textAnchor="middle" fontSize={9} fill={color}>
+            ▼ T+{Math.round(window.tOut)}s · {(Math.abs(window.sOutM) / 1000).toFixed(1)}/{(window.altOutM / 1000).toFixed(1)} km
           </text>
         </g>
       ))}
