@@ -7,6 +7,7 @@ import { buildRangeCircle } from '@/lib/geoCircle'
 import { computeRadarEnu } from '@/lib/coverage/computeRadarEnu'
 import { isInCoverage } from '@/lib/coverage/computeVisibilityWindows'
 import { useDetectionBlips } from '@/hooks/useDetectionBlips'
+import { ROLE_COLOR } from '@/constants/tacticalMapTheme'
 import { ROCKET_MAX_RANGE_KM } from '@/constants/rocket'
 import {
   SWEEP_HALF_WIDTH_DEG,
@@ -346,11 +347,45 @@ export function useLaunchTacticalMap({
           }
         }
 
-        // Blip d'accrochage (voir useDetectionBlips) : posé au front montant
-        // de `locked`, à la position live de la menace, coloré par radar,
-        // dimensionné par son altitude réelle (livePoint.z).
+        // Blip d'accrochage du ROI (voir useDetectionBlips) : posé au front
+        // montant de `locked`, à la position live de la menace, coloré par
+        // radar, dimensionné par son altitude réelle (livePoint.z).
         if (liveLngLat && livePoint) {
-          detectionBlips.recordSample(map, radar.id, radarIndex, locked, liveLngLat, livePoint.z, nowSec)
+          detectionBlips.recordSample(map, radar.id, radarIndex, 'king', locked, liveLngLat, livePoint.z, nowSec)
+        }
+
+        // Blips des PIONS/leurres détectés par CE radar : même test géométrique
+        // que le Roi (dans l'enveloppe + azimut dans le secteur balayé), mais
+        // posés en GRIS et PLUS PETITS (ROLE_COLOR.PAWN / small) — un leurre
+        // accroché se lit distinctement de la vraie menace. Un blip par pion,
+        // avec son propre threatId (espacement anti-empilement indépendant).
+        if (progress >= 0) {
+          decoyLngLat.forEach((decoy) => {
+            const dn = decoy.traj.length
+            if (dn < 2) return
+            const di = Math.min(dn - 1, Math.max(0, Math.floor(progress * (dn - 1))))
+            const dPoint = decoy.traj[di]
+            let decoyLocked = false
+            if (isInCoverage(dPoint, radar.enu.eastM, radar.enu.northM, radar.config)) {
+              const dE = dPoint.x - radar.enu.eastM
+              const dN = dPoint.y - radar.enu.northM
+              const bearing = (Math.atan2(dE, dN) * 180) / Math.PI
+              const delta = ((bearing - headingDeg + 540) % 360) - 180
+              decoyLocked = Math.abs(delta) <= SWEEP_HALF_WIDTH_DEG
+            }
+            detectionBlips.recordSample(
+              map,
+              radar.id,
+              radarIndex,
+              decoy.id,
+              decoyLocked,
+              decoy.points[di],
+              dPoint.z,
+              nowSec,
+              ROLE_COLOR.PAWN,
+              true,
+            )
+          })
         }
 
         const features = buildSweepTrailFeatures(
@@ -375,7 +410,7 @@ export function useLaunchTacticalMap({
 
     raf = requestAnimationFrame(update)
     return () => cancelAnimationFrame(raf)
-  }, [placedRadars, flight, flightProgressRef, visible, site.longitude, site.latitude, detectionBlips])
+  }, [placedRadars, flight, flightProgressRef, visible, site.longitude, site.latitude, detectionBlips, decoyLngLat])
 
   return { containerRef }
 }

@@ -12,7 +12,7 @@ const BLIP_MIN_INTERVAL_SEC = 0.4
 interface DetectionBlipFeature {
   type: 'Feature'
   geometry: { type: 'Point'; coordinates: [number, number] }
-  properties: { color: string; altitudeM: number }
+  properties: { color: string; altitudeM: number; small: boolean }
 }
 
 /**
@@ -37,37 +37,42 @@ export function useDetectionBlips() {
   // refs) : peuvent être ajoutées sans risque aux deps des useEffect
   // appelants, sans jamais retrigger un effet.
 
-  /** À appeler à chaque frame pour CE radar : pose un blip si `locked` vient
-   *  de passer à `true` (front montant) et que l'espacement minimal est
-   *  respecté. `nowSec` = horloge de la boucle appelante (performance.now()/1000).
-   *  `altitudeM` porte l'altitude réelle de la menace à cet instant — sert au
-   *  rayon du blip (voir launchTacticalMap.ts, `detections-core` data-driven),
-   *  seconde piste de lecture en plus de la couleur par radar : sans elle, la
-   *  carte de dessus « écrase » l'axe vertical et ment sur la hauteur réelle. */
+  /** À appeler à chaque frame pour CE radar ET CETTE menace : pose un blip si
+   *  `locked` vient de passer à `true` (front montant) et que l'espacement
+   *  minimal est respecté. `threatId` distingue les menaces (Roi vs chaque
+   *  pion) : sans lui, elles partageraient le compteur d'espacement d'un même
+   *  radar et se voleraient des plots. `nowSec` = horloge de la boucle
+   *  appelante. `altitudeM` sert au rayon (data-driven, voir launchTacticalMap).
+   *  `colorOverride` force une couleur (gris pour un pion, sinon couleur radar).
+   *  `small` marque le blip comme réduit (pions : plus petits que le Roi). */
   const recordSample = useCallback(
     (
       map: maplibregl.Map,
       radarId: string,
       radarIndex: number,
+      threatId: string,
       locked: boolean,
       lngLat: [number, number],
       altitudeM: number,
       nowSec: number,
+      colorOverride?: string,
+      small = false,
     ) => {
-      const wasLocked = wasLockedByRadar.current.get(radarId) ?? false
-      wasLockedByRadar.current.set(radarId, locked)
+      const key = `${radarId}:${threatId}`
+      const wasLocked = wasLockedByRadar.current.get(key) ?? false
+      wasLockedByRadar.current.set(key, locked)
       if (!locked) return
 
-      const lastBlipSec = lastBlipSecByRadar.current.get(radarId) ?? -Infinity
+      const lastBlipSec = lastBlipSecByRadar.current.get(key) ?? -Infinity
       const justLocked = !wasLocked
       if (!justLocked && nowSec - lastBlipSec < BLIP_MIN_INTERVAL_SEC) return
 
-      lastBlipSecByRadar.current.set(radarId, nowSec)
-      const color = RADAR_TRACK_COLORS[radarIndex % RADAR_TRACK_COLORS.length]
+      lastBlipSecByRadar.current.set(key, nowSec)
+      const color = colorOverride ?? RADAR_TRACK_COLORS[radarIndex % RADAR_TRACK_COLORS.length]
       featuresRef.current.push({
         type: 'Feature',
         geometry: { type: 'Point', coordinates: lngLat },
-        properties: { color, altitudeM },
+        properties: { color, altitudeM, small },
       })
 
       const source = map.getSource('detections') as maplibregl.GeoJSONSource | undefined

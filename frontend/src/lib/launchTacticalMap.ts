@@ -140,15 +140,16 @@ export function drawTacticalOverlay(map: maplibregl.Map, site: LaunchSite, place
     data: { type: 'FeatureCollection', features: [] },
   })
   // Halo large et flou : rend le blip « éclatant », lisible même à petit zoom.
+  // Réduit pour les blips `small` (pions) — le halo suit la taille du core.
   map.addLayer({
     id: 'detections-halo',
     type: 'circle',
     source: 'detections',
     paint: {
-      'circle-radius': 9,
+      'circle-radius': ['case', ['get', 'small'], 5, 9],
       'circle-color': ['get', 'color'],
       'circle-blur': 1,
-      'circle-opacity': 0.35,
+      'circle-opacity': ['case', ['get', 'small'], 0.22, 0.35],
     },
   })
   map.addLayer({
@@ -163,9 +164,17 @@ export function drawTacticalOverlay(map: maplibregl.Map, site: LaunchSite, place
       // stress — voir la recherche UX). Couleur reste celle du radar
       // accrocheur : l'altitude n'emprunte SURTOUT PAS ce canal (sinon la
       // couleur porterait deux sens à la fois, illisible).
-      'circle-radius': ['interpolate', ['linear'], ['get', 'altitudeM'], 0, 2, 20000, 6],
+      //
+      // Les blips `small` (PIONS détectés) sont nettement plus petits que ceux
+      // du Roi (menace réelle prioritaire — le Roi doit rester lisible en 1er).
+      'circle-radius': [
+        'case',
+        ['get', 'small'],
+        ['interpolate', ['linear'], ['get', 'altitudeM'], 0, 1.2, 20000, 3],
+        ['interpolate', ['linear'], ['get', 'altitudeM'], 0, 2, 20000, 6],
+      ],
       'circle-color': ['get', 'color'],
-      'circle-opacity': 0.95,
+      'circle-opacity': ['case', ['get', 'small'], 0.8, 0.95],
       'circle-stroke-width': 1,
       'circle-stroke-color': '#0b0d10',
     },
