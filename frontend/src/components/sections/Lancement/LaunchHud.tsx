@@ -87,13 +87,16 @@ export function LaunchHud({ siteName, radarName, phase, countdown, message, onLa
         </div>
       )}
 
-      {/* Boutons de fin de simulation : rejouer + analytics */}
+      {/* Boutons de fin de simulation : rejouer + analytics. CONTRASTE
+          ACCENTUÉ (avant : fond /10, bordure /40, texte 10px — trop discrets,
+          se perdaient sur la scène) : fond plein teinté, bordure pleine, texte
+          plus grand + glow HUD, léger zoom au survol. */}
       {finished && (
         <div className="absolute bottom-7 left-1/2 flex -translate-x-1/2 items-center gap-3">
           <button
             type="button"
             onClick={onReplay}
-            className="clip-corner-14 pointer-events-auto flex items-center gap-2 border border-accent-bright/40 bg-accent-bright/10 py-2.5 pr-5 pl-4 text-[10px] font-bold tracking-[0.24em] text-accent-bright transition-colors hover:bg-accent-bright/20"
+            className="clip-corner-14 hud-btn-glow pointer-events-auto flex items-center gap-2 border-2 border-accent-bright bg-accent-bright/30 py-3 pr-6 pl-5 text-xs font-bold tracking-[0.24em] text-accent-bright transition-all duration-200 hover:scale-[1.04] hover:bg-accent-bright/45"
           >
             ⟳ REPLAY
           </button>
@@ -101,7 +104,7 @@ export function LaunchHud({ siteName, radarName, phase, countdown, message, onLa
             <button
               type="button"
               onClick={onAnalytics}
-              className="clip-corner-14 pointer-events-auto flex items-center gap-2 border border-warning/40 bg-warning/10 py-2.5 pr-5 pl-4 text-[10px] font-bold tracking-[0.24em] text-warning transition-colors hover:bg-warning/20"
+              className="clip-corner-14 hud-btn-glow pointer-events-auto flex items-center gap-2 border-2 border-warning bg-warning/30 py-3 pr-6 pl-5 text-xs font-bold tracking-[0.24em] text-warning transition-all duration-200 hover:scale-[1.04] hover:bg-warning/45"
             >
               ▤ ANALYTICS
             </button>

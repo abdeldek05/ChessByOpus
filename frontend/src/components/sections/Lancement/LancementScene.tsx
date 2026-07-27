@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { LaunchStage } from './LaunchStage'
 import { DayNightToggle } from './DayNightToggle'
+import { CameraModeSelector } from './CameraModeSelector'
 import { LaunchHud } from './LaunchHud'
 import { LaunchTacticalMap } from './LaunchTacticalMap'
 import { CorridorLegend } from './CorridorLegend'
@@ -22,7 +23,7 @@ import { getMesangeRoleLabel } from '@/lib/getMesangeRoleLabel'
 import { buildFleetFlightPlan } from '@/lib/buildFleetFlightPlan'
 import type { LaunchSite } from '@/types/simulation.types'
 import type { PlacedRadar, MesangeLaunchConfig } from '@/types/mission.types'
-import type { SceneMode } from '@/types/scene.types'
+import type { SceneMode, CameraMode } from '@/types/scene.types'
 import type { AnalyticsPageState } from '@/types/analytics.types'
 
 /** State de route attendu par l'écran de lancement (posé par MissionConsole). */
@@ -50,6 +51,8 @@ export function LancementScene({ state }: LancementSceneProps) {
   const navigate = useNavigate()
   // Ambiance de la scène (bouton ☀/☾ du HUD) : jour golden hour ou nuit.
   const [sceneMode, setSceneMode] = useState<SceneMode>('day')
+  // Mode de caméra en vol (sélecteur HUD) : suivi King / vue radar / vue large.
+  const [cameraMode, setCameraMode] = useState<CameraMode>('follow')
 
   // Radar principal (1er placé) : sert au HUD, à la séquence et à la carte
   // tactique. Sa position est garantie non-nulle (validée par la garde de route).
@@ -163,6 +166,15 @@ export function LancementScene({ state }: LancementSceneProps) {
     if (sequence.phase !== 'running') flightProgressRef.current = -1
   }, [sequence.phase])
 
+  // Fin de vol / réarmement : on revient AUTOMATIQUEMENT en mode caméra 'follow'
+  // — seul ce mode gère le retour doux de la caméra vers le pad et le cadrage
+  // de départ (les vues radar/wide sont posées à un point fixe et ne
+  // « reviennent » pas). Sans ça, rester en RADAR/WIDE au clic Replay/Analytics
+  // laissait la caméra figée dans un cadrage incohérent au lieu de revenir.
+  useEffect(() => {
+    if (sequence.phase !== 'running') setCameraMode('follow')
+  }, [sequence.phase])
+
   // Statut de détection LIVE du Roi (voir DetectionStatusHud) : recalculé
   // dans une boucle rAF dédiée, indépendante de ce re-render (useDetectionStatus).
   const detectionStatus = useDetectionStatus(state.site, state.radars, sequence.flight, flightProgressRef)
@@ -186,6 +198,7 @@ export function LancementScene({ state }: LancementSceneProps) {
         site={state.site}
         placedRadars={state.radars}
         mode={sceneMode}
+        cameraMode={cameraMode}
         className="h-full w-full"
       />
 
@@ -207,6 +220,10 @@ export function LancementScene({ state }: LancementSceneProps) {
         mode={sceneMode}
         onToggle={() => setSceneMode((current) => (current === 'day' ? 'night' : 'day'))}
       />
+
+      {/* Sélecteur de caméra : visible pendant le vol (suivi King / vue radar /
+          vue large). Masqué au sol (rien à suivre encore). */}
+      {sequence.phase === 'running' && <CameraModeSelector mode={cameraMode} onSelect={setCameraMode} />}
 
       {(sequence.phase === 'done' || sequence.phase === 'error') && (
         <MissionBilan

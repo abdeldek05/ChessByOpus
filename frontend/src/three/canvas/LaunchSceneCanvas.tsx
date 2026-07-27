@@ -44,7 +44,7 @@ import { DETAIL_RADIUS, FAR_GROUND_RADIUS } from '@/lib/sceneScale'
 import type { SceneOffset } from '@/lib/computeRadarSceneOffset'
 import type { MesangeFlightPlan } from '@/lib/buildFleetFlightPlan'
 import type { RadarConfig } from '@/types/radar.types'
-import type { SceneMode } from '@/types/scene.types'
+import type { SceneMode, CameraMode } from '@/types/scene.types'
 import type { LaunchSite } from '@/types/simulation.types'
 import type { PlacedRadar } from '@/types/mission.types'
 
@@ -84,6 +84,8 @@ export interface LaunchSceneCanvasProps {
   site: LaunchSite
   placedRadars: PlacedRadar[]
   mode?: SceneMode
+  /** Mode de caméra pendant le vol (suivi King / vue radar / vue large). */
+  cameraMode?: CameraMode
   className?: string
   /** Renderer prêt : sert à brancher la récupération de contexte WebGL (useCanvasRecovery). */
   onGlReady?: (gl: THREE.WebGLRenderer) => void
@@ -124,6 +126,7 @@ export function LaunchSceneCanvas({
   site,
   placedRadars,
   mode = 'day',
+  cameraMode = 'follow',
   className,
   onGlReady,
 }: LaunchSceneCanvasProps) {
@@ -394,13 +397,17 @@ export function LaunchSceneCanvas({
       </group>
       </Suspense>
 
-      {/* Caméra UNIQUE : orbite libre en permanence (même en vol). Pendant le
-          vol, elle suit le King de près ; à la fin, retour doux vers le pad. */}
+      {/* Caméra à 3 modes commutables en vol (suivi King / vue radar / vue
+          large fixe — voir LaunchCameraControls + CameraMode). En 'follow' :
+          orbite libre, suit le King, retour doux au pad à la fin. */}
       <LaunchCameraControls
         rocketRef={rocketPos}
         flying={flying}
         armed={launchEnabled}
         maxDistance={maxDistance}
+        mode={cameraMode}
+        radarScene={radars[0] ? { x: radars[0].offset.x, z: radars[0].offset.z } : null}
+        frameRadius={radarDistance}
       />
 
       {/* Post-processing : ALLÉGÉ DYNAMIQUEMENT EN VOL. Au sol (armement) on
