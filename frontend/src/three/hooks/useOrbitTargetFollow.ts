@@ -107,6 +107,15 @@ export function useOrbitTargetFollow({ controlsRef, rocketRef, flying, armed = f
       prevRocket.current.copy(rocket)
       camera.position.add(shift.current)
       controls.target.add(shift.current)
+      // RESYNCHRONISATION IMMÉDIATE (fix saccade en vol) : avec enableDamping,
+      // drei appelle controls.update() à la PRIORITÉ -1, donc AVANT ce hook
+      // (prio 0). update() recalcule camera.position depuis target + offset
+      // sphérique interne ; comme on vient de translater target/camera SANS
+      // resynchroniser cet offset, la frame suivante repartait d'un état
+      // incohérent → la caméra (et donc tout le monde) TREMBLAIT pendant le
+      // vol. Rappeler update() ici, dans la même frame, réaligne l'offset
+      // sphérique sur la nouvelle position — mouvement de suivi enfin fluide.
+      controls.update()
       return
     }
 

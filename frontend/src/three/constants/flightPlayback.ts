@@ -8,8 +8,15 @@
  * gardant le TEMPS RÉEL de RocketPy (donc la gravité : montée qui décélère,
  * chute qui accélère). `TIME_SCALE` = nombre de secondes de vol réel jouées par
  * seconde d'animation. 10 → un vol de 160 s dure 16 s à l'écran.
+ *
+ * ABAISSÉ (5 → 3) pour tuer le « gros bonds » : à TIME_SCALE=5, chaque frame
+ * avançait ~0.08 s de vol réel, soit ~25 m à 300 m/s en ascension — un pas
+ * spatial assez grand pour se lire comme un SAUT entre deux frames affichées.
+ * À 3, c'est ~15 m/frame : le déplacement inter-frame redevient continu à
+ * l'œil. Le vol dure un peu plus longtemps à l'écran, compromis assumé pour
+ * la fluidité (la position reste interpolée par le temps, gravité préservée).
  */
-export const TIME_SCALE = 5
+export const TIME_SCALE = 3
 
 /**
  * Ralenti du DÉCOLLAGE : les premières secondes de vol réel sont jouées plus
@@ -23,8 +30,11 @@ export const LIFTOFF_TIME_SCALE = 2.5
 /**
  * Agrandissement de la fusée en vol : à l'échelle normalisée elle deviendrait un
  * point. On la grossit pour rester bien visible sans casser l'échelle au sol.
+ * RÉDUIT (3.2 → 2.4) : à 3.2 la King écrasait la scène / paraissait démesurée
+ * (demande « la réduire graphiquement ») — 2.4 reste bien lisible en vol sans
+ * dominer le décor.
  */
-export const FLYING_ROCKET_SCALE = 3.2
+export const FLYING_ROCKET_SCALE = 2.4
 
 /**
  * Durée (s, temps de vol RÉEL non accéléré) sur laquelle l'échelle passe

@@ -77,10 +77,14 @@ export function PostFX({ quality = 'realistic', sunRef }: PostFxProps) {
   )
 
   if (quality === 'realistic') {
+    // God Rays RETIRÉ de cette chaîne (garde-fou 70 FPS) : c'est la passe
+    // multi-samples plein écran la plus coûteuse — sur GPU AMD milieu de gamme
+    // elle plombait le framerate (chutes à ~4 FPS → fusée par bonds). On garde
+    // AO (contacts) + Bloom (halo) + SMAA (AA), l'ambiance golden hour vient
+    // surtout de l'HDRI/lumière, pas des rayons. Voir feedback_gpu_budget.
     return (
       <EffectComposer multisampling={0}>
         {ao}
-        {godRays}
         {bloom}
         <SMAA />
       </EffectComposer>

@@ -31,7 +31,13 @@ export const POSTFX_QUALITY: PostFxQuality = 'realistic'
 export const AO_RADIUS = 3
 export const AO_INTENSITY = 3.6
 export const AO_DISTANCE_FALLOFF = 1.2
-export const AO_QUALITY: 'performance' | 'low' | 'medium' | 'high' | 'ultra' = 'ultra'
+// ABAISSÉ (ultra → medium) : l'AO en 'ultra' est la passe plein écran la plus
+// coûteuse de la chaîne — sur GPU milieu de gamme (AMD RX 6500M) elle faisait
+// chuter le FPS jusqu'à ~4, ce qui faisait AVANCER LA FUSÉE PAR BONDS (position
+// rafraîchie 4×/s au lieu de 60). 'medium' garde des ombres de contact
+// crédibles pour un coût très inférieur. Priorité fluidité (voir feedback_gpu_budget,
+// MAJ : 60 FPS stable requis, la fusée en vol doit être fluide).
+export const AO_QUALITY: 'performance' | 'low' | 'medium' | 'high' | 'ultra' = 'performance'
 
 // God Rays (rayons crépusculaires) : le soleil (SunMesh, aligné sur l'HDRI)
 // est occlus par le décor (arbres, rampe, pad) — c'est cette occlusion qui
@@ -47,4 +53,7 @@ export const GOD_RAYS_DENSITY = 0.9
 export const GOD_RAYS_DECAY = 0.92
 export const GOD_RAYS_WEIGHT = 0.45
 export const GOD_RAYS_EXPOSURE = 0.55
-export const GOD_RAYS_SAMPLES = 60
+// ABAISSÉ (60 → 30 samples) : les God Rays échantillonnent le tampon N fois
+// par pixel — 60 samples plein écran est un poste lourd cumulé à l'AO. 30
+// garde le halo golden hour visible pour la moitié du coût. Priorité fluidité.
+export const GOD_RAYS_SAMPLES = 30

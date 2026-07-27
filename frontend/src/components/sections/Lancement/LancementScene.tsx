@@ -115,23 +115,27 @@ export function LancementScene({ state }: LancementSceneProps) {
     [flightPlan],
   )
 
-  // Portée du vol figée dès qu'elle est connue (state, pas juste une ref) :
-  // remise à null quand on réarme (replay), pour qu'un nouveau vol puisse à
-  // nouveau capturer sa propre portée sans jamais changer PENDANT l'animation.
-  // Portée = MAX de TOUTE la flotte (pas juste le Roi) : un leurre moins
-  // incliné va PLUS LOIN que le Roi (portée balistique maximale vers 45°) —
-  // sans ce max, un tel leurre sortirait du cadre de la scène normalisée.
-  const [flightRangeAtLaunch, setFlightRangeAtLaunch] = useState<number | null>(null)
-  useEffect(() => {
-    if (sequence.phase === 'armed') {
-      setFlightRangeAtLaunch(null)
-    } else if (flightPlan.length > 0) {
-      const maxFleetRangeM = Math.max(...flightPlan.map((p) => p.flight.rangeM))
-      setFlightRangeAtLaunch((prev) => prev ?? maxFleetRangeM)
-    }
-  }, [sequence.phase, flightPlan])
+  // Portée du vol, dérivée SYNCHRONE du plan de vol : max de TOUTE la flotte
+  // (un leurre moins incliné va PLUS LOIN que le Roi — portée balistique
+  // maximale vers 45° — sans ce max il sortirait du cadre de la scène
+  // normalisée). `flightPlan` vient de `sequence.flight`, un state posé UNE
+  // SEULE FOIS au démarrage du vol et stable ensuite → cette valeur est donc
+  // stable pendant toute l'animation, sans avoir besoin d'un state + effet.
+  //
+  // C'ÉTAIT UNE CAUSE DES « GROS BONDS » : l'ancienne version passait par un
+  // useState rempli dans un useEffect, donc `flightRangeAtLaunch` valait encore
+  // `null` à la PREMIÈRE frame du vol, puis sautait à sa vraie valeur à la frame
+  // suivante → `sceneScale` (donc metersPerSceneUnit) CHANGEAIT en plein vol →
+  // le useMemo de la spline dans useTrajectoryPlayback se recréait avec un autre
+  // facteur d'échelle sous les pieds de l'animation → la fusée SAUTAIT. En
+  // dérivant la portée de façon synchrone, metersPerSceneUnit est déjà correct
+  // à la frame 0 et ne bouge plus.
+  const flightRangeAtLaunch = useMemo(
+    () => (flightPlan.length > 0 ? Math.max(...flightPlan.map((p) => p.flight.rangeM)) : 0),
+    [flightPlan],
+  )
   const sceneScale = useMemo(
-    () => computeSceneScale(Math.max(maxRadarDistanceM, flightRangeAtLaunch ?? 0)),
+    () => computeSceneScale(Math.max(maxRadarDistanceM, flightRangeAtLaunch)),
     [maxRadarDistanceM, flightRangeAtLaunch],
   )
 

@@ -22,9 +22,11 @@ export const CLOUD_LAYER_THICKNESS = 320
  *  l'horizon visible depuis la zone de vol, sans dépasser le fog lointain. */
 export const CLOUD_PLANE_HALF_SIZE = 9000
 
-/** Nombre de pas de raymarching : PLAFOND DUR du coût par pixel. 24 suffit
- *  pour une couche fine et douce ; ne PAS monter sans re-tester le driver. */
-export const CLOUD_RAYMARCH_STEPS = 24
+/** Nombre de pas de raymarching : PLAFOND DUR du coût par pixel. ABAISSÉ
+ *  (24 → 12, garde-fou 70 FPS) : le raymarching coûte N échantillons par pixel
+ *  du plan de nuages (très large) — 12 pas suffisent pour une couche fine et
+ *  douce et divisent ce coût par 2. Voir feedback_gpu_budget (priorité fluidité). */
+export const CLOUD_RAYMARCH_STEPS = 12
 
 /** Couverture (0-1) : seuil de densité — haut = ciel plus dégagé (quelques
  *  nuages épars), bas = couche plus continue. */

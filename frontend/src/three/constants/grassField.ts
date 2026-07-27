@@ -13,12 +13,17 @@ export const GRASS_TILE_SIZE = 80
 // Rayon de STREAMING (unités) autour de la caméra : les tuiles dont le centre
 // est à moins de cette distance sont actives. Borne le nombre de tuiles vivantes
 // à tout instant : ~ (2×radius/tileSize)² tuiles au maximum.
-export const GRASS_STREAM_RADIUS = 600
+// ABAISSÉ (600 → 320, garde-fou 70 FPS) : le nombre de tuiles vivantes croît
+// en RADIUS² — à 600 on gardait des centaines de milliers de touffes vivantes
+// (~(2·600/80)² tuiles). À 320 la charge géométrie/instances chute d'un facteur
+// ~3,5 tout en gardant de l'herbe dense sur toute la zone réellement visible
+// autour de la caméra. Voir feedback_gpu_budget (priorité fluidité).
+export const GRASS_STREAM_RADIUS = 320
 
 // Densité d'herbe (touffes par unité² de tuile) — LA MÊME PARTOUT, aucune
 // décroissance avec la distance : c'est le streaming (pas la densité) qui
 // gère le coût.
-export const GRASS_DENSITY = 0.16
+export const GRASS_DENSITY = 0.1
 // Plafond d'instances PAR TUILE (garde-fou, ne devrait jamais être atteint à
 // cette taille de tuile).
 export const GRASS_MAX_PER_TILE = 4000

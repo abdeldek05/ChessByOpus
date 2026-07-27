@@ -65,10 +65,13 @@ export function SunLight({ shadowRadius = 60, mode = 'day' }: SunLightProps) {
         color={keyColor}
         intensity={keyIntensity}
         castShadow
-        // RELEVÉ (avant 2048) : texel plus fin (2·200/4096 ≈ 0.1u), contour
-        // d'ombre plus net. FPS relâché pendant cette passe de rendu.
-        shadow-mapSize-width={4096}
-        shadow-mapSize-height={4096}
+        // ABAISSÉ (4096 → 2048) : une shadow map 4096² coûte 4× la mémoire et le
+        // fill d'une 2048², rendue à chaque re-cuit. Sur la zone RAPPROCHÉE du
+        // pad (shadowRadius restreint), 2048² garde un texel fin (~0.2u) et un
+        // contour net à l'œil, pour un quart du coût. Contribue au retour à
+        // 60 FPS stable (fin des bonds de la fusée). Voir feedback_gpu_budget.
+        shadow-mapSize-width={1024}
+        shadow-mapSize-height={1024}
         shadow-camera-left={-shadowRadius}
         shadow-camera-right={shadowRadius}
         shadow-camera-top={shadowRadius}

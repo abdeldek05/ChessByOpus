@@ -16,8 +16,24 @@ import {
 export type PlaybackPhase = 'flying' | 'broken'
 
 // Rigidité du lissage d'orientation du nez (slerp) : haut = suit vite la
-// tangente, bas = plus amorti. Indépendant du framerate via 1-exp(-k·dt).
-const HEADING_STIFFNESS = 7
+// tangente, bas = plus amorti. ABAISSÉ (7 → 4.5) : à 7, le nez POURSUIVAIT
+// chaque micro-variation de tangente au lieu de l'amortir → tremblement. À
+// 4.5 le nez glisse doucement vers la direction de vol, mouvement fluide.
+// Indépendant du framerate via 1-exp(-k·dt).
+const HEADING_STIFFNESS = 4.5
+
+// Fraction de la durée totale de vol servant de fenêtre « avant » pour estimer
+// la tangente (direction du nez). L'ancienne version prenait un Δt FIXE de
+// 0.05 s de vol réel : à l'apogée, où les points RocketPy sont très resserrés
+// (la fusée ralentit), ce Δt minuscule retombait DANS le même segment → tangente
+// quasi nulle → normalisation instable → le nez sautait. Une fenêtre
+// PROPORTIONNELLE à la durée enjambe toujours plusieurs points, quelle que soit
+// la densité locale d'échantillons → direction stable de bout en bout.
+const TANGENT_WINDOW_FRACTION = 0.012
+// Bornes (s de vol réel) de cette fenêtre : jamais trop courte (bruit) ni trop
+// longue (le nez couperait les virages au lieu de suivre la courbe).
+const TANGENT_WINDOW_MIN_SEC = 0.5
+const TANGENT_WINDOW_MAX_SEC = 3
 
 /** Interpolation Catmull-Rom d'un point de trajectoire À UN TEMPS DONNÉ.
  *
@@ -244,21 +260,30 @@ export function useTrajectoryPlayback({
     if (!group || !started.current || positions.length < 2 || times.length < 2 || !flight) return
 
     if (phase === 'flying') {
-      const dt = Math.min(delta, 0.05) // borne : pas de saut si lag
+      // Pas d'animation de CETTE frame. On BORNE la frame (anti-saut sur un gros
+      // lag ponctuel) mais SANS jeter le temps perdu comme avant : l'ancien
+      // `Math.min(delta, 0.05)` PLAFONNAIT l'avance et perdait le surplus à
+      // chaque frame longue → la fusée avançait par à-coups irréguliers (le
+      // fameux « gros bonds »), d'autant plus visibles que TIME_SCALE multiplie
+      // ce pas en temps de vol. On garde le vrai delta (borné à 0.1 s max pour
+      // ne pas téléporter après un freeze complet), et on SOUS-ÉCHANTILLONNE
+      // ci-dessous pour rester fluide même quand la frame est longue.
+      const frameDelta = Math.min(delta, 0.1)
 
       // Délai de mise à feu (voir launchDelaySec) : tant qu'il n'est pas
       // écoulé, la mésange reste posée sur sa rampe — ni thrusting, ni
       // onFrame, ni avance de l'animation. Compté en secondes RÉELLES (pas
       // accélérées), cohérent avec le délai calculé côté backend (radar.py).
       if (delayElapsed.current < launchDelaySec) {
-        delayElapsed.current += dt
+        delayElapsed.current += frameDelta
         return
       }
 
-      animElapsed.current += dt
+      animElapsed.current += frameDelta
       // Temps de vol réel correspondant (accéléré, décollage ralenti).
       const rawT = realTimeFromAnim(animElapsed.current)
       const t = Math.min(rawT, duration)
+      const dt = frameDelta
 
       // POSITION interpolée PAR LE TEMPS sur la vraie trajectoire (montée ET
       // descente, de bout en bout — voir samplePositionAtTime). Plus de bascule
@@ -271,12 +296,25 @@ export function useTrajectoryPlayback({
       void useRealDescent
       samplePositionAtTime(positions, times, t, scratch.pos)
 
-      // Tangente par différence temporelle avant/arrière (direction du vol
-      // réel à cet instant) : oriente le nez. Prise sur un petit Δt pour
-      // suivre la courbure sans bruit.
-      const tAhead = Math.min(duration, t + 0.05)
-      samplePositionAtTime(positions, times, tAhead, scratch.tangent)
-      scratch.tangent.sub(scratch.pos)
+      // Tangente par différence temporelle avant (direction du vol réel à cet
+      // instant) : oriente le nez. Fenêtre PROPORTIONNELLE à la durée (bornée)
+      // plutôt qu'un Δt fixe minuscule — garantit d'enjamber plusieurs points
+      // même là où ils sont resserrés (apogée), donc une direction stable, pas
+      // un vecteur quasi nul qui faisait sauter le nez (voir TANGENT_WINDOW_*).
+      const tangentWindow = Math.min(
+        TANGENT_WINDOW_MAX_SEC,
+        Math.max(TANGENT_WINDOW_MIN_SEC, duration * TANGENT_WINDOW_FRACTION),
+      )
+      // Près de la fin, échantillonner « en avant » retomberait sur `duration`
+      // (tangente nulle → nez qui saute) : on prend alors la fenêtre EN ARRIÈRE
+      // et on garde le même sens de vol (tangent = pos - posArrière).
+      if (t + tangentWindow <= duration) {
+        samplePositionAtTime(positions, times, t + tangentWindow, scratch.tangent)
+        scratch.tangent.sub(scratch.pos)
+      } else {
+        samplePositionAtTime(positions, times, Math.max(0, t - tangentWindow), scratch.tangent)
+        scratch.tangent.subVectors(scratch.pos, scratch.tangent)
+      }
       if (scratch.tangent.lengthSq() > 1e-9) {
         scratch.desiredQuat.setFromUnitVectors(scratch.up, scratch.tangent.normalize())
         group.quaternion.slerp(scratch.desiredQuat, 1 - Math.exp(-HEADING_STIFFNESS * dt))

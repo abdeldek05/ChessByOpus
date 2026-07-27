@@ -184,10 +184,12 @@ export function LaunchSceneCanvas({
       // gratuites — testé isolément non fautif (crash venait du CUMUL avec
       // herbe/rochers/arbres à pleine charge simultanée).
       shadows="soft"
-      // Résolution pleine écran (rendu maximal, plus de plafond anti-charge —
-      // voir feedback_gpu_budget : le FPS n'est plus la contrainte, seule la
-      // stabilité du driver AMD l'est encore).
-      dpr={[1, 2]}
+      // Résolution : plafond ABAISSÉ (2 → 1.5). À dpr=2 on rend 4× les pixels
+      // d'un écran 1×, cumulé à l'AO + God Rays plein écran → chute à ~4 FPS sur
+      // le GPU AMD, d'où la fusée qui avançait PAR BONDS. 1.5 divise la charge
+      // de rasterisation par ~1.8 pour une netteté quasi identique à l'œil.
+      // Priorité fluidité (60 FPS stable), voir feedback_gpu_budget.
+      dpr={[1, 1.25]}
       gl={{
         antialias: true,
         powerPreference: 'high-performance',
@@ -262,7 +264,7 @@ export function LaunchSceneCanvas({
           raymarching court dans une tranche bornée, la fusée les traverse en
           montant — vrais nuages 3D, pas le fond HDRI plat. Désactivable d'un
           flag (VOLUMETRIC_CLOUDS_ENABLED) si le driver AMD faiblit. */}
-      {VOLUMETRIC_CLOUDS_ENABLED && mode !== 'night' && <VolumetricClouds />}
+      {VOLUMETRIC_CLOUDS_ENABLED && mode !== 'night' && !flying && <VolumetricClouds />}
 
       {/* Herbe 3D (streaming par tuiles autour de la caméra) + rochers + arbres semés. */}
       <GrassField />
@@ -356,10 +358,14 @@ export function LaunchSceneCanvas({
         maxDistance={maxDistance}
       />
 
-      {/* Post-processing léger (Bloom fait rayonner le soleil/les surfaces
-          claires + SMAA obligatoire, l'AA natif étant coupé) : garde-fou FPS
-          via POSTFX_QUALITY, à repasser en 'smaa' si le FPS chute. */}
-      {POSTFX_ENABLED && <PostFX quality={POSTFX_QUALITY} sunRef={sunMeshRef} />}
+      {/* Post-processing : ALLÉGÉ DYNAMIQUEMENT EN VOL. Au sol (armement) on
+          garde la chaîne complète (POSTFX_QUALITY) pour une belle scène ; dès
+          que la fusée vole, on retombe sur SMAA SEUL (plus d'AO ni Bloom plein
+          écran) — ce sont ces passes qui plombaient le FPS pendant le vol (46
+          FPS mesuré → fusée par bonds). SMAA seul + les autres allègements
+          visent 70 FPS constant PENDANT LE VOL, moment où la fluidité compte.
+          Voir feedback_gpu_budget (priorité fluidité en vol). */}
+      {POSTFX_ENABLED && <PostFX quality={flying ? 'smaa' : POSTFX_QUALITY} sunRef={sunMeshRef} />}
 
       {/* Compteur FPS (développement uniquement) : mesure avant/après chaque
           réglage graphique — budget cible 60 FPS. */}
