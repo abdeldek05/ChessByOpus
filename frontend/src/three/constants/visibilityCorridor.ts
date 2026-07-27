@@ -7,8 +7,27 @@
 // le buffer et captées par le Bloom du pipeline (PostFX) → halo lumineux,
 // sans shader dédié à écrire.
 
-/** Épaisseur du corridor (pixels écran, fat line via LineMaterial). */
+/** Épaisseur du corridor du ROI (pixels écran, fat line via LineMaterial). */
 export const CORRIDOR_LINE_WIDTH = 5
+
+/** Épaisseur du corridor d'un LEURRE (Dame/Pion) : bien plus fin que le Roi —
+ *  la menace réelle reste visuellement prioritaire, et en essaim (plusieurs
+ *  pions) des traits fins évitent de saturer l'image. */
+export const CORRIDOR_DECOY_LINE_WIDTH = 1.5
+
+/** Espacement minimal (unités scène) entre points accumulés du corridor d'un
+ *  LEURRE : PLUS GRAND que le Roi → moins de sommets par corridor. En essaim
+ *  (N pions × un corridor chacun), c'est le nombre TOTAL de sommets rebuild à
+ *  chaque publication qui plombe le FPS — espacer les points le divise. */
+export const CORRIDOR_DECOY_MIN_SPACING = 2.5
+
+/** Plafond de points d'un corridor de LEURRE : bien plus bas que le Roi
+ *  (garde-fou essaim — borne dure du coût géométrie cumulé). */
+export const CORRIDOR_DECOY_MAX_POINTS = 500
+
+/** Cadence de publication (s) du corridor d'un LEURRE : plus lente que le Roi
+ *  → moins de rebuild de géométrie <Line> par seconde, ×N pions. */
+export const CORRIDOR_DECOY_PUBLISH_SEC = 0.35
 
 /** Couleurs "vu par un radar" (une par radar posé, 1er/2e). */
 export const CORRIDOR_SEEN_COLORS: readonly (readonly [number, number, number])[] = [

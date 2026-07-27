@@ -9,6 +9,10 @@ interface MesangeStaticProps {
    *  sans être noyée par la brume calée sur le rayon du terrain quand elle
    *  monte à des dizaines de km. Laisser false au sol (cohérence avec le décor). */
   noFog?: boolean
+  /** Modèle ALLÉGÉ (leurres) : coupe les ombres portées/reçues — en essaim,
+   *  N fusées qui projettent une ombre chacune plombent le FPS, et l'ombre
+   *  d'un leurre en altitude est invisible/inutile. Défaut false (Roi = ombré). */
+  lite?: boolean
 }
 
 /**
@@ -16,7 +20,7 @@ interface MesangeStaticProps {
  * `MesangeModel` qui tourne sur lui-même pour la vitrine de l'accueil). Même
  * chargement/orientation, sans rotation ni inclinaison au pointeur.
  */
-export function MesangeStatic({ noFog = false }: MesangeStaticProps) {
+export function MesangeStatic({ noFog = false, lite = false }: MesangeStaticProps) {
   const { scene } = useMesangeScene(MESANGE_MODEL_PATH)
   useMesangeMaterialQuality(scene)
 
@@ -32,6 +36,19 @@ export function MesangeStatic({ noFog = false }: MesangeStaticProps) {
       })
     })
   }, [scene, noFog])
+
+  // Modèle allégé (leurres) : coupe les ombres que useMesangeScene a activées —
+  // gros gain en essaim (une passe d'ombre par fusée sinon). Après ce hook dans
+  // l'ordre de montage, donc écrase bien le castShadow/receiveShadow posé là.
+  useEffect(() => {
+    if (!lite) return
+    scene.traverse((child) => {
+      const mesh = child as THREE.Mesh
+      if (!mesh.isMesh) return
+      mesh.castShadow = false
+      mesh.receiveShadow = false
+    })
+  }, [scene, lite])
 
   return <primitive object={scene} />
 }

@@ -69,9 +69,11 @@ export function FlyingMesange({
   onFlightFrame,
   onImpact,
 }: FlyingMesangeProps) {
-  // Prop de LOD réservée pour R3 (branchement du rendu allégé) — référencée
-  // ici pour ne pas déclencher "unused prop" tant qu'elle n'est pas exploitée.
-  void detail
+  // LOD : 'full' = Roi (panache riche) ; 'lite' = leurres — panache COUPÉ.
+  // En essaim (N pions), N panaches de ~125 particules chacun (flamme + traînée)
+  // faisaient chuter le FPS ; le panache est un détail cosmétique sur un leurre,
+  // le corridor + la piste tactique suffisent à le suivre. Voir feedback_gpu_budget.
+  const showPlume = detail === 'full'
   // La Dame REJOUE le vol du Roi tel quel (juste tourné, voir
   // buildQueenTrajectory) : même mode de lecture que le Roi (spline montée +
   // PGRV en chute, burn de 35.7s). Seul le Pion a sa PROPRE physique JS
@@ -108,8 +110,8 @@ export function FlyingMesange({
               rayon du terrain) — sans ça elle se noierait dans la brume.
               Échelle et orientation initiales gérées dans useTrajectoryPlayback
               (transition progressive, pas de saut). */}
-          <MesangeStatic noFog />
-          <ExhaustPlume thrustingRef={thrusting} />
+          <MesangeStatic noFog lite={detail === 'lite'} />
+          {showPlume && <ExhaustPlume thrustingRef={thrusting} />}
         </group>
       )}
       {phase === 'broken' && (

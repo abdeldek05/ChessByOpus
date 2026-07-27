@@ -23,6 +23,12 @@ import { FlyingMesange } from '@/three/models/FlyingMesange'
 import { SceneReadySignal } from '@/three/models/SceneReadySignal'
 import { RocketInfoHologram } from '@/three/models/RocketInfoHologram'
 import { VisibilityCorridor } from '@/three/models/VisibilityCorridor'
+import {
+  CORRIDOR_DECOY_LINE_WIDTH,
+  CORRIDOR_DECOY_MIN_SPACING,
+  CORRIDOR_DECOY_MAX_POINTS,
+  CORRIDOR_DECOY_PUBLISH_SEC,
+} from '@/three/constants/visibilityCorridor'
 import { SceneRadar } from '@/three/models/SceneRadar'
 import { EnvironmentSky } from './EnvironmentSky'
 import { SunMesh } from './SunMesh'
@@ -129,6 +135,20 @@ export function LaunchSceneCanvas({
   // corridor de visibilité (voir VisibilityCorridor), toujours une instance
   // valide (jamais null) pour une lecture sans garde côté hook.
   const corridorPosRef = useRef(new THREE.Vector3())
+  // Position LOCALE live de CHAQUE leurre (Dame/Pion), par id — alimente son
+  // propre corridor de visibilité (plus fin que celui du Roi). Map STABLE
+  // (une seule instance sur la vie du composant) : on récupère/crée la ref du
+  // leurre à la volée dans son onFlightFrame, sans re-render.
+  const decoyPosRefs = useRef(new Map<string, React.RefObject<THREE.Vector3>>())
+  const getDecoyPosRef = (id: string): React.RefObject<THREE.Vector3> => {
+    const map = decoyPosRefs.current
+    let ref = map.get(id)
+    if (!ref) {
+      ref = { current: new THREE.Vector3() }
+      map.set(id, ref)
+    }
+    return ref
+  }
   // Mesh du soleil (voir SunMesh) : source de l'effet God Rays (PostFX).
   const sunMeshRef = useRef<THREE.Mesh>(null)
   // Distance scène du radar le plus éloigné : cadre la caméra et sa portée de zoom.
@@ -322,16 +342,18 @@ export function LaunchSceneCanvas({
                       corridorPosRef.current.copy(p)
                       if (flightProgressRef) flightProgressRef.current = progress
                     }
-                  : undefined
+                  : // Leurres : on n'écrit QUE leur position live (pour leur
+                    // corridor) — ni caméra, ni progression globale, ni impact
+                    // (réservés au Roi, voir plus haut).
+                    (p) => getDecoyPosRef(plan.config.id).current.copy(p)
               }
               onImpact={plan.isKing ? onImpact : undefined}
             />
           ))}
-          {/* Corridor de visibilité : la fusée réellement rendue, suivie EN
-              DIRECT (voir VisibilityCorridor/useVisibilityCorridorTrail) —
-              jamais démonté, pour ne jamais perdre le corridor accumulé entre
-              deux re-renders ; il reste vide/masqué tant qu'aucun vol n'a
-              commencé. */}
+          {/* Corridor de visibilité du ROI : la fusée réellement rendue, suivie
+              EN DIRECT (voir VisibilityCorridor) — jamais démonté, pour ne
+              jamais perdre le corridor accumulé entre deux re-renders ; il
+              reste vide/masqué tant qu'aucun vol n'a commencé. */}
           <VisibilityCorridor
             site={site}
             radars={placedRadars}
@@ -341,6 +363,29 @@ export function LaunchSceneCanvas({
             metersPerSceneUnit={metersPerSceneUnit}
             positionRef={corridorPosRef}
           />
+          {/* Corridor de visibilité de CHAQUE leurre (Dame/Pion), PLUS FIN que
+              le Roi : même logique (vu/aveugle le long du vol réel), mappée sur
+              la trajectoire propre du leurre via son origine de rampe et sa
+              position live dédiée. La menace réelle (Roi) reste visuellement
+              prioritaire grâce au trait plus épais. */}
+          {flightPlan.map((plan, index) =>
+            plan.isKing ? null : (
+              <VisibilityCorridor
+                key={`corridor-${plan.config.id}`}
+                site={site}
+                radars={placedRadars}
+                active={flying}
+                armed={launchEnabled}
+                origin={fleetOrigins[index].position}
+                metersPerSceneUnit={metersPerSceneUnit}
+                positionRef={getDecoyPosRef(plan.config.id)}
+                lineWidth={CORRIDOR_DECOY_LINE_WIDTH}
+                minPointSpacing={CORRIDOR_DECOY_MIN_SPACING}
+                maxPoints={CORRIDOR_DECOY_MAX_POINTS}
+                publishIntervalSec={CORRIDOR_DECOY_PUBLISH_SEC}
+              />
+            ),
+          )}
         </group>
 
         {radars.map((radar) => (

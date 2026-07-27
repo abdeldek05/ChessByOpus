@@ -17,6 +17,14 @@ interface VisibilityCorridorProps {
   metersPerSceneUnit: number
   /** Position LOCALE live de la fusée, alimentée par FlyingMesange.onFlightFrame. */
   positionRef: React.RefObject<THREE.Vector3>
+  /** Épaisseur du trait (défaut = Roi). Les leurres passent une valeur plus fine. */
+  lineWidth?: number
+  /** Espacement min des points (défaut Roi) — leurres : plus grand (moins de sommets). */
+  minPointSpacing?: number
+  /** Plafond de points (défaut Roi) — leurres : plus bas (garde-fou essaim). */
+  maxPoints?: number
+  /** Cadence de publication en s (défaut Roi) — leurres : plus lente. */
+  publishIntervalSec?: number
 }
 
 /**
@@ -25,11 +33,11 @@ interface VisibilityCorridorProps {
  * via drei `<Line>` (fat line fiable) ; toute la logique (accumulation live,
  * classification) vit dans useCorridorPoints.
  */
-export function VisibilityCorridor(props: VisibilityCorridorProps) {
+export function VisibilityCorridor({ lineWidth = CORRIDOR_LINE_WIDTH, ...props }: VisibilityCorridorProps) {
   const { points, colors } = useCorridorPoints(props)
 
   // drei <Line> exige au moins 2 points pour une géométrie valide.
   if (points.length < 2) return null
 
-  return <Line points={points} vertexColors={colors} lineWidth={CORRIDOR_LINE_WIDTH} toneMapped={false} />
+  return <Line points={points} vertexColors={colors} lineWidth={lineWidth} toneMapped={false} />
 }

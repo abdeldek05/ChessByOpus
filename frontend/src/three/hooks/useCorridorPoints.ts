@@ -21,6 +21,12 @@ interface UseCorridorPointsParams {
   /** Position LOCALE live de la fusée (repère du groupe pad), écrite chaque
    *  frame par FlyingMesange.onFlightFrame — la source de vérité du rendu. */
   positionRef: React.RefObject<THREE.Vector3>
+  /** Espacement min entre points (défaut Roi). Les leurres passent plus grand. */
+  minPointSpacing?: number
+  /** Plafond de points (défaut Roi). Les leurres passent plus bas. */
+  maxPoints?: number
+  /** Cadence de publication en s (défaut Roi). Les leurres passent plus lent. */
+  publishIntervalSec?: number
 }
 
 interface CorridorPoints {
@@ -62,6 +68,9 @@ export function useCorridorPoints({
   origin,
   metersPerSceneUnit,
   positionRef,
+  minPointSpacing = MIN_POINT_SPACING,
+  maxPoints = MAX_POINTS,
+  publishIntervalSec = PUBLISH_INTERVAL_SEC,
 }: UseCorridorPointsParams): CorridorPoints {
   const [data, setData] = useState<CorridorPoints>(EMPTY)
   // Buffers bruts, remplis à chaque frame utile SANS déclencher de re-render.
@@ -120,7 +129,7 @@ export function useCorridorPoints({
     if (!active) return
 
     const p = positionRef.current
-    if (!(lastPoint.current && lastPoint.current.distanceToSquared(p) < MIN_POINT_SPACING * MIN_POINT_SPACING)) {
+    if (!(lastPoint.current && lastPoint.current.distanceToSquared(p) < minPointSpacing * minPointSpacing)) {
       // Position réelle en mètres ENU (inverse de toScene) → classification radar.
       const eastM = (p.x - origin.x) * metersPerSceneUnit
       const northM = (origin.z - p.z) * metersPerSceneUnit
@@ -136,7 +145,7 @@ export function useCorridorPoints({
       }
 
       lastPoint.current = (lastPoint.current ?? new THREE.Vector3()).copy(p)
-      if (bufferedPoints.current.length < MAX_POINTS) {
+      if (bufferedPoints.current.length < maxPoints) {
         bufferedPoints.current.push(p.clone())
         bufferedColors.current.push(new THREE.Color(rgb[0], rgb[1], rgb[2]))
       }
@@ -146,7 +155,7 @@ export function useCorridorPoints({
     // pas à chaque point — supprime le coût croissant avec la longueur du
     // corridor qui causait une vibration s'aggravant au fil du vol.
     timeSincePublish.current += delta
-    if (timeSincePublish.current >= PUBLISH_INTERVAL_SEC) {
+    if (timeSincePublish.current >= publishIntervalSec) {
       timeSincePublish.current = 0
       publish()
     }
