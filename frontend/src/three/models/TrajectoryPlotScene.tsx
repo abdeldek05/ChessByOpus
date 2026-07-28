@@ -9,13 +9,14 @@ import { computeNiceTicks } from '@/lib/coverage/computeNiceTicks'
 import {
   PLOT_HALF_W,
   PLOT_HEIGHT,
-  PLOT_TRACE_WIDTH,
-  PLOT_SEEN_WIDTH,
   PLOT_CYAN,
   PLOT_RED,
   PLOT_AMBER,
   PLOT_GRID_SECTION,
+  PLOT_DECOY_COLOR,
 } from '@/three/constants/trajectoryPlot'
+import { useProfileCurveStyle } from '@/three/hooks/useProfileCurveStyle'
+import type { ProfileSelection } from '@/types/coverageProfile.types'
 import type { DecoyTrack } from '@/lib/launchTacticalMap'
 import type { FlightData } from '@/lib/api'
 import type { CoverageCut } from '@/hooks/useCoverageCut'
@@ -41,6 +42,10 @@ interface TrajectoryPlotSceneProps {
   /** Index de trajectoire courant (live, -1 hors vol) : la trace n'est RÉVÉLÉE
    *  que jusque-là (tracé au fur et à mesure). Vol fini → tout affiché. */
   liveIndex: number
+  /** Courbe sélectionnée (clic) : illuminée, les autres estompées. */
+  selection: ProfileSelection
+  /** Clic sur une courbe — `null` quand on clique dans le vide (désélection). */
+  onSelect: (selection: ProfileSelection) => void
 }
 
 /** Couleur du texte des labels (off-white, jamais #fff pur — voir skill). */
@@ -51,6 +56,7 @@ const LABEL_STROKE = '#03070d'
 // string (pas un tuple [r,g,b] comme meshBasicMaterial). Instanciées une fois.
 const CYAN = new THREE.Color(...PLOT_CYAN)
 const RED = new THREE.Color(...PLOT_RED)
+const DECOY_COLOR = new THREE.Color(PLOT_DECOY_COLOR)
 
 /** Étiquette km compacte (distance sol / altitude). */
 function posLabel(sM: number, altM: number): string {
@@ -77,9 +83,12 @@ export function TrajectoryPlotScene({
   radars,
   flightProgressRef,
   liveIndex,
+  selection,
+  onSelect,
 }: TrajectoryPlotSceneProps) {
   const { points, scaleH, scaleV, toPlot, extentM, altExtentM } = useTrajectoryPlotGeometry(flight, site, radars)
   const headRef = useRef<THREE.Group>(null)
+  const styleFor = useProfileCurveStyle(selection)
 
   // Trajectoires des LEURRES projetées dans le même repère (contexte). Chaque
   // leurre a sa propre trajectoire (Dame/pion) — même toPlot que le Roi, donc
@@ -227,13 +236,35 @@ export function TrajectoryPlotScene({
         }
         const seg = d.pts.slice(0, count)
         if (seg.length < 2) return null
-        return <CatmullRomLine key={d.id} points={seg} curveType="catmullrom" color="#5a6b7a" lineWidth={1} transparent opacity={0.5} />
+        return (
+          <CatmullRomLine
+            key={d.id}
+            points={seg}
+            curveType="catmullrom"
+            color={DECOY_COLOR}
+            onClick={(event) => {
+              event.stopPropagation()
+              onSelect({ kind: 'decoy', decoyId: d.id })
+            }}
+            {...styleFor({ kind: 'decoy', decoyId: d.id }, 0.5)}
+          />
+        )
       })}
 
       {/* Trajectoire du ROI = COURBE lisse (Catmull-Rom, pas une polyligne à
           segments) CYAN neutre, révélée au fil du vol. */}
       {revealedPoints.length >= 2 && (
-        <CatmullRomLine points={revealedPoints} curveType="catmullrom" color={CYAN} lineWidth={PLOT_TRACE_WIDTH} toneMapped={false} />
+        <CatmullRomLine
+          points={revealedPoints}
+          curveType="catmullrom"
+          color={CYAN}
+          toneMapped={false}
+          onClick={(event) => {
+            event.stopPropagation()
+            onSelect({ kind: 'king' })
+          }}
+          {...styleFor({ kind: 'king' })}
+        />
       )}
 
       {/* Portions VUES par un radar = ROUGE (alarme, la seule chose rouge) +
@@ -246,7 +277,19 @@ export function TrajectoryPlotScene({
           const outReached = w.iOut < revealed
           return (
             <group key={`${rc.id}-${w.iIn}`}>
-              {seg.length >= 2 && <CatmullRomLine points={seg} curveType="catmullrom" color={RED} lineWidth={PLOT_SEEN_WIDTH} toneMapped={false} />}
+              {seg.length >= 2 && (
+                <CatmullRomLine
+                  points={seg}
+                  curveType="catmullrom"
+                  color={RED}
+                  toneMapped={false}
+                  onClick={(event) => {
+                    event.stopPropagation()
+                    onSelect({ kind: 'radar', radarId: rc.id })
+                  }}
+                  {...styleFor({ kind: 'radar', radarId: rc.id })}
+                />
+              )}
               <mesh position={points[w.iIn]}>
                 <sphereGeometry args={[MARK * 1.6, 14, 14]} />
                 <meshBasicMaterial color={PLOT_RED} toneMapped={false} />

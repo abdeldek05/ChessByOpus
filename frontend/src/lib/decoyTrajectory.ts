@@ -96,10 +96,13 @@ const PAWN_APOGEE_RATIO = 1 / 3
  * jamais l'angle de sortie réel — un Pion n'a pas de rampe de tir crédible à
  * simuler, juste une belle trajectoire fake.
  *
- * Le backend continue de le détecter via le vol du Roi tourné (voir
- * radar.py compute_detection) : décalage visuel/détection assumé pour un
- * leurre de saturation, la Dame seule (buildQueenTrajectory) doit matcher
- * exactement.
+ * Le backend détecte le Pion sur CETTE MÊME cloche : la formule et ses
+ * constantes sont portées à l'identique dans backend/pawn_track.py, appelé par
+ * radar.compute_detection. Toute modification ici DOIT y être répercutée, sinon
+ * le bilan de mission redevient incohérent avec le visuel 3D (le backend
+ * détectait auparavant le Pion sur le vol du Roi tourné — donc bien plus haut
+ * et bien plus longtemps que la cloche affichée, ce qui rendait tout Pion
+ * détecté dès lors que le Roi l'était).
  *
  * Fonction pure et déterministe : mêmes paramètres → même trajectoire.
  */

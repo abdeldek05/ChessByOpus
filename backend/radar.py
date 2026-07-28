@@ -16,6 +16,11 @@ RocketPy échantillon par échantillon et on vérifie les conditions physiques :
   6. Balayage : radar ROTATIF → l'accroche attend le passage du faisceau sur
      l'azimut de la cible (analytique, selon la vitesse en tr/min).
 
+Chaque menace est rejouée sur SA trajectoire, celle qui est aussi affichée en
+3D : le Roi et la Dame sur le vol RocketPy (la Dame simplement tourné vers son
+cap, doctrine du leurre premium), le Pion sur sa cloche parabolique propre (voir
+pawn_track.py). Le bilan reste ainsi cohérent avec ce que l'écran montre.
+
 Les LEURRES détectés avant le Roi coûtent du temps de classification à
 l'opérateur (Dame 8 s, Pion 3 s) : le préavis effectif du Roi en est réduit.
 Le verdict final vient du MEILLEUR radar ; en cas d'échec, la cause dominante
@@ -25,6 +30,8 @@ est expliquée en clair (horizon, portée, plafond, cône).
 from __future__ import annotations
 
 import math
+
+from pawn_track import build_pawn_track
 
 EARTH_R = 6371000.0
 
@@ -183,6 +190,11 @@ def compute_detection(
     king_az = float(king.get("azimuthDeg", 0.0))
     king_delay = float(king.get("launchDelaySec", 0.0))
     king_impact = flight_time + king_delay
+    # Échelle des cloches de Pion : dérivées de la portée RÉELLE du Roi (voir
+    # pawn_track.PAWN_RANGE_FACTOR), comme côté front. L'inclinaison du Pion
+    # n'est qu'un facteur de proportion de sa cloche ; à défaut, celle du Roi.
+    king_range_m = float(flight.get("rangeM", 0.0))
+    king_inclination = float(king.get("inclinationDeg", 45.0))
 
     radar_offsets = [
         _enu_offset(site_latitude, site_longitude, float(r["latitude"]), float(r["longitude"]))
@@ -196,8 +208,23 @@ def compute_detection(
         delay = float(threat.get("launchDelaySec", 0.0))
         delta_az = float(threat.get("azimuthDeg", 0.0)) - king_az
 
-        # Leurres : même profil de vol que le Roi, tourné vers LEUR azimut.
-        if abs(delta_az) < 1e-9:
+        # PION : sa PROPRE cloche parabolique — EXACTEMENT celle affichée en 3D
+        # (port de decoyTrajectory.ts, voir pawn_track.py). Le détecter sur le vol
+        # du Roi tourné donnait un bilan incohérent avec le visuel : le Pion
+        # héritait des 204 s de vol et 36 km d'apogée du Roi (et de sa SER nue,
+        # voir RCS_ROLE_MULTIPLIER), donc tout radar voyant le Roi voyait
+        # fatalement tous les Pions — un 3/3 systématique, quel que soit le
+        # scénario, alors que l'écran montrait des cloches courtes et basses.
+        # DAME : reste le vol du Roi tourné, ce qu'elle EST par doctrine (leurre
+        # premium, même profil, SER amplifiée) — et ce que le front affiche aussi.
+        if role == "PAWN":
+            pawn_inclination = threat.get("inclinationDeg")
+            threat_track = build_pawn_track(
+                azimuth_deg=float(threat.get("azimuthDeg", 0.0)),
+                inclination_deg=float(pawn_inclination if pawn_inclination is not None else king_inclination),
+                king_range_m=king_range_m,
+            )
+        elif abs(delta_az) < 1e-9:
             threat_track = track
         else:
             threat_track = [

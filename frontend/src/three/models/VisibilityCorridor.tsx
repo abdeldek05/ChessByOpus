@@ -17,6 +17,10 @@ interface VisibilityCorridorProps {
   metersPerSceneUnit: number
   /** Position LOCALE live de la fusée, alimentée par FlyingMesange.onFlightFrame. */
   positionRef: React.RefObject<THREE.Vector3>
+  /** Compteur d'écritures de `positionRef`, incrémenté à chaque onFlightFrame :
+   *  garantit qu'on n'accumule jamais une position héritée du vol précédent
+   *  (voir useCorridorPoints). */
+  writeCountRef: React.RefObject<number>
   /** Épaisseur du trait (défaut = Roi). Les leurres passent une valeur plus fine. */
   lineWidth?: number
   /** Espacement min des points (défaut Roi) — leurres : plus grand (moins de sommets). */

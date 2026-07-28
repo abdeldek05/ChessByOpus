@@ -4,7 +4,6 @@ import * as THREE from 'three'
 import { createHazeNoiseTexture } from '@/lib/createHazeNoiseTexture'
 import { getSunDirection, FOG_COLOR } from '@/three/constants/launchDaylight'
 import {
-  CLOUD_LAYER_THICKNESS,
   CLOUD_RAYMARCH_STEPS,
   CLOUD_COVERAGE,
   CLOUD_DENSITY,
@@ -92,7 +91,13 @@ const FRAGMENT_SHADER = `
  * FOG_COLOR + réchauffe golden hour vers le soleil, cohérent avec le reste de
  * l'atmosphère. Zéro allocation par frame (uniforms mutés en place).
  */
-export function useVolumetricCloudMaterial(): THREE.ShaderMaterial {
+/**
+ * @param thicknessUnits Épaisseur de la couche EN UNITÉS DE SCÈNE, convertie par
+ *   l'appelant depuis CLOUD_LAYER_THICKNESS_M (l'épaisseur est définie en mètres
+ *   réels, voir volumetricClouds.ts). Le raymarching ne parcourt que cette
+ *   tranche : c'est la borne dure du coût GPU par pixel.
+ */
+export function useVolumetricCloudMaterial(thicknessUnits: number): THREE.ShaderMaterial {
   const noise = useMemo(() => createHazeNoiseTexture(), [])
   const sunDir = useMemo(() => getSunDirection(), [])
 
@@ -106,7 +111,11 @@ export function useVolumetricCloudMaterial(): THREE.ShaderMaterial {
         uSunDir: { value: new THREE.Vector3(...sunDir) },
         uCloudColor: { value: new THREE.Color('#f2ede4') },
         uSunTint: { value: new THREE.Color(FOG_COLOR) },
-        uThickness: { value: CLOUD_LAYER_THICKNESS },
+        // Valeur de départ neutre : la vraie épaisseur (dépendante de l'échelle
+        // du scénario) est posée par le useEffect ci-dessous, qui la resynchronise
+        // aussi à chaque changement. La garder hors du useMemo évite de recréer
+        // tout le matériau — donc de recompiler le shader — à chaque scénario.
+        uThickness: { value: 1 },
         uCoverage: { value: CLOUD_COVERAGE },
         uDensity: { value: CLOUD_DENSITY },
         uDrift: { value: 0 },
@@ -118,6 +127,14 @@ export function useVolumetricCloudMaterial(): THREE.ShaderMaterial {
       fog: false,
     })
   }, [noise, sunDir])
+
+  // L'épaisseur en unités dépend de l'échelle du scénario : elle change donc
+  // d'un vol à l'autre, alors que le matériau (useMemo) n'est créé qu'une fois.
+  // Sans cette resynchro, un changement de scénario garderait l'épaisseur du
+  // précédent — couche trop fine ou trop épaisse selon le radar posé.
+  useEffect(() => {
+    material.uniforms.uThickness.value = thicknessUnits
+  }, [material, thicknessUnits])
 
   useFrame(({ camera }, delta) => {
     material.uniforms.uCameraPos.value.copy(camera.position)

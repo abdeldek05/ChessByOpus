@@ -10,13 +10,18 @@
  *  écran noir). Un seul interrupteur, sans toucher au reste de la scène. */
 export const VOLUMETRIC_CLOUDS_ENABLED = true
 
-/** Altitude de la couche (unités scène) — au niveau où le Roi/les leurres
- *  passent en montée, pour qu'ils la traversent visiblement. */
-export const CLOUD_LAYER_ALTITUDE = 900
+/** Altitude RÉELLE de la couche (m) — celle de vrais cumulus. Exprimée en
+ *  mètres et non en unités de scène : une altitude fixée en unités DÉRIVE avec
+ *  l'échelle du scénario (mesuré : 900 unités valaient 13.5 km avec un radar
+ *  proche, 21.9 km sur un scénario type et 42.2 km avec un radar à 150 km — soit
+ *  la stratosphère). En mètres, la couche est TOUJOURS à 2 km, donc la fusée la
+ *  traverse toujours au même moment de sa montée (~9 % de l'ascension) et les
+ *  nuages deviennent un jalon d'altitude crédible au lieu d'un décor flottant. */
+export const CLOUD_LAYER_ALTITUDE_M = 2000
 
-/** Épaisseur de la couche (unités scène) : le raymarching ne parcourt QUE
- *  cette tranche — borne dure du coût GPU. Fine = peu de steps suffisent. */
-export const CLOUD_LAYER_THICKNESS = 320
+/** Épaisseur RÉELLE de la couche (m) : le raymarching ne parcourt QUE cette
+ *  tranche — borne dure du coût GPU. Fine = peu de steps suffisent. */
+export const CLOUD_LAYER_THICKNESS_M = 900
 
 /** Demi-côté du plan de nuages (unités scène) : assez large pour couvrir
  *  l'horizon visible depuis la zone de vol, sans dépasser le fog lointain. */

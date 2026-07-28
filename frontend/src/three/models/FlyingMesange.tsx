@@ -4,6 +4,7 @@ import { MesangeStatic } from './MesangeStatic'
 import { MesangeDebris } from './MesangeDebris'
 import { ImpactBurst } from './ImpactBurst'
 import { ExhaustPlume } from './ExhaustPlume'
+import { KingAltitudeTag } from './KingAltitudeTag'
 import { useTrajectoryPlayback } from '@/three/hooks/useTrajectoryPlayback'
 import { PAWN_BURN_TIME_SEC } from '@/lib/decoyTrajectory'
 import type { FlightData } from '@/lib/api'
@@ -47,6 +48,9 @@ interface FlyingMesangeProps {
   onFlightFrame?: (position: THREE.Vector3, progress: number) => void
   /** Impact réel (fin de la chute sur le relief 3D) — voir useTrajectoryPlayback. */
   onImpact?: () => void
+  /** Étiquette d'altitude live collée à la fusée (voir KingAltitudeTag) :
+   *  fournie uniquement pour le ROI en caméra de suivi. Omise = pas d'étiquette. */
+  altitudeTag?: { progressRef: React.RefObject<number>; altitudesM: number[] }
 }
 
 /**
@@ -68,6 +72,7 @@ export function FlyingMesange({
   launchDelaySec = 0,
   onFlightFrame,
   onImpact,
+  altitudeTag,
 }: FlyingMesangeProps) {
   // LOD : 'full' = Roi (panache riche) ; 'lite' = leurres — panache COUPÉ.
   // En essaim (N pions), N panaches de ~125 particules chacun (flamme + traînée)
@@ -112,6 +117,14 @@ export function FlyingMesange({
               (transition progressive, pas de saut). */}
           <MesangeStatic noFog lite={detail === 'lite'} />
           {showPlume && <ExhaustPlume thrustingRef={thrusting} />}
+          {/* Altitude live à côté du Roi : monté DANS ce groupe, donc il suit la
+              fusée à l'écran sans projection à recalculer. */}
+          {altitudeTag && (
+            <KingAltitudeTag
+              progressRef={altitudeTag.progressRef}
+              altitudesM={altitudeTag.altitudesM}
+            />
+          )}
         </group>
       )}
       {phase === 'broken' && (

@@ -1,8 +1,12 @@
+import { useState } from 'react'
 import { TrajectoryPlot3D } from './TrajectoryPlot3D'
 import { CoverageWindowsSummary } from './CoverageWindowsSummary'
 import { CoverageLiveBar } from './CoverageLiveBar'
+import { CoverageProfileLegend } from './CoverageProfileLegend'
 import { useCoverageCut } from '@/hooks/useCoverageCut'
 import { useCoverageProfileLive } from '@/hooks/useCoverageProfileLive'
+import { useProfileLegendItems } from '@/hooks/useProfileLegendItems'
+import type { ProfileSelection } from '@/types/coverageProfile.types'
 import type { DecoyTrack } from '@/lib/launchTacticalMap'
 import type { FlightData } from '@/lib/api'
 import type { LaunchSite } from '@/types/simulation.types'
@@ -47,6 +51,10 @@ export function CoverageProfilePanel({
 }: CoverageProfilePanelProps) {
   const cut = useCoverageCut({ flight, site, radars, azimuthDeg })
   const live = useCoverageProfileLive(cut, flightProgressRef)
+  // Courbe mise en avant : pilotée indifféremment par un clic sur le graphe 3D
+  // ou sur la légende — un seul état pour les deux, donc jamais de désaccord.
+  const [selection, setSelection] = useState<ProfileSelection>(null)
+  const legendItems = useProfileLegendItems(cut.radarCuts, decoyTracks)
 
   return (
     <aside
@@ -85,9 +93,15 @@ export function CoverageProfilePanel({
             radars={radars}
             flightProgressRef={flightProgressRef}
             liveIndex={live.index}
+            selection={selection}
+            onSelect={setSelection}
           />
         )}
       </div>
+
+      {/* Légende ET sélecteur : cliquer une entrée illumine sa courbe dans le
+          graphe, et cliquer une courbe met son entrée en avant ici. */}
+      <CoverageProfileLegend items={legendItems} selection={selection} onSelect={setSelection} />
 
       {/* Récap par radar (se remplit au fil du vol via liveIndex). */}
       <CoverageWindowsSummary radarCuts={cut.radarCuts} liveIndex={live.index} />

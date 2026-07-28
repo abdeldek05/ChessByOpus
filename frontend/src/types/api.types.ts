@@ -33,6 +33,10 @@ export interface ThreatSpec {
   role: string
   azimuthDeg: number
   launchDelaySec: number
+  /** Angle de tir réglé (deg). Pour un PION, pilote la proportion de sa cloche
+   *  parabolique — que le backend rejoue à l'identique pour la détection (voir
+   *  backend/pawn_track.py). */
+  inclinationDeg: number
 }
 
 export interface SimulateRequest {

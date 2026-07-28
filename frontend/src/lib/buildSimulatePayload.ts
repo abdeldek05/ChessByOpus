@@ -26,6 +26,7 @@ function buildThreatSpecs(mesangeConfigs: MesangeLaunchConfig[]): ThreatSpec[] {
     role: m.role,
     azimuthDeg: m.azimuthDeg,
     launchDelaySec: m.launchDelaySec,
+    inclinationDeg: m.inclinationDeg,
   }))
 }
 

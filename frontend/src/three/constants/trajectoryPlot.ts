@@ -17,11 +17,34 @@ export const PLOT_SIZE = 10
 export const PLOT_HALF_W = 60
 export const PLOT_HEIGHT = 40
 
-/** Épaisseur (px écran) des courbes. Volontairement FINES : un instrument se
- *  lit avec des traits nets et légers, pas des gros tubes. Le glow (Bloom) leur
- *  donne déjà de la présence — inutile de les épaissir. */
-export const PLOT_TRACE_WIDTH = 1.4
-export const PLOT_SEEN_WIDTH = 2.2
+/** Épaisseur (px écran) des courbes AU REPOS. Volontairement TRÈS FINES : un
+ *  instrument se lit avec des traits nets et légers, pas des gros tubes. Le glow
+ *  (Bloom) leur donne déjà de la présence — inutile de les épaissir. AFFINÉES
+ *  (1.4/2.2 → 0.9/1.3) : les traits portaient l'emphase en permanence, donc plus
+ *  rien ne ressortait. L'emphase est désormais un ÉTAT (voir *_ACTIVE_WIDTH),
+ *  déclenché au clic sur une courbe. */
+export const PLOT_TRACE_WIDTH = 0.9
+export const PLOT_SEEN_WIDTH = 1.3
+
+/** Épaisseur (px écran) d'une courbe SÉLECTIONNÉE (clic). L'écart avec la
+ *  largeur au repos doit être franc — c'est le signal qui dit « celle-ci » dans
+ *  un faisceau de courbes fines. */
+export const PLOT_TRACE_ACTIVE_WIDTH = 2.6
+export const PLOT_SEEN_ACTIVE_WIDTH = 3.2
+
+/** Opacité d'une courbe NON sélectionnée quand une autre l'est : le reste du
+ *  graphe s'estompe sans disparaître (on garde le contexte de lecture). */
+export const PLOT_DIMMED_OPACITY = 0.22
+
+/** Épaisseur (px écran) des traces de LEURRE au repos et sélectionnée. */
+export const PLOT_DECOY_WIDTH = 0.7
+export const PLOT_DECOY_ACTIVE_WIDTH = 2.2
+
+/** Tolérance de visée au clic sur une courbe (PIXELS écran) : `LineSegments2`
+ *  possède son propre raycast, réglé par `raycaster.params.Line2.threshold`,
+ *  dont le défaut est 0 — il faudrait viser le trait au pixel exact, or il ne
+ *  fait que 0.9 px. Cette marge rend les courbes cliquables sans les épaissir. */
+export const PLOT_PICK_THRESHOLD_PX = 8
 
 // --- Palette HDR (>1) — glow via Bloom. Format [r,g,b] pour meshBasicMaterial. ---
 /** Cyan froid : trace/trajectoire NEUTRE (non encore détectée), axes, radar. */
@@ -30,6 +53,12 @@ export const PLOT_CYAN: [number, number, number] = [0.1, 3.4, 4.6]
 export const PLOT_RED: [number, number, number] = [4.6, 0.4, 0.5]
 /** Ambre : valeurs à surveiller, marqueur d'apogée, échos (fatigue moins l'œil). */
 export const PLOT_AMBER: [number, number, number] = [4.4, 2.2, 0.5]
+
+/** Gris bleuté SDR (pas de glow) des traces de LEURRE : contexte, jamais
+ *  prioritaire sur la menace réelle. Volontairement sous 1.0 sur tous les canaux
+ *  — le Bloom ne doit pas l'attraper, sinon un essaim de pions brillerait autant
+ *  que le Roi. */
+export const PLOT_DECOY_COLOR = '#5a6b7a'
 
 // --- Couleurs CSS (grille, fog, sol) — teintées, jamais noir/blanc purs. ---
 /** Fond de la scène = anthracite bleu nuit (JAMAIS #000). */

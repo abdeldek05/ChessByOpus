@@ -1,7 +1,8 @@
 // Paramètres du rejeu visuel de la trajectoire RocketPy. La physique (détection)
-// garde les mètres et secondes réels ; la scène partage désormais la MÊME
-// échelle réelle (METERS_PER_SCENE_UNIT, voir sceneLayout.ts) — plus de
-// normalisation par vol ici, seul le TEMPS reste accéléré pour le confort.
+// garde les mètres et secondes réels ; la scène, elle, est NORMALISÉE PAR
+// SCÉNARIO — l'échelle vient de `computeSceneScale` (voir lib/sceneScale.ts) et
+// circule sous le nom `metersPerSceneUnit`. Seul le TEMPS est accéléré ici, pour
+// le confort de visionnage.
 
 /**
  * Le vrai vol dure 100-200 s : trop long. On le rejoue en ACCÉLÉRÉ mais en
@@ -28,8 +29,23 @@ export const LIFTOFF_REAL_SEC = 4
 export const LIFTOFF_TIME_SCALE = 2.5
 
 /**
- * Agrandissement de la fusée en vol : à l'échelle normalisée elle deviendrait un
- * point. On la grossit pour rester bien visible sans casser l'échelle au sol.
+ * Agrandissement de la fusée en vol, appliqué à la taille BRUTE du modèle
+ * (~5.62 unités) — pas à l'échelle de la trajectoire.
+ *
+ * EXAGÉRATION DE LISIBILITÉ ASSUMÉE, mesurée : à l'échelle exacte de sa
+ * trajectoire, une Mesange de 4.5 m ferait 1 à 8 PIXELS sur un écran 1080p selon
+ * le scénario — invisible. La fusée rendue est donc 45 à 140× trop grosse par
+ * rapport à sa trajectoire, et ce facteur VARIE avec le scénario (il dépend de
+ * `metersPerSceneUnit`).
+ *
+ * Ce n'est pas corrigeable en normalisant la fusée : tout le pas de tir (mât
+ * 6.3 u, dalle 13×10 u, blocs béton — voir launcherRig.ts) est calibré à la main
+ * sur ces 5.62 unités. Normaliser la fusée seule la réduirait à ~3 % de la
+ * hauteur du mât ; normaliser le rig entier rendrait le décor invisible. C'est
+ * pourquoi l'altitude est lue sur un CHIFFRE (voir KingAltitudeTag) et non
+ * estimée à l'œil en comparant à la fusée — cette dernière ne peut pas servir
+ * de référence d'échelle.
+ *
  * RÉDUIT (3.2 → 2.4) : à 3.2 la King écrasait la scène / paraissait démesurée
  * (demande « la réduire graphiquement ») — 2.4 reste bien lisible en vol sans
  * dominer le décor.

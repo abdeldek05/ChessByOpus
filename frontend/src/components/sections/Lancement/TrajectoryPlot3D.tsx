@@ -14,7 +14,9 @@ import {
   PLOT_FOG_DENSITY,
   PLOT_GRID_CELL,
   PLOT_GRID_SECTION,
+  PLOT_PICK_THRESHOLD_PX,
 } from '@/three/constants/trajectoryPlot'
+import type { ProfileSelection } from '@/types/coverageProfile.types'
 import type { DecoyTrack } from '@/lib/launchTacticalMap'
 import type { FlightData } from '@/lib/api'
 import type { CoverageCut } from '@/hooks/useCoverageCut'
@@ -36,6 +38,10 @@ interface TrajectoryPlot3DProps {
   flightProgressRef: React.RefObject<number>
   /** Index de trajectoire courant (état live) — pilote le tracé progressif. */
   liveIndex: number
+  /** Courbe sélectionnée (clic) : illuminée, les autres estompées. */
+  selection: ProfileSelection
+  /** Clic sur une courbe, ou dans le vide (désélection). */
+  onSelect: (selection: ProfileSelection) => void
 }
 
 /**
@@ -56,12 +62,25 @@ export function TrajectoryPlot3D({
   radars,
   flightProgressRef,
   liveIndex,
+  selection,
+  onSelect,
 }: TrajectoryPlot3DProps) {
   return (
     <Canvas
       camera={{ position: PLOT_CAMERA_POSITION, fov: 45, near: 0.1, far: PLOT_HALF_W * 30 }}
       dpr={[1, 1.5]}
       gl={{ antialias: true, toneMapping: THREE.ACESFilmicToneMapping, toneMappingExposure: 1 }}
+      // Clic dans le VIDE (aucune courbe touchée) = désélection : les courbes
+      // arrêtent la propagation, donc seul un clic sur le fond arrive ici.
+      onPointerMissed={() => onSelect(null)}
+      // TOLÉRANCE DE VISÉE des fat lines. LineSegments2 a son propre raycast,
+      // piloté par `params.Line2.threshold` — qui vaut 0 par défaut : il faudrait
+      // alors cliquer au pixel exact sur un trait de 0.9 px, ce qui est
+      // impraticable. Cette marge (en px écran) rend les courbes réellement
+      // cliquables sans les élargir visuellement.
+      raycaster={{
+        params: { Line2: { threshold: PLOT_PICK_THRESHOLD_PX } } as THREE.RaycasterParameters,
+      }}
     >
       {/* Fond teinté (jamais noir) + fog de profondeur de la même couleur. */}
       <color attach="background" args={[PLOT_BG]} />
@@ -94,6 +113,8 @@ export function TrajectoryPlot3D({
         radars={radars}
         flightProgressRef={flightProgressRef}
         liveIndex={liveIndex}
+        selection={selection}
+        onSelect={onSelect}
       />
 
       <OrbitControls

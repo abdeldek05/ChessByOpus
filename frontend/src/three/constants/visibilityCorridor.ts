@@ -22,7 +22,10 @@ export const CORRIDOR_DECOY_LINE_WIDTH = 1.5
 export const CORRIDOR_DECOY_MIN_SPACING = 2.5
 
 /** Plafond de points d'un corridor de LEURRE : bien plus bas que le Roi
- *  (garde-fou essaim — borne dure du coût géométrie cumulé). */
+ *  (garde-fou essaim — borne le coût géométrie cumulé). Atteindre ce plafond
+ *  DÉCIME le corridor (1 point sur 2, voir useCorridorPoints) au lieu de cesser
+ *  d'accumuler : la trajectoire reste complète de bout en bout, seule sa
+ *  résolution baisse. Cesser d'accumuler gelait la ligne vers l'apogée. */
 export const CORRIDOR_DECOY_MAX_POINTS = 500
 
 /** Cadence de publication (s) du corridor d'un LEURRE : plus lente que le Roi

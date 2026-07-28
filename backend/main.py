@@ -175,11 +175,15 @@ class RadarSpecPayload(BaseModel):
 
 
 class ThreatPayload(BaseModel):
-    """Une menace du scénario (Roi ou leurre) : rôle, cap et délai de tir."""
+    """Une menace du scénario (Roi ou leurre) : rôle, cap, angle et délai de tir."""
 
     role: str = "KING"
     azimuthDeg: float = 0.0
     launchDelaySec: float = 0.0
+    # Angle de tir réglé : pour un PION, pilote la proportion de sa cloche
+    # parabolique, rejouée à l'identique côté serveur (voir pawn_track.py).
+    # Optionnel — à défaut, compute_detection retombe sur celui du Roi.
+    inclinationDeg: float | None = None
 
 
 class SimulatePayload(BaseModel):

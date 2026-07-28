@@ -152,6 +152,22 @@ export function LaunchSceneCanvas({
     }
     return ref
   }
+  // Compteur d'écritures de position, par menace (et pour le Roi) : incrémenté à
+  // CHAQUE onFlightFrame. Le corridor ne consomme une position que si ce compteur
+  // a bougé — sans quoi il accumulait, pendant les 1-2 frames où la Mesange n'est
+  // pas encore montée, une position périmée (l'impact du vol PRÉCÉDENT au replay,
+  // ces refs n'étant jamais purgées). Voir la garde dans useCorridorPoints.
+  const kingWriteCount = useRef(0)
+  const decoyWriteCounts = useRef(new Map<string, React.RefObject<number>>())
+  const getDecoyWriteCount = (id: string): React.RefObject<number> => {
+    const map = decoyWriteCounts.current
+    let ref = map.get(id)
+    if (!ref) {
+      ref = { current: 0 }
+      map.set(id, ref)
+    }
+    return ref
+  }
   // Mesh du soleil (voir SunMesh) : source de l'effet God Rays (PostFX).
   const sunMeshRef = useRef<THREE.Mesh>(null)
   // Distance scène du radar le plus éloigné : cadre la caméra et sa portée de zoom.
@@ -198,6 +214,17 @@ export function LaunchSceneCanvas({
   // (le <Canvas> n'applique le prop `camera` qu'à la création, l'utilisateur
   // orbite ensuite librement sans jamais être ramené ici).
   const cameraStart = useMemo(() => computeLaunchCameraStart(azimuthDeg), [azimuthDeg])
+
+  // Étiquette d'altitude live du ROI (voir KingAltitudeTag) : réservée à la
+  // caméra de SUIVI — c'est le seul mode où l'on est assez près pour lire un
+  // chiffre collé à la fusée (en vue radar/large elle n'est qu'un point). Les
+  // altitudes viennent de la trajectoire du Roi, la seule vraie source (RocketPy).
+  const kingAltitudeTag = useMemo(() => {
+    const king = flightPlan.find((plan) => plan.isKing)
+    if (!king || cameraMode !== 'follow' || !flightProgressRef) return undefined
+    return { progressRef: flightProgressRef, altitudesM: king.flight.trajectory.map((p) => p.z) }
+  }, [flightPlan, cameraMode, flightProgressRef])
+
 
   return (
     <Canvas
@@ -283,11 +310,23 @@ export function LaunchSceneCanvas({
           « nuages » qui trahissent leur nature de billboard de près). */}
       <HorizonHaze mode={mode} />
 
-      {/* Couche de nuages VOLUMÉTRIQUES à hauteur de vol (voir VolumetricClouds) :
-          raymarching court dans une tranche bornée, la fusée les traverse en
-          montant — vrais nuages 3D, pas le fond HDRI plat. Désactivable d'un
-          flag (VOLUMETRIC_CLOUDS_ENABLED) si le driver AMD faiblit. */}
-      {VOLUMETRIC_CLOUDS_ENABLED && mode !== 'night' && !flying && <VolumetricClouds />}
+      {/* Couche de nuages VOLUMÉTRIQUES à l'altitude réelle de cumulus (2 km, voir
+          VolumetricClouds) : raymarching court dans une tranche bornée, la fusée
+          les traverse en montant — vrais nuages 3D, pas le fond HDRI plat.
+          Désactivable d'un flag (VOLUMETRIC_CLOUDS_ENABLED) si le driver AMD
+          faiblit.
+
+          MAINTENUS PENDANT LE VOL : ils y étaient coupés (`!flying`) par
+          l'allègement dynamique du commit bde99f4, quand le FPS tombait à ~4 et
+          faisait avancer la fusée par bonds. Ce garde-fou n'a plus lieu d'être
+          (règle 60 FPS levée, rendu maximal voulu — cf. feedback_gpu_budget) et
+          il annulait justement leur intérêt : traversés en montée, les nuages
+          sont le seul jalon d'altitude naturel de la scène. C'était d'ailleurs le
+          DERNIER allègement en vol encore actif, les autres ayant déjà été
+          retirés depuis. */}
+      {VOLUMETRIC_CLOUDS_ENABLED && mode !== 'night' && (
+        <VolumetricClouds metersPerSceneUnit={metersPerSceneUnit} />
+      )}
 
       {/* Herbe 3D (streaming par tuiles autour de la caméra) + rochers + arbres semés. */}
       <GrassField />
@@ -343,14 +382,19 @@ export function LaunchSceneCanvas({
                       if (!rocketPos.current) rocketPos.current = new THREE.Vector3()
                       rocketPos.current.set(p.x, p.y + PAD_TOP_Y, p.z)
                       corridorPosRef.current.copy(p)
+                      kingWriteCount.current += 1
                       if (flightProgressRef) flightProgressRef.current = progress
                     }
                   : // Leurres : on n'écrit QUE leur position live (pour leur
                     // corridor) — ni caméra, ni progression globale, ni impact
                     // (réservés au Roi, voir plus haut).
-                    (p) => getDecoyPosRef(plan.config.id).current.copy(p)
+                    (p) => {
+                      getDecoyPosRef(plan.config.id).current.copy(p)
+                      getDecoyWriteCount(plan.config.id).current += 1
+                    }
               }
               onImpact={plan.isKing ? onImpact : undefined}
+              altitudeTag={plan.isKing ? kingAltitudeTag : undefined}
             />
           ))}
           {/* Corridor de visibilité du ROI : la fusée réellement rendue, suivie
@@ -365,6 +409,7 @@ export function LaunchSceneCanvas({
             origin={railOrigin.position}
             metersPerSceneUnit={metersPerSceneUnit}
             positionRef={corridorPosRef}
+            writeCountRef={kingWriteCount}
           />
           {/* Corridor de visibilité de CHAQUE leurre (Dame/Pion), PLUS FIN que
               le Roi : même logique (vu/aveugle le long du vol réel), mappée sur
@@ -382,6 +427,7 @@ export function LaunchSceneCanvas({
                 origin={fleetOrigins[index].position}
                 metersPerSceneUnit={metersPerSceneUnit}
                 positionRef={getDecoyPosRef(plan.config.id)}
+                writeCountRef={getDecoyWriteCount(plan.config.id)}
                 lineWidth={CORRIDOR_DECOY_LINE_WIDTH}
                 minPointSpacing={CORRIDOR_DECOY_MIN_SPACING}
                 maxPoints={CORRIDOR_DECOY_MAX_POINTS}
