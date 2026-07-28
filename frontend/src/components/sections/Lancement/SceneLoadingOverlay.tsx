@@ -32,10 +32,10 @@ export function SceneLoadingOverlay({
   return (
     <div
       className={`absolute inset-0 z-50 flex flex-col items-center justify-center gap-8 font-mono ${
-        dimmed ? 'bg-bg/80 backdrop-blur-sm' : 'bg-bg'
+        dimmed ? 'hud-veil' : 'bg-bg'
       }`}
     >
-      <p className="font-fine text-xs font-light tracking-[0.4em] text-accent-bright uppercase">
+      <p className="font-fine text-xs font-light tracking-eyebrow text-accent-bright uppercase">
         {title}
       </p>
 
@@ -54,7 +54,7 @@ export function SceneLoadingOverlay({
         <span className="text-lg text-accent-bright">▨</span>
       </div>
 
-      <p className="text-[11px] tracking-[0.24em] text-ink-dim uppercase">{message}</p>
+      <p className="type-eyebrow text-ink-dim">{message}</p>
     </div>
   )
 }

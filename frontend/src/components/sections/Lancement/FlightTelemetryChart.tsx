@@ -6,8 +6,6 @@ interface FlightTelemetryChartProps {
   flight: FlightData | null
 }
 
-const CLIP = 'polygon(12px 0, 100% 0, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0 100%, 0 12px)'
-
 /**
  * Télémétrie complète du vol RocketPy : altitude, vitesse, position est/nord
  * et cap/élévation instantanés, chacun en fonction du temps (petits multiples
@@ -20,11 +18,10 @@ export function FlightTelemetryChart({ flight }: FlightTelemetryChartProps) {
 
   return (
     <aside
-      className="pointer-events-auto absolute top-0 right-0 flex h-full w-[360px] max-w-[40vw] flex-col gap-3 overflow-y-auto bg-gradient-to-l from-black/80 via-black/55 to-transparent px-6 py-6 font-mono"
-      style={{ clipPath: CLIP }}
+      className="hud-scrim--right clip-corner-12 pointer-events-auto absolute top-0 right-0 z-10 flex h-full w-[360px] max-w-[40vw] flex-col gap-3 overflow-y-auto px-6 py-6 font-mono"
     >
       <div className="border-b border-white/10 pb-3">
-        <p className="text-[10px] tracking-[0.24em] text-white/40 uppercase">Flight telemetry</p>
+        <p className="type-eyebrow text-white/40">Flight telemetry</p>
         <p className="mt-1 text-sm text-white/80">RocketPy · {series.durationSec.toFixed(1)} s flight</p>
       </div>
 

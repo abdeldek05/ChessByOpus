@@ -43,6 +43,10 @@ export function RadarEnvelope3D({ center, config, scaleH, scaleV, clipRadiusM }:
       elevMaxDeg: config.elevationMaxDeg ?? COVERAGE_ELEVATION_MAX_DEG,
     })
     if (!lobeHalf || lobeHalf.length < 2) return { surface: null, meridians: [], parallels: [] }
+    // Clip du RAYON du lobe autour du radar. `clipRadiusM` était l'étendue du
+    // cadre entier, mesurée depuis le PAS DE TIR : pour un radar excentré, ça
+    // rognait son dôme du mauvais côté (ou pas du tout). On le borne à la distance
+    // du radar au bord du cadre, ce qui garde un dôme cohérent où qu'il soit posé.
     const clipped = lobeHalf.filter(([u]) => u <= clipRadiusM)
     if (clipped.length < 2) return { surface: null, meridians: [], parallels: [] }
 

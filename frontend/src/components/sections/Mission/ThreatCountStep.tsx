@@ -40,7 +40,7 @@ export function ThreatCountStep({ current, onChoose }: ThreatCountStepProps) {
         })}
       </div>
 
-      <p className="max-w-[16rem] text-[11px] text-ink-faint">
+      <p className="max-w-[16rem] text-label text-ink-faint">
         One is always the King (primary threat) — the rest are decoys you assign roles to next.
       </p>
     </div>

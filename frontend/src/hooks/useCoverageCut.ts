@@ -31,6 +31,10 @@ export interface RadarCut {
   /** Demi-lobe local (u, alt) — null si le plan de coupe est hors de portée. */
   lobeHalf: Array<[number, number]> | null
   antennaHeightM: number
+  /** Portée et plafond RÉGLÉS sur ce radar (m) : la forme du lobe en découle, les
+   *  chiffrer sur la coupe évite d'aller les relire dans les réglages. */
+  rangeM: number
+  ceilingM: number
   windows: CutVisibilityWindow[]
 }
 
@@ -90,6 +94,8 @@ export function useCoverageCut({ flight, site, radars, azimuthDeg }: UseCoverage
           offAxisM: projection.offAxisM,
           lobeHalf,
           antennaHeightM: radar.config.antennaHeightM,
+          rangeM: radar.config.rangeKm * 1000,
+          ceilingM: radar.config.ceilingM,
           windows,
         }
       })

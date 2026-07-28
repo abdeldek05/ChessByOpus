@@ -15,18 +15,18 @@ const LEGEND = [
  */
 export function CorridorLegend() {
   return (
-    <div className="hud-holo pointer-events-none absolute bottom-8 left-8 w-64 p-4">
-      <p className="font-fine text-[10px] font-light tracking-[0.28em] text-accent-bright uppercase">
+    <div className="hud-glass clip-corner-12 pointer-events-none absolute bottom-8 left-8 z-10 w-64 p-4">
+      <p className="type-eyebrow font-fine font-light text-accent-bright">
         Radar visibility
       </p>
-      <p className="mt-2 text-[11px] leading-relaxed text-ink">
+      <p className="mt-2 text-label leading-relaxed text-ink">
         The trail behind the threat shows, at each instant, whether a radar can see it.
       </p>
       <ul className="mt-3 space-y-1.5">
         {LEGEND.map(({ dot, label }) => (
           <li key={label} className="flex items-center gap-2.5">
             <span className={`h-2.5 w-2.5 rounded-full ${dot}`} />
-            <span className="font-mono text-[11px] text-ink-dim">{label}</span>
+            <span className="font-mono text-label text-ink-dim">{label}</span>
           </li>
         ))}
       </ul>

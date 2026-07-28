@@ -25,7 +25,7 @@ export function CoverageWindowsSummary({ radarCuts, liveIndex }: CoverageWindows
   const finished = liveIndex < 0
 
   return (
-    <div className="shrink-0 space-y-0.5 border-t border-accent-bright/15 bg-black/30 px-3 py-1.5 font-mono">
+    <div className="hud-inset shrink-0 space-y-0.5 border-t border-accent-bright/15 px-3 py-1.5 font-mono">
       {radarCuts.map((rc) => {
         // Fenêtres déjà entamées à l'instant courant (ou toutes si vol fini).
         const reached = rc.windows.filter((w) => finished || w.iIn <= liveIndex)
@@ -36,7 +36,7 @@ export function CoverageWindowsSummary({ radarCuts, liveIndex }: CoverageWindows
         const totalSec = reached.reduce((sum, w) => sum + w.durationSec, 0)
 
         return (
-          <div key={rc.id} className="flex items-center gap-2 text-[9px] leading-tight tracking-[0.06em]">
+          <div key={rc.id} className="flex items-center gap-2 text-micro leading-tight tracking-hud">
             <span className="inline-block h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: rc.color }} />
             <span className="shrink-0 text-ink-dim uppercase">{rc.name}</span>
             {!first ? (

@@ -23,8 +23,8 @@ interface FlightAltitudeCalloutProps {
 export function FlightAltitudeCallout({ valueRef }: FlightAltitudeCalloutProps) {
   return (
     <div className="mix-blend-difference w-36 text-left text-white">
-      <p className="font-fine text-sm font-light tracking-[0.2em] uppercase">Altitude</p>
-      <p ref={valueRef} className="font-mono text-2xl" />
+      <p className="font-fine text-sm font-light tracking-label uppercase">Altitude</p>
+      <p ref={valueRef} className="type-readout" />
     </div>
   )
 }

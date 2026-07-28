@@ -22,7 +22,7 @@ const MODES: { value: CameraMode; label: string; title: string }[] = [
  */
 export function CameraModeSelector({ mode, onSelect }: CameraModeSelectorProps) {
   return (
-    <div className="clip-corner-10 pointer-events-auto absolute top-20 left-6 z-10 flex w-11 flex-col gap-px border border-accent-bright/40 bg-black/40">
+    <div className="hud-command clip-corner-10 pointer-events-auto absolute top-20 left-6 z-20 flex w-11 flex-col gap-px">
       {MODES.map((m) => {
         const active = m.value === mode
         return (
@@ -32,7 +32,7 @@ export function CameraModeSelector({ mode, onSelect }: CameraModeSelectorProps) 
             onClick={() => onSelect(m.value)}
             title={m.title}
             aria-pressed={active}
-            className={`hud-btn-glow px-1 py-2 font-mono text-[10px] tracking-widest transition-colors ${
+            className={`px-1 py-2 font-mono text-micro tracking-widest transition-colors ${
               active ? 'bg-accent-bright/25 text-accent-bright' : 'text-accent-bright/55 hover:bg-accent-bright/10'
             }`}
           >

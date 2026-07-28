@@ -42,7 +42,7 @@ export function MissionThreatMap({
     <div className="relative h-full w-full">
       <div ref={containerRef} className="h-full w-full" />
 
-      <p className="pointer-events-none absolute top-3 left-3 rounded-lg bg-bg/70 px-2.5 py-1.5 text-[11px] font-medium tracking-wide text-ink-dim backdrop-blur-sm">
+      <p className="hud-glass pointer-events-none absolute top-3 left-3 z-10 rounded-lg px-2.5 py-1.5 text-label font-medium tracking-wide text-ink-dim">
         Drag any cone to aim it, or click in its direction
       </p>
 

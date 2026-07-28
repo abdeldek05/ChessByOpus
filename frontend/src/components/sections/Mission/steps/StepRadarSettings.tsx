@@ -21,7 +21,7 @@ export function StepRadarSettings({ radars, onUpdateConfig }: StepRadarSettingsP
   return (
     <div className="mx-auto flex h-full max-w-xl flex-col gap-6">
       <div>
-        <p className="text-[10px] font-semibold tracking-[0.24em] text-accent uppercase">Step 2</p>
+        <p className="type-eyebrow text-accent">Step 2</p>
         <h2 className="mt-1 text-lg font-semibold text-ink">Configure each radar</h2>
         <p className="mt-1 text-xs leading-relaxed text-ink-dim">
           Range, ceiling, scan mode and lead-time threshold — specific to each radar. You will

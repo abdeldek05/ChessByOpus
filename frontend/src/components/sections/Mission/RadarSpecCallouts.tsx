@@ -23,9 +23,9 @@ export function RadarSpecCallouts({ config }: RadarSpecCalloutsProps) {
       {specs.map((spec) => (
         <div
           key={spec.label}
-          className={`pointer-events-none absolute ${spec.position} rounded-xl bg-surface/70 px-3 py-2 backdrop-blur-sm`}
+          className={`hud-glass pointer-events-none absolute ${spec.position} z-10 rounded-xl px-3 py-2`}
         >
-          <p className="text-[9px] font-semibold tracking-[0.2em] text-ink-dim uppercase">{spec.label}</p>
+          <p className="type-label-tight text-ink-dim">{spec.label}</p>
           <p className="text-sm font-medium text-accent-bright">{spec.value}</p>
         </div>
       ))}

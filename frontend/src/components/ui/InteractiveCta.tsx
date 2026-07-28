@@ -14,7 +14,7 @@ export function InteractiveCta({ href, children }: InteractiveCtaProps) {
     <Link
       ref={magneticRef}
       to={href}
-      className="group relative inline-flex items-center gap-2 border border-border px-6 py-3 font-mono text-xs tracking-[0.2em] text-ink uppercase transition-colors duration-300 ease-out hover:text-accent"
+      className="group relative inline-flex items-center gap-2 border border-border px-6 py-3 font-mono text-xs tracking-label text-ink uppercase transition-colors duration-300 ease-out hover:text-accent"
     >
       {/* Le contour se trace en accent au survol, dans le sens des aiguilles
           d'une montre — façon verrouillage de cible plutôt qu'un simple

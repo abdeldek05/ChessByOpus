@@ -1,3 +1,6 @@
 fastapi
 uvicorn[standard]
 rocketpy
+bcrypt
+pyjwt
+pydantic-settings

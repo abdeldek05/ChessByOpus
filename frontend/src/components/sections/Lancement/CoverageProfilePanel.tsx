@@ -58,12 +58,12 @@ export function CoverageProfilePanel({
 
   return (
     <aside
-      className={`clip-corner-14 pointer-events-auto absolute top-6 left-6 bottom-6 z-20 flex w-[42vw] max-w-[640px] min-w-[380px] flex-col border border-accent-bright/30 bg-bg/95 backdrop-blur-md transition-transform duration-300 ${
+      className={`hud-glass--dense clip-corner-14 pointer-events-auto absolute top-6 left-6 bottom-6 z-30 flex w-[42vw] max-w-[640px] min-w-[380px] flex-col transition-transform duration-300 ${
         open ? 'translate-x-0' : '-translate-x-[calc(100%+2rem)]'
       }`}
     >
       <header className="flex items-center justify-between border-b border-accent-bright/15 px-4 py-3">
-        <span className="font-fine text-xs font-light tracking-[0.28em] text-accent-bright uppercase">
+        <span className="font-fine text-xs font-light tracking-wide-hud text-accent-bright uppercase">
           Coverage profile
         </span>
         <button

@@ -6,7 +6,7 @@ export function Hero() {
     <section className="relative flex min-h-screen items-center bg-bg pt-32 pb-16">
       <div className="mx-auto grid w-full max-w-6xl grid-cols-1 items-center gap-12 px-6 lg:grid-cols-12">
         <div className="lg:col-span-5">
-          <p className="font-mono text-xs tracking-[0.2em] text-ink-dim uppercase">
+          <p className="font-mono text-xs tracking-label text-ink-dim uppercase">
             Opus Aerospace · Aerial Threat Simulation
           </p>
           <h1 className="mt-4 text-5xl leading-[1.05] font-bold text-ink lg:text-6xl">

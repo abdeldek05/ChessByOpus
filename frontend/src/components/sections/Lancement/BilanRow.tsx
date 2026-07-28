@@ -11,7 +11,7 @@ const TINT = {
   default: 'text-ink',
   accent: 'text-accent-bright',
   warn: 'text-warning',
-  crit: 'text-danger',
+  crit: 'text-alert',
 } as const
 
 /**
@@ -21,7 +21,7 @@ const TINT = {
 export function BilanRow({ label, value, tint = 'default', indent = false }: BilanRowProps) {
   return (
     <div className={`flex items-baseline justify-between gap-3 py-1 ${indent ? 'pl-4' : ''}`}>
-      <span className={`text-[11px] tracking-[0.08em] ${indent ? 'text-white/35' : 'text-white/50'} uppercase`}>
+      <span className={`text-label tracking-hud ${indent ? 'text-white/35' : 'text-white/50'} uppercase`}>
         {label}
       </span>
       <span className={`text-sm font-semibold tabular-nums ${TINT[tint]}`}>{value}</span>

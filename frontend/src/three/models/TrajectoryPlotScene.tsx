@@ -27,6 +27,11 @@ import type { PlacedRadar } from '@/types/mission.types'
 // demi-largeur du repère, pour rester proportionné quand on redimensionne.
 const MARK = PLOT_HALF_W * 0.018
 
+/** Part minimale du cadre qu'un dôme radar conserve, même pour un radar posé hors
+ *  du cadre : garantit un moignon d'enveloppe repérable plutôt qu'un radar
+ *  totalement muet à l'écran. */
+const MIN_ENVELOPE_CLIP_RATIO = 0.12
+
 interface TrajectoryPlotSceneProps {
   flight: FlightData
   cut: CoverageCut
@@ -141,10 +146,16 @@ export function TrajectoryPlotScene({
           const placed = radars.find((r) => r.id === rc.id)
           if (!placed?.position) return null
           const enu = computeRadarEnu(site, placed.position)
-          return { rc, center: toPlot(enu.eastM, enu.northM, 0), config: placed.config }
+          // Rayon de dôme visible pour CE radar : ce qui reste du cadre à partir
+          // de sa position. Un radar au centre voit tout son lobe ; un radar posé
+          // près du bord (ou au-delà) n'en garde que la portion qui rentre —
+          // au minimum un moignon repérable, jamais un dôme entier hors champ.
+          const distM = Math.hypot(enu.eastM, enu.northM)
+          const clipRadiusM = Math.max(extentM * MIN_ENVELOPE_CLIP_RATIO, extentM - distM)
+          return { rc, center: toPlot(enu.eastM, enu.northM, 0), config: placed.config, clipRadiusM }
         })
         .filter((v): v is NonNullable<typeof v> => v !== null),
-    [cut.radarCuts, radars, site, toPlot],
+    [cut.radarCuts, radars, site, toPlot, extentM],
   )
 
   useFrame(() => {
@@ -192,17 +203,19 @@ export function TrajectoryPlotScene({
       ))}
 
       {/* Volume de couverture de chaque radar (holographique) + repère sol + nom. */}
-      {radarPlacements.map(({ rc, center, config }) => (
+      {radarPlacements.map(({ rc, center, config, clipRadiusM }) => (
         <group key={rc.id}>
-          <RadarEnvelope3D center={center} config={config} scaleH={scaleH} scaleV={scaleV} clipRadiusM={extentM} />
+          <RadarEnvelope3D center={center} config={config} scaleH={scaleH} scaleV={scaleV} clipRadiusM={clipRadiusM} />
           <Line points={[[center.x, 0, center.z], [center.x, MARK * 2, center.z]]} color={CYAN} lineWidth={0.8} toneMapped={false} />
           <mesh position={[center.x, 0, center.z]}>
             <coneGeometry args={[MARK * 1.4, MARK * 3, 4]} />
             <meshBasicMaterial color={PLOT_CYAN} toneMapped={false} />
           </mesh>
+          {/* Nom + PORTÉE réglée : c'est elle qui dimensionne le dôme au-dessus,
+              et elle n'était lisible nulle part sur le graphe. */}
           <Billboard position={[center.x, MARK * 4, center.z]}>
             <Text fontSize={0.55} color={LABEL_COLOR} outlineWidth={0.025} outlineColor={LABEL_STROKE}>
-              {rc.name}
+              {`${rc.name} · ${Math.round(rc.rangeM / 1000)} km`}
             </Text>
           </Billboard>
         </group>

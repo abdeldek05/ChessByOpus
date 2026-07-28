@@ -10,7 +10,7 @@ export function RadarPreviewPanel({ config }: RadarPreviewPanelProps) {
   if (!config) {
     return (
       <div className="flex h-full items-center justify-center">
-        <p className="font-mono text-xs tracking-[0.15em] text-ink-faint uppercase">
+        <p className="font-mono text-xs tracking-label text-ink-faint uppercase">
           Select a radar
         </p>
       </div>

@@ -1,59 +1,111 @@
 import { Navigate, useLocation, useNavigate } from 'react-router-dom'
 import { CoverageCutChart } from '@/components/sections/Analytics/CoverageCutChart'
+import { AnalyticsCoverage3D } from '@/components/sections/Analytics/AnalyticsCoverage3D'
+import { AnalyticsTelemetry } from '@/components/sections/Analytics/AnalyticsTelemetry'
+import { AnalyticsPanel } from '@/components/sections/Analytics/AnalyticsPanel'
+import { AnalyticsVerdict } from '@/components/sections/Analytics/AnalyticsVerdict'
+import { RadarResultCard } from '@/components/sections/Analytics/RadarResultCard'
+import { useAnalyticsData } from '@/hooks/useAnalyticsData'
 import type { AnalyticsPageState } from '@/types/analytics.types'
 
 /**
- * Page ANALYTICS post-simulation : la coupe Thales (distance au sol × altitude
- * dans l'axe de tir, couverture radar et fenêtres de visibilité) — les
- * résultats complets et la maquette 3D replay viendront s'ajouter ici.
- * Accessible uniquement via le bouton post-simulation (state routeur requis).
+ * Page ANALYTICS post-simulation. Garde de route seule : sans vol enregistré, on
+ * repart sur la mission (rien n'est persisté, un F5 perd le state).
  */
 export function Analytics() {
   const location = useLocation()
   const navigate = useNavigate()
   const state = location.state as AnalyticsPageState | null
 
-  // Garde-fou : sans vol enregistré, retour à la mission.
   if (!state?.flight || !state.site || !state.radars?.length) {
     return <Navigate to="/mission" replace />
   }
 
-  const primary = state.mesangeConfigs.find((m) => m.role === 'KING') ?? state.mesangeConfigs[0]
+  return <AnalyticsContent state={state} onBack={() => navigate(-1)} />
+}
+
+interface AnalyticsContentProps {
+  state: AnalyticsPageState
+  onBack: () => void
+}
+
+/**
+ * Le DÉBRIEF, en trois colonnes : télémétrie du vol à gauche, couverture radar au
+ * centre (volume 3D interactif au-dessus de la coupe verticale 2D), et le bilan à
+ * droite — verdict de réseau, puis une fiche PAR RADAR au lieu d'un seul agrégat.
+ *
+ * Séparé de la garde de route ci-dessus parce que les hooks de données ne peuvent
+ * pas être appelés avant un `return <Navigate>` (règle des Hooks).
+ */
+function AnalyticsContent({ state, onBack }: AnalyticsContentProps) {
+  const { primary, cut, decoyTracks, kingDelaySec } = useAnalyticsData(state)
+  const perRadar = state.result?.perRadar ?? []
+  const azimuthDeg = primary?.azimuthDeg ?? 0
 
   return (
-    <div className="min-h-screen w-full bg-bg px-8 py-6 font-mono text-ink">
-      <header className="mb-6 flex items-baseline justify-between">
+    <div className="flex h-screen w-full flex-col overflow-hidden bg-bg px-6 py-4 font-mono text-ink">
+      <header className="mb-4 flex shrink-0 items-baseline justify-between gap-4">
         <div>
-          <p className="text-[11px] tracking-[0.24em] text-ink-dim uppercase">Analytics · {state.site.name}</p>
-          <h1 className="mt-1 text-xl font-bold tracking-[0.12em] uppercase">Débrief de simulation</h1>
+          <p className="type-eyebrow text-accent-bright">
+            Analytics · {state.site.name}
+          </p>
+          <h1 className="mt-1 text-xl font-semibold tracking-hud uppercase">Simulation debrief</h1>
         </div>
         <button
           type="button"
-          onClick={() => navigate(-1)}
-          className="border border-accent-bright/40 bg-accent-bright/10 px-4 py-2 text-[10px] font-bold tracking-[0.24em] text-accent-bright uppercase transition-colors hover:bg-accent-bright/20"
+          onClick={onBack}
+          className="type-eyebrow clip-corner-14 border border-accent-bright/40 px-4 py-2 font-mono text-accent-bright transition-colors hover:bg-accent-bright/20"
         >
-          ← Retour scène
+          ← Back to scene
         </button>
       </header>
 
-      <section>
-        <h2 className="mb-2 text-[11px] tracking-[0.24em] text-ink-dim uppercase">
-          Coupe de couverture verticale — axe de tir {primary?.azimuthDeg ?? 0}°
-        </h2>
-        <div className="border border-ink-dim/20 bg-black/20 p-4">
-          <CoverageCutChart
-            flight={state.flight}
-            site={state.site}
-            radars={state.radars}
-            azimuthDeg={primary?.azimuthDeg ?? 0}
-          />
+      {/* La couverture radar est le cœur du débrief : elle prend la moitié de la
+          largeur, encadrée par la télémétrie et le bilan. */}
+      <div className="grid min-h-0 flex-1 grid-cols-12 gap-4">
+        <AnalyticsPanel title="Flight telemetry" className="col-span-3" bodyClassName="min-h-0 flex-1 overflow-y-auto p-3">
+          <AnalyticsTelemetry flight={state.flight} />
+        </AnalyticsPanel>
+
+        <div className="col-span-6 grid min-h-0 grid-rows-2 gap-4">
+          <AnalyticsPanel title="Radar coverage — 3D" bodyClassName="min-h-0 flex-1 overflow-hidden">
+            <AnalyticsCoverage3D
+              flight={state.flight}
+              cut={cut}
+              decoyTracks={decoyTracks}
+              kingDelaySec={kingDelaySec}
+              site={state.site}
+              radars={state.radars}
+            />
+          </AnalyticsPanel>
+
+          <AnalyticsPanel title={`Vertical cut — firing axis ${Math.round(azimuthDeg)}°`}>
+            <CoverageCutChart
+              flight={state.flight}
+              site={state.site}
+              radars={state.radars}
+              azimuthDeg={azimuthDeg}
+            />
+          </AnalyticsPanel>
         </div>
-        <p className="mt-2 max-w-3xl text-[11px] leading-relaxed text-ink-dim">
-          Trajectoire projetée dans le plan vertical de l'axe de tir. Par radar : lobe de couverture
-          instrumentée (portée, plafond, élévations min/max), segments de trajectoire en visibilité
-          surlignés, marqueurs ▲ première / ▼ dernière visibilité avec temps de vol.
-        </p>
-      </section>
+
+        <div className="col-span-3 flex min-h-0 flex-col gap-3 overflow-y-auto pr-1">
+          <AnalyticsVerdict result={state.result} requiredLeadSec={state.detectionThresholdSec} />
+          {perRadar.length > 0 ? (
+            perRadar.map((radar) => (
+              <RadarResultCard
+                key={radar.id}
+                radar={radar}
+                totalThreats={state.result?.totalThreats ?? state.mesangeConfigs.length}
+              />
+            ))
+          ) : (
+            <p className="text-label leading-relaxed text-ink-dim">
+              No per-radar detail in this result — replay the scenario to produce one.
+            </p>
+          )}
+        </div>
+      </div>
     </div>
   )
 }

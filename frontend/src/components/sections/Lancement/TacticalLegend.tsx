@@ -20,14 +20,14 @@ const ENTRIES: LegendEntry[] = [
 ]
 
 /**
- * Légende de la carte tactique (coin, style hud-holo laiton) : explique le
+ * Légende de la carte tactique (coin, verre hud-glass laiton) : explique le
  * code couleur des pistes (Roi/Dame/Pion, aligné sur ROLE_COLOR partout dans
  * l'app) et le faisceau radar — la carte affiche maintenant TOUTE la flotte en
  * live, il faut savoir qui est qui d'un coup d'œil. Rendu pur, aucun état.
  */
 export function TacticalLegend() {
   return (
-    <div className="hud-holo pointer-events-none absolute bottom-3 left-3 z-10 px-3 py-2">
+    <div className="hud-glass--sheer clip-corner-12 pointer-events-none absolute bottom-3 left-3 z-10 px-3 py-2">
       <ul className="space-y-1.5">
         {ENTRIES.map((entry) => (
           <li key={entry.label} className="flex items-center gap-2">
@@ -35,7 +35,7 @@ export function TacticalLegend() {
               className={entry.line ? 'h-0.5 w-4 rounded-full' : 'h-2.5 w-2.5 rounded-full'}
               style={{ backgroundColor: entry.color }}
             />
-            <span className="font-mono text-[10px] tracking-[0.1em] text-ink-dim uppercase">{entry.label}</span>
+            <span className="type-label-tight font-mono text-ink-dim">{entry.label}</span>
           </li>
         ))}
       </ul>

@@ -1,6 +1,7 @@
 import { useCoverageCut } from '@/hooks/useCoverageCut'
 import { computeNiceTicks } from '@/lib/coverage/computeNiceTicks'
 import { CoverageLobe } from './CoverageLobe'
+import { CutTimeMarkers } from './CutTimeMarkers'
 import { CUT_TRAJECTORY_COLOR, CUT_TRAJECTORY_WIDTH } from '@/constants/coverage'
 import type { FlightData } from '@/lib/api'
 import type { LaunchSite } from '@/types/simulation.types'
@@ -105,6 +106,10 @@ export function CoverageCutChart({ flight, site, radars, azimuthDeg }: CoverageC
         stroke={CUT_TRAJECTORY_COLOR}
         strokeWidth={CUT_TRAJECTORY_WIDTH}
       />
+
+      {/* Graduations de TEMPS le long de la trajectoire : la coupe croise distance
+          et altitude, il manquait QUAND la menace passe par chaque point. */}
+      <CutTimeMarkers cutPoints={cut.cutPoints} sx={sx} sy={sy} />
 
       {/* Pas de tir à l'origine */}
       <g>

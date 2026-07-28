@@ -61,7 +61,7 @@ export function RadarSettings({ config, onChange }: RadarSettingsProps) {
         <button
           type="button"
           onClick={() => setShowRcs((current) => !current)}
-          className="text-[10px] font-medium tracking-[0.18em] text-ink-faint uppercase transition-colors hover:text-accent-bright"
+          className="type-label text-ink-faint transition-colors hover:text-accent-bright"
         >
           {showRcs ? '— Hide advanced parameter' : '+ Advanced parameter'}
         </button>
@@ -78,7 +78,7 @@ export function RadarSettings({ config, onChange }: RadarSettingsProps) {
           unit="s"
           onChange={(v) => onChange({ detectionThresholdSec: v })}
         />
-        <p className="text-[11px] leading-relaxed text-ink-faint">
+        <p className="text-label leading-relaxed text-ink-faint">
           Minimum lead time required between this radar acquiring the threat and impact. Below it, the
           detection is deemed too late.
         </p>

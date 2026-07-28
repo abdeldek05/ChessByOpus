@@ -64,7 +64,7 @@ export function StepLaunch({
 
   return (
     <div className="mx-auto flex h-full w-full max-w-lg flex-col justify-center gap-6">
-      <p className="text-[10px] font-semibold tracking-[0.24em] text-ink-dim uppercase">
+      <p className="type-eyebrow text-ink-dim">
         Mission summary
       </p>
 
@@ -81,9 +81,9 @@ export function StepLaunch({
       </dl>
 
       {blocked && (
-        <ul className="flex flex-col gap-2 rounded-2xl border border-danger/30 bg-danger/5 px-5 py-4">
+        <ul className="flex flex-col gap-2 rounded-2xl border border-alert/30 bg-alert/5 px-5 py-4">
           {violations.map((violation) => (
-            <li key={violation.code} className="flex gap-2 text-xs text-danger">
+            <li key={violation.code} className="flex gap-2 text-xs text-alert">
               <span aria-hidden>▹</span>
               <span>{violation.message}</span>
             </li>

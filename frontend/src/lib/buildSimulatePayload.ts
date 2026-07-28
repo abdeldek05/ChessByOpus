@@ -4,10 +4,17 @@ import type { RadarPosition, MesangeLaunchConfig } from '@/types/mission.types'
 import type { LaunchSite } from '@/types/simulation.types'
 
 /** Caractéristiques COMPLÈTES des radars posés → payload du moteur de détection. */
-function buildRadarSpecs(radars: { config: RadarConfig; position: RadarPosition | null }[]): RadarSpec[] {
+function buildRadarSpecs(
+  radars: { id: string; config: RadarConfig; position: RadarPosition | null }[],
+): RadarSpec[] {
   return radars
     .filter((r) => r.position !== null)
     .map((r) => ({
+      // Identité renvoyée telle quelle dans le bilan par radar : c'est ce qui
+      // permet de rattacher un résultat backend à SON radar sans se fier au rang
+      // dans la liste (voir RadarResult).
+      id: r.id,
+      name: r.config.name,
       latitude: r.position!.latitude,
       longitude: r.position!.longitude,
       rangeKm: r.config.rangeKm,
@@ -32,7 +39,7 @@ function buildThreatSpecs(mesangeConfigs: MesangeLaunchConfig[]): ThreatSpec[] {
 
 export interface BuildSimulatePayloadParams {
   site: LaunchSite
-  radars: { config: RadarConfig; position: RadarPosition | null }[]
+  radars: { id: string; config: RadarConfig; position: RadarPosition | null }[]
   mesangeConfigs: MesangeLaunchConfig[]
   /** Menace principale (Roi) : azimut + élévation envoyés à RocketPy. */
   king: MesangeLaunchConfig | undefined

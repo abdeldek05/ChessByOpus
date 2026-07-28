@@ -29,7 +29,7 @@ export function LaunchHud({ siteName, radarName, phase, countdown, message, onLa
     <div className="pointer-events-none absolute inset-0 font-mono">
       {/* Identité mission */}
       <div className="absolute top-6 right-6 space-y-1 text-right">
-        <p className="text-[11px] tracking-[0.2em] text-ink-dim uppercase">{siteName}</p>
+        <p className="type-label text-ink-dim">{siteName}</p>
         <p className="text-xs text-ink">{radarName}</p>
       </div>
 
@@ -40,13 +40,13 @@ export function LaunchHud({ siteName, radarName, phase, countdown, message, onLa
           retour tactile. */}
       {armed && (
         <div className="absolute bottom-16 left-1/2 flex -translate-x-1/2 flex-col items-center gap-2.5">
-          <span className="font-fine text-[10px] font-light tracking-[0.35em] text-warning/70 uppercase">
+          <span className="type-eyebrow font-fine font-light text-warning/70">
             Systems armed
           </span>
           <button
             type="button"
             onClick={onLaunch}
-            className="clip-corner-18 launch-btn-glow launch-btn-fill group pointer-events-auto flex items-center gap-3 border-2 border-warning/60 px-10 py-4 text-lg font-bold tracking-[0.32em] text-warning uppercase transition-all duration-300 hover:scale-[1.03] hover:border-warning"
+            className="clip-corner-18 launch-btn-glow launch-btn-fill group pointer-events-auto flex items-center gap-3 border-2 border-warning/60 px-10 py-4 text-lg font-bold tracking-eyebrow text-warning uppercase transition-all duration-300 hover:scale-[1.03] hover:border-warning"
           >
             <span className="relative flex h-3 w-3">
               <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-warning opacity-60" />
@@ -71,7 +71,7 @@ export function LaunchHud({ siteName, radarName, phase, countdown, message, onLa
       {running && (
         <div className="absolute bottom-8 left-1/2 flex -translate-x-1/2 items-center gap-3">
           <span className="h-2.5 w-2.5 animate-ping rounded-full bg-accent-bright" />
-          <span className="text-xs tracking-[0.24em] text-accent-bright uppercase">Simulation in progress</span>
+          <span className="text-xs tracking-wide-hud text-accent-bright uppercase">Simulation in progress</span>
         </div>
       )}
 
@@ -80,10 +80,10 @@ export function LaunchHud({ siteName, radarName, phase, countdown, message, onLa
           explication). Le bouton REPLAY ci-dessous permet de réessayer. */}
       {failed && (
         <div className="absolute bottom-20 left-1/2 flex -translate-x-1/2 flex-col items-center gap-1 text-center">
-          <p className="font-fine text-[11px] font-light tracking-[0.28em] text-alert uppercase">
+          <p className="type-eyebrow font-fine font-light text-alert">
             Simulation failed
           </p>
-          {message && <p className="max-w-xs text-[11px] text-ink-dim">{message}</p>}
+          {message && <p className="max-w-xs text-label text-ink-dim">{message}</p>}
         </div>
       )}
 
@@ -96,7 +96,7 @@ export function LaunchHud({ siteName, radarName, phase, countdown, message, onLa
           <button
             type="button"
             onClick={onReplay}
-            className="clip-corner-14 hud-btn-glow pointer-events-auto flex items-center gap-2 border-2 border-accent-bright bg-accent-bright/30 py-3 pr-6 pl-5 text-xs font-bold tracking-[0.24em] text-accent-bright transition-all duration-200 hover:scale-[1.04] hover:bg-accent-bright/45"
+            className="clip-corner-14 hud-btn-glow pointer-events-auto flex items-center gap-2 border-2 border-accent-bright bg-accent-bright/30 py-3 pr-6 pl-5 text-xs font-bold tracking-wide-hud text-accent-bright transition-all duration-200 hover:scale-[1.04] hover:bg-accent-bright/45"
           >
             ⟳ REPLAY
           </button>
@@ -104,7 +104,7 @@ export function LaunchHud({ siteName, radarName, phase, countdown, message, onLa
             <button
               type="button"
               onClick={onAnalytics}
-              className="clip-corner-14 hud-btn-glow pointer-events-auto flex items-center gap-2 border-2 border-warning bg-warning/30 py-3 pr-6 pl-5 text-xs font-bold tracking-[0.24em] text-warning transition-all duration-200 hover:scale-[1.04] hover:bg-warning/45"
+              className="clip-corner-14 hud-btn-glow pointer-events-auto flex items-center gap-2 border-2 border-warning bg-warning/30 py-3 pr-6 pl-5 text-xs font-bold tracking-wide-hud text-warning transition-all duration-200 hover:scale-[1.04] hover:bg-warning/45"
             >
               ▤ ANALYTICS
             </button>

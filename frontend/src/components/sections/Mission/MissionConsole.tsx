@@ -106,7 +106,7 @@ export function MissionConsole({ site, missionId }: MissionConsoleProps) {
 
       <header className="flex flex-col gap-5 px-6 py-6 md:flex-row md:items-center md:justify-between md:px-10">
         <div>
-          <p className="text-[10px] font-semibold tracking-[0.28em] text-accent uppercase">
+          <p className="type-eyebrow text-accent">
             Detection exercise
           </p>
           <h1 className="mt-1 text-xl font-semibold text-ink">{site.name}</h1>

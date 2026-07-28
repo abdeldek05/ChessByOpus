@@ -30,7 +30,7 @@ export function RadarSelector({ selectedTemplateId, onSelect }: RadarSelectorPro
                 <p className="mt-0.5 text-xs text-ink-dim">{template.manufacturer}</p>
               </div>
               <span
-                className={`flex size-5 shrink-0 items-center justify-center rounded-full text-[11px] transition-colors ${
+                className={`flex size-5 shrink-0 items-center justify-center rounded-full text-label transition-colors ${
                   isSelected ? 'bg-accent text-bg' : 'bg-surface-2 text-transparent'
                 }`}
               >

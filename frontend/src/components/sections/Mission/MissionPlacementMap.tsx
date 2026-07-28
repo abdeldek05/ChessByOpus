@@ -59,7 +59,7 @@ export function MissionPlacementMap({
               key={radar.id}
               type="button"
               onClick={() => onSelectActive(radar.id)}
-              className={`rounded-full px-3 py-1.5 text-[11px] font-medium backdrop-blur-sm transition-colors ${
+              className={`rounded-full px-3 py-1.5 text-label font-medium backdrop-blur-sm transition-colors ${
                 radar.id === activeRadarId ? 'bg-radar text-bg' : 'bg-bg/70 text-ink-dim hover:bg-bg/90'
               }`}
             >
@@ -70,7 +70,7 @@ export function MissionPlacementMap({
       )}
 
       <p
-        className={`pointer-events-none absolute left-3 rounded-lg bg-bg/70 px-2.5 py-1.5 text-[11px] font-medium tracking-wide text-ink-dim backdrop-blur-sm ${
+        className={`hud-glass pointer-events-none absolute left-3 z-10 rounded-lg px-2.5 py-1.5 text-label font-medium tracking-wide text-ink-dim ${
           radars.length > 1 ? 'top-14' : 'top-3'
         }`}
       >
@@ -80,7 +80,7 @@ export function MissionPlacementMap({
       {outOfRangeLines.length > 0 && (
         <div className="pointer-events-none absolute top-3 right-3 space-y-1 rounded-lg bg-alert/20 px-3 py-2 backdrop-blur-sm">
           {outOfRangeLines.map((line) => (
-            <p key={line.id} className="text-[11px] font-semibold tracking-wide text-alert">
+            <p key={line.id} className="text-label font-semibold tracking-wide text-alert">
               {line.text}
             </p>
           ))}

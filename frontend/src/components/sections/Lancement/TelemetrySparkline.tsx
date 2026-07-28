@@ -43,8 +43,8 @@ export function TelemetrySparkline({ label, unit, series, decimals = 0 }: Teleme
   return (
     <div className="flex flex-col gap-1">
       <div className="flex items-baseline justify-between">
-        <p className="text-[10px] font-semibold tracking-[0.1em] text-white/60 uppercase">{label}</p>
-        <p className="font-mono text-[10px] text-white/40">
+        <p className="type-label-tight text-white/60">{label}</p>
+        <p className="font-mono text-micro text-white/40">
           {hovered ? `${hovered.value.toFixed(decimals)} ${unit}` : `${series.min.toFixed(decimals)}–${series.max.toFixed(decimals)} ${unit}`}
         </p>
       </div>

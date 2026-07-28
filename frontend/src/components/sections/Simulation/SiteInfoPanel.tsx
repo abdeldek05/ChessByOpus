@@ -20,8 +20,8 @@ export function SiteInfoPanel({ site }: SiteInfoPanelProps) {
   const busy = status === 'saving' || status === 'saved'
 
   return (
-    <div className="absolute bottom-6 left-6 w-80 rounded-2xl bg-surface/90 p-6 shadow-2xl shadow-black/50 backdrop-blur-md">
-      <p className="font-display text-[10px] font-semibold tracking-[0.22em] text-accent uppercase">
+    <div className="hud-glass absolute bottom-6 left-6 z-10 w-80 rounded-2xl p-6">
+      <p className="type-eyebrow font-display text-accent">
         Launch site · {site.country}
       </p>
       <h2 className="mt-1 font-title text-2xl leading-tight tracking-wide text-ink">{site.name}</h2>

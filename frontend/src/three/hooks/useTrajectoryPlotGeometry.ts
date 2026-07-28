@@ -6,6 +6,10 @@ import type { FlightData } from '@/lib/api'
 import type { LaunchSite } from '@/types/simulation.types'
 import type { PlacedRadar } from '@/types/mission.types'
 
+/** Marge ajoutée au-delà de l'objet le plus lointain (trajectoire ou radar) pour
+ *  que rien ne colle au bord du repère. */
+const FRAME_MARGIN = 1.05
+
 interface TrajectoryPlotGeometry {
   /** Points 3D de la trajectoire dans le repère du graphe (rectangle). */
   points: THREE.Vector3[]
@@ -54,15 +58,29 @@ export function useTrajectoryPlotGeometry(
       horizM = Math.max(horizM, Math.abs(p.x), Math.abs(p.y))
       altM = Math.max(altM, p.z)
     }
-    // Inclut seulement les radars DANS la zone de vol (distance ≤ étendue
-    // trajectoire) pour ne pas re-dilater le cadre ; un radar lointain reste
-    // hors-champ, repéré au bord (trait/pastille).
+    // TOUT radar posé doit tenir dans le cadre, quelle que soit sa distance.
+    //
+    // L'ancienne version testait `if (distToPad <= horizM) horizM = max(horizM,
+    // distToPad)` — un NO-OP : quand la condition est vraie, le max vaut déjà
+    // horizM. Le radar n'élargissait donc JAMAIS le cadre, et un radar au-delà de
+    // la portée du vol (mesuré : 97 unités pour un radar à 78 km dans un cadre de
+    // ±60) tombait hors champ. Son enveloppe, bornée autour de LUI, sortait avec
+    // lui : il n'en restait qu'un résidu minuscule au bord de l'image.
+    //
+    // Le cadre s'étend donc jusqu'au radar le plus lointain, SANS PLAFOND : c'est
+    // la seule façon de garantir un dôme correct pour n'importe quelle position de
+    // radar. Comprimer la trajectoire est ici acceptable — contrairement à la
+    // scène 3D (voir sceneScale.ts), ce repère a DEUX échelles indépendantes, donc
+    // l'ALTITUDE continue de remplir toute la hauteur (scaleV) même quand la
+    // distance est très comprimée (scaleH). Le vol reste lisible en hauteur, et les
+    // graduations chiffrent les deux axes.
+    let radarReachM = 0
     for (const radar of radars) {
       if (!radar.position) continue
       const enu = computeRadarEnu(site, radar.position)
-      const distToPad = Math.hypot(enu.eastM, enu.northM)
-      if (distToPad <= horizM) horizM = Math.max(horizM, distToPad)
+      radarReachM = Math.max(radarReachM, Math.hypot(enu.eastM, enu.northM))
     }
+    horizM = Math.max(horizM, radarReachM) * FRAME_MARGIN
 
     // DEUX échelles → repère RECTANGULAIRE : l'horizontale remplit la demi-
     // largeur (PLOT_HALF_W), la verticale remplit la hauteur (PLOT_HEIGHT). Comme

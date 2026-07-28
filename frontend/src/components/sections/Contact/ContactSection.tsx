@@ -5,7 +5,7 @@ import { CONTACT_EMAIL } from './contactInfo'
 export function ContactSection() {
   return (
     <section className="flex min-h-screen flex-col items-center justify-center bg-bg px-6 pt-32 pb-16 text-center">
-      <p className="font-mono text-xs tracking-[0.2em] text-ink-dim uppercase">Contact</p>
+      <p className="font-mono text-xs tracking-label text-ink-dim uppercase">Contact</p>
       <h1 className="mt-4 max-w-xl text-4xl leading-[1.1] font-bold text-ink lg:text-5xl">
         Let's talk about your next simulation.
       </h1>
@@ -24,7 +24,7 @@ export function ContactSection() {
         <CopyEmailButton email={CONTACT_EMAIL} />
       </div>
 
-      <p className="mt-3 font-mono text-[11px] tracking-[0.15em] text-ink-faint uppercase">
+      <p className="type-label mt-3 font-mono text-ink-faint">
         Reply within 48 business hours
       </p>
 

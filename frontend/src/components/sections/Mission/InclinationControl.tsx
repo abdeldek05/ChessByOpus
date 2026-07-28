@@ -22,7 +22,7 @@ export function InclinationControl({ value, onChange }: InclinationControlProps)
         </span>
       </div>
 
-      <p className="text-[11px] text-ink-faint">Grab the rocket — {INCLINATION_MIN}–{INCLINATION_MAX}°</p>
+      <p className="text-label text-ink-faint">Grab the rocket — {INCLINATION_MIN}–{INCLINATION_MAX}°</p>
 
       <InclinationDial value={value} onChange={onChange} />
     </div>

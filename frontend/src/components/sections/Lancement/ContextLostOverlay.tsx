@@ -5,10 +5,10 @@
  */
 export function ContextLostOverlay() {
   return (
-    <div className="pointer-events-none absolute inset-0 z-20 flex items-center justify-center bg-bg/80 backdrop-blur-sm">
+    <div className="hud-veil pointer-events-none absolute inset-0 z-50 flex items-center justify-center">
       <div className="flex items-center gap-3">
         <span className="h-2 w-2 animate-ping rounded-full bg-accent-bright" />
-        <span className="font-fine text-[11px] font-light tracking-[0.3em] text-accent-bright uppercase">
+        <span className="type-eyebrow font-fine font-light text-accent-bright">
           Reconnexion GPU…
         </span>
       </div>

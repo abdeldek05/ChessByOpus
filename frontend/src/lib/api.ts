@@ -2,6 +2,8 @@ import type { LaunchSite } from '@/types/simulation.types'
 import type { RadarConfig } from '@/types/radar.types'
 import type { MesangeLaunchConfig } from '@/types/mission.types'
 import type { ScenarioRecord } from '@/types/scenario.types'
+import type { AuthUser, LoginCredentials } from '@/types/auth.types'
+import type { AdminOverview } from '@/types/admin.types'
 import type {
   MissionCreated,
   ScenarioCreated,
@@ -72,6 +74,26 @@ const MAX_RANGE_TIMEOUT_MS = 60000
 // /simulate/max-range, mais dépasse largement le timeout par défaut.
 const MAX_RANGE_QUICK_TIMEOUT_MS = 30000
 
+// Appelé quand le serveur répond 401 sur une route métier : la session a
+// expiré pendant l'utilisation. Le store d'auth s'abonne ici (plutôt que
+// l'inverse) pour éviter un import circulaire api → store → api.
+let onUnauthorized: (() => void) | null = null
+
+export function setUnauthorizedHandler(handler: () => void): void {
+  onUnauthorized = handler
+}
+
+/** Extrait le `detail` renvoyé par FastAPI, sinon un message générique. */
+async function readErrorMessage(response: Response, path: string): Promise<string> {
+  try {
+    const body = (await response.json()) as { detail?: unknown }
+    if (typeof body.detail === 'string' && body.detail) return body.detail
+  } catch {
+    // Corps vide ou non-JSON : on retombe sur le message générique.
+  }
+  return `Requête ${path} échouée`
+}
+
 async function request<T>(path: string, init?: RequestInit, timeoutMs = REQUEST_TIMEOUT_MS): Promise<T> {
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(), timeoutMs)
@@ -80,6 +102,9 @@ async function request<T>(path: string, init?: RequestInit, timeoutMs = REQUEST_
   try {
     response = await fetch(`${API_BASE}${path}`, {
       headers: { 'Content-Type': 'application/json' },
+      // Indispensable : sans ça le cookie de session `HttpOnly` n'est pas joint
+      // à la requête et toutes les routes métier répondraient 401.
+      credentials: 'include',
       ...init,
       signal: controller.signal,
     })
@@ -92,11 +117,50 @@ async function request<T>(path: string, init?: RequestInit, timeoutMs = REQUEST_
   }
 
   if (!response.ok) {
-    throw new ApiError(`Requête ${path} échouée`, response.status)
+    const message = await readErrorMessage(response, path)
+
+    // Session expirée en cours de route : on prévient le store, qui bascule en
+    // `anonymous` → la garde de route renvoie vers /login. Exception faite de
+    // /auth/me, dont le 401 est la réponse NORMALE quand on n'est pas connecté.
+    if (response.status === 401 && !path.startsWith('/auth/')) {
+      onUnauthorized?.()
+    }
+
+    throw new ApiError(message, response.status)
   }
   // 204 / corps vide toléré.
   const text = await response.text()
   return (text ? JSON.parse(text) : undefined) as T
+}
+
+/**
+ * Ouvre une session. Le jeton n'est PAS renvoyé ici : le serveur le pose dans
+ * un cookie `HttpOnly` que le navigateur joindra seul aux appels suivants.
+ */
+export function login(credentials: LoginCredentials): Promise<AuthUser> {
+  return request<AuthUser>('/auth/login', {
+    method: 'POST',
+    body: JSON.stringify(credentials),
+  })
+}
+
+export function logout(): Promise<void> {
+  return request<void>('/auth/logout', { method: 'POST' })
+}
+
+/** Qui est connecté ? Sert à restaurer la session au rechargement de page. */
+export function fetchCurrentUser(): Promise<AuthUser> {
+  return request<AuthUser>('/auth/me')
+}
+
+/** Tableau de bord Admin complet, en un seul aller-retour. */
+export function fetchAdminOverview(): Promise<AdminOverview> {
+  return request<AdminOverview>('/admin/overview')
+}
+
+/** Ferme à distance la session identifiée par son `jti`. */
+export function revokeSession(jti: string): Promise<void> {
+  return request<void>(`/admin/sessions/${encodeURIComponent(jti)}/revoke`, { method: 'POST' })
 }
 
 export function createMission(site: LaunchSite): Promise<MissionCreated> {

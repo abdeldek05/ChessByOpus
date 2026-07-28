@@ -18,9 +18,9 @@ interface MissionBilanProps {
 const ROLE_LABEL: Record<MesangeRole, string> = { KING: 'King', QUEEN: 'Queen', PAWN: 'Pawns' }
 
 const VERDICT_DISPLAY: Record<MissionVerdict, { title: string; tint: string }> = {
-  detected: { title: 'KING DETECTED IN TIME ✓', tint: 'text-success' },
-  late: { title: 'DETECTED TOO LATE ✗', tint: 'text-danger' },
-  missed: { title: 'KING NOT DETECTED ✗', tint: 'text-danger' },
+  detected: { title: 'KING DETECTED IN TIME ✓', tint: 'text-ok' },
+  late: { title: 'DETECTED TOO LATE ✗', tint: 'text-alert' },
+  missed: { title: 'KING NOT DETECTED ✗', tint: 'text-alert' },
   unknown: { title: 'PENDING', tint: 'text-ink-dim' },
 }
 
@@ -28,8 +28,6 @@ const VERDICT_DISPLAY: Record<MissionVerdict, { title: string; tint: string }> =
 const sec = (v: number | null) => (v === null ? '—' : `${Math.round(v)} s`)
 const km = (v: number | null) => (v === null ? '—' : `${v.toFixed(1)} km`)
 const tPlus = (v: number | null) => (v === null ? '—' : `T+ ${Math.round(v)} s`)
-
-const CLIP = 'polygon(12px 0, 100% 0, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0 100%, 0 12px)'
 
 /**
  * Bilan de mission post-simulation — le livrable exploitable. Deux choses qui
@@ -45,23 +43,23 @@ export function MissionBilan({ result, siteName, radarName, requiredLeadSec, wea
   const margin = lead !== null ? lead - requiredLeadSec : null
   const marginText =
     margin === null ? null : `Margin ${margin >= 0 ? '+' : ''}${Math.round(margin)} s`
-  const marginTint = margin === null ? 'text-white/50' : margin >= 0 ? 'text-success' : 'text-danger'
+  const marginTint = margin === null ? 'text-ink-dim' : margin >= 0 ? 'text-ok' : 'text-alert'
 
   return (
-    <aside className="pointer-events-none absolute top-0 left-0 flex h-full w-[400px] max-w-[42vw] flex-col gap-4 bg-gradient-to-r from-black/80 via-black/55 to-transparent px-7 py-6 font-mono">
+    <aside className="hud-scrim--left pointer-events-none absolute top-0 left-0 z-10 flex h-full w-[400px] max-w-[42vw] flex-col gap-4 px-7 py-6 font-mono">
       {/* En-tête */}
       <div className="border-b border-white/10 pb-3">
-        <p className="text-[10px] tracking-[0.24em] text-white/40 uppercase">Mission report</p>
+        <p className="type-eyebrow text-white/40">Mission report</p>
         <p className="mt-1 text-sm text-white/80">
           {siteName} · {radarName}
         </p>
       </div>
 
       {/* Verdict */}
-      <div className="border border-white/12 bg-black/40 px-5 py-4" style={{ clipPath: CLIP }}>
+      <div className="hud-glass--sheer clip-corner-12 px-5 py-4">
         <p className={`text-2xl leading-tight font-bold ${display.tint}`}>{display.title}</p>
         {verdict === 'unknown' ? (
-          <p className="mt-1.5 text-[11px] leading-relaxed text-white/40">
+          <p className="mt-1.5 text-label leading-relaxed text-white/40">
             Results produced by the radar engine (coming soon).
           </p>
         ) : (
@@ -75,7 +73,7 @@ export function MissionBilan({ result, siteName, radarName, requiredLeadSec, wea
 
       {/* Détection */}
       <section>
-        <h2 className="mb-1.5 text-xs font-semibold tracking-[0.06em] text-white/85 uppercase">Detection</h2>
+        <h2 className="mb-1.5 text-xs font-semibold tracking-hud text-white/85 uppercase">Detection</h2>
         <BilanRow label="Lead time obtained" value={sec(lead)} tint="accent" />
         <BilanRow label="Required threshold" value={sec(requiredLeadSec)} />
         <BilanRow label="Acquisition distance" value={km(result?.acquisitionDistanceKm ?? null)} />
@@ -87,7 +85,7 @@ export function MissionBilan({ result, siteName, radarName, requiredLeadSec, wea
 
       {/* Météo réelle du site (GFS) au moment du tir. */}
       <section>
-        <h2 className="mb-1.5 text-xs font-semibold tracking-[0.06em] text-white/85 uppercase">Site weather</h2>
+        <h2 className="mb-1.5 text-xs font-semibold tracking-hud text-white/85 uppercase">Site weather</h2>
         <BilanRow
           label="Ground wind"
           value={weather ? `${weather.groundWindSpeedMs.toFixed(1)} m/s from ${Math.round(weather.groundWindHeadingDeg)}°` : '—'}
@@ -100,14 +98,14 @@ export function MissionBilan({ result, siteName, radarName, requiredLeadSec, wea
 
       {/* Diagnostic */}
       <section>
-        <h2 className="mb-1.5 text-xs font-semibold tracking-[0.06em] text-white/85 uppercase">Diagnostics</h2>
+        <h2 className="mb-1.5 text-xs font-semibold tracking-hud text-white/85 uppercase">Diagnostics</h2>
         <BilanRow label="Detection possible from" value={tPlus(result?.firstPossibleDetectionSec ?? null)} />
         <BilanRow label="Decoy cost" value={sec(result?.decoyCostSec ?? null)} tint="warn" />
         {(result?.decoyBreakdown ?? []).map((d) => (
           <BilanRow key={d.role} label={ROLE_LABEL[d.role]} value={sec(d.costSec)} indent />
         ))}
         <div className="mt-2 border-t border-white/8 pt-2">
-          <p className="text-[10px] tracking-[0.1em] text-white/40 uppercase">Cause</p>
+          <p className="type-label-tight text-white/40">Cause</p>
           <p className="mt-0.5 text-xs leading-relaxed text-white/70">
             {result?.cause ?? '—'}
           </p>
@@ -118,8 +116,7 @@ export function MissionBilan({ result, siteName, radarName, requiredLeadSec, wea
       <button
         type="button"
         onClick={onReplay}
-        className="pointer-events-auto mt-auto flex items-center justify-center gap-2 border border-accent-bright/40 bg-accent-bright/10 py-3 text-[11px] font-bold tracking-[0.24em] text-accent-bright uppercase transition-colors hover:bg-accent-bright/20"
-        style={{ clipPath: CLIP }}
+        className="clip-corner-12 pointer-events-auto mt-auto flex items-center justify-center gap-2 border border-accent-bright/40 bg-accent-bright/10 py-3 type-eyebrow font-bold text-accent-bright transition-colors hover:bg-accent-bright/20"
       >
         ⟳ Relaunch — same scenario
       </button>

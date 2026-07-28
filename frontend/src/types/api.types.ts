@@ -17,6 +17,11 @@ export interface ScenarioCreated {
 
 /** Caractéristiques complètes d'un radar posé, envoyées au moteur de détection. */
 export interface RadarSpec {
+  /** Id du `PlacedRadar` : le backend le renvoie tel quel dans son bilan par
+   *  radar, ce qui évite de rattacher les résultats par leur rang dans la liste
+   *  (voir RadarResult). */
+  id: string
+  name: string
   latitude: number
   longitude: number
   rangeKm: number

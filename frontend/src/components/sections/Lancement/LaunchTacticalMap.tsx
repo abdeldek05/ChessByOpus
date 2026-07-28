@@ -66,11 +66,11 @@ export function LaunchTacticalMap({
 
   return (
     <div
-      className={`pointer-events-auto absolute right-6 bottom-6 overflow-hidden rounded-2xl bg-bg/70 shadow-xl shadow-black/50 ring-1 ring-accent-bright/10 backdrop-blur-sm transition-all duration-300 ${PANEL_WIDTH[size]}`}
+      className={`hud-glass pointer-events-auto absolute right-6 bottom-6 z-10 overflow-hidden rounded-2xl transition-all duration-300 ${PANEL_WIDTH[size]}`}
     >
       <div className="relative z-10 flex items-center justify-between px-3.5 py-2">
         <div className="flex items-center gap-2">
-          <span className="font-fine text-[11px] font-light tracking-[0.28em] text-ink-dim uppercase">Tactical view</span>
+          <span className="type-eyebrow font-fine font-light text-ink-dim">Tactical view</span>
         </div>
         <div className="flex items-center gap-3">
           {size !== 'collapsed' && <span className="font-mono text-xs text-accent-bright">{distance}</span>}

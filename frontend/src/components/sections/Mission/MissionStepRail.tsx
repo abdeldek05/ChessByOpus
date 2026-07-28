@@ -23,7 +23,7 @@ export function MissionStepRail({ steps, index, onStepClick }: MissionStepRailPr
               }`}
             >
               <span
-                className={`flex size-7 items-center justify-center rounded-full text-[11px] font-semibold transition-all duration-200 ${
+                className={`flex size-7 items-center justify-center rounded-full text-label font-semibold transition-all duration-200 ${
                   active
                     ? 'bg-accent text-bg'
                     : done
@@ -34,7 +34,7 @@ export function MissionStepRail({ steps, index, onStepClick }: MissionStepRailPr
                 {done ? '✓' : String(i + 1).padStart(2, '0')}
               </span>
               <span
-                className={`hidden text-[11px] font-medium tracking-[0.12em] uppercase sm:inline ${
+                className={`type-label-tight hidden sm:inline ${
                   active ? 'text-ink' : done ? 'text-ink-dim' : 'text-ink-faint'
                 }`}
               >

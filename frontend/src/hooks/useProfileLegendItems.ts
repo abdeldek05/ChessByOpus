@@ -27,7 +27,9 @@ export function useProfileLegendItems(
       if (rc.windows.length === 0) continue
       items.push({
         selection: { kind: 'radar', radarId: rc.id },
-        label: `Seen — ${rc.name}`,
+        // La PORTÉE réglée est rappelée ici : c'est elle qui explique la taille du
+        // dôme affiché, et on ne pouvait la lire nulle part sur le profil.
+        label: `${rc.name} · ${Math.round(rc.rangeM / 1000)} km`,
         swatchClass: 'bg-alert',
       })
     }

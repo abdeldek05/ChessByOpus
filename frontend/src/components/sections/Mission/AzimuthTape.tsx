@@ -36,7 +36,7 @@ export function AzimuthTape({ azimuthDeg }: AzimuthTapeProps) {
           >
             <span
               className={`font-data tabular-nums ${
-                tick.cardinal ? 'text-[13px] font-semibold' : 'text-[11px] font-medium opacity-70'
+                tick.cardinal ? 'text-sm font-semibold' : 'text-label font-medium opacity-70'
               }`}
             >
               {tick.deg.toString().padStart(3, '0')}

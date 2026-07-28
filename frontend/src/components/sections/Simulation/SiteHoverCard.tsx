@@ -10,9 +10,9 @@ interface SiteHoverCardProps {
 
 export function SiteHoverCard({ site, weather }: SiteHoverCardProps) {
   return (
-    <div className="w-56 rounded-xl bg-surface/95 p-3.5 shadow-xl shadow-black/40 backdrop-blur-md">
-      <p className="font-display text-[10px] font-semibold tracking-[0.18em] text-accent uppercase">{site.name}</p>
-      <p className="mt-0.5 font-display text-[9px] tracking-[0.1em] text-ink-faint uppercase">{site.operator}</p>
+    <div className="hud-glass w-56 rounded-xl p-3.5">
+      <p className="type-label font-display text-accent">{site.name}</p>
+      <p className="type-label-tight mt-0.5 font-display text-ink-faint">{site.operator}</p>
 
       {weather ? (
         <div className="mt-3 space-y-1.5 font-display">
@@ -20,11 +20,11 @@ export function SiteHoverCard({ site, weather }: SiteHoverCardProps) {
             <span className="font-display text-3xl leading-none text-ink tabular-nums">
               {Math.round(weather.temperatureC)}°
             </span>
-            <span className="text-[10px] tracking-[0.1em] text-ink-dim uppercase">
+            <span className="type-label-tight text-ink-dim">
               {describeWeatherCode(weather.weatherCode)}
             </span>
           </div>
-          <div className="flex items-center justify-between pt-1 text-[11px] text-ink-dim">
+          <div className="flex items-center justify-between pt-1 font-mono text-label text-ink-dim">
             <span className="flex items-center gap-1.5">
               <Wind className="size-3 text-accent" strokeWidth={2} />
               {Math.round(weather.windSpeedKmh)} km/h
@@ -36,7 +36,7 @@ export function SiteHoverCard({ site, weather }: SiteHoverCardProps) {
           </div>
         </div>
       ) : (
-        <p className="mt-3 font-display text-[10px] tracking-[0.1em] text-ink-faint uppercase">
+        <p className="type-label-tight mt-3 font-display text-ink-faint">
           Weather unavailable
         </p>
       )}

@@ -165,6 +165,79 @@ def _first_detection(
     return None, 0.0, reason
 
 
+def _build_per_radar(
+    radars: list[dict],
+    per_threat: list[dict],
+    king_index: int,
+    king_impact: float,
+) -> list[dict]:
+    """Bilan INDIVIDUEL de chaque radar : ce que CE radar aurait vu, seul.
+
+    Le verdict global reste un verdict de RÉSEAU (le Roi est-il accroché à temps
+    par au moins un radar — voir compute_detection). Ce détail répond à une autre
+    question, celle que se pose un défenseur : « lequel de mes radars a fait le
+    travail, et lequel est aveugle ? ». Sans lui, un scénario à deux radars
+    n'affichait qu'un agrégat, sans jamais dire lequel avait accroché.
+
+    Le COÛT DES LEURRES est ici propre à chaque radar : seuls les leurres que CE
+    radar détecte lui coûtent du temps de classification. Un radar qui ne voit pas
+    les Pions n'est pas distrait par eux — c'est ce qui rend visible lequel des
+    deux est vulnérable à la saturation.
+    """
+    per_radar: list[dict] = []
+
+    for index, radar in enumerate(radars):
+        king_hit = per_threat[king_index]["hits"][index]
+        detected_at = king_hit["detectedAt"]
+
+        # Menaces que CE radar voit (toutes confondues).
+        seen = sum(1 for t in per_threat if t["hits"][index]["detectedAt"] is not None)
+
+        # Coût de classification propre : leurres que CE radar accroche avant le
+        # Roi, ou dans sa fenêtre de tri (même règle que le bilan global).
+        own_cost = 0.0
+        own_breakdown: dict[str, float] = {}
+        if detected_at is not None:
+            for threat_index, threat in enumerate(per_threat):
+                if threat_index == king_index:
+                    continue
+                hit_at = threat["hits"][index]["detectedAt"]
+                if hit_at is None or hit_at > detected_at + CLASSIFICATION_WINDOW_SEC:
+                    continue
+                cost = CONFUSION_COST_SEC.get(threat["role"], 3.0)
+                own_breakdown[threat["role"]] = own_breakdown.get(threat["role"], 0.0) + cost
+                own_cost += cost
+
+        own_threshold = float(radar.get("detectionThresholdSec", 30.0))
+        if detected_at is None:
+            verdict = "missed"
+            lead: float | None = None
+        else:
+            effective = min(king_impact, detected_at + own_cost)
+            lead = max(0.0, king_impact - effective)
+            verdict = "detected" if lead >= own_threshold else "late"
+
+        per_radar.append(
+            {
+                "id": radar.get("id") or f"radar-{index + 1}",
+                "name": radar.get("name") or f"Radar {index + 1}",
+                "verdict": verdict,
+                "leadTimeSec": None if lead is None else round(lead),
+                "requiredLeadSec": round(own_threshold),
+                "detectedAtSec": None if detected_at is None else round(detected_at),
+                "acquisitionDistanceKm": None if detected_at is None else round(king_hit["distanceKm"], 1),
+                "blockReason": king_hit["reason"] if detected_at is None else None,
+                "detectedCount": seen,
+                "decoyCostSec": round(own_cost),
+                "decoyBreakdown": [
+                    {"role": role, "costSec": round(cost)} for role, cost in own_breakdown.items()
+                ],
+            }
+        )
+
+    return per_radar
+
+
 def compute_detection(
     site_latitude: float,
     site_longitude: float,
@@ -236,22 +309,40 @@ def compute_detection(
         best_t: float | None = None
         best_dist = 0.0
         block_reason: str | None = None
+        # Résultat de CHAQUE radar sur CETTE menace, conservé au lieu d'être
+        # écrasé par le minimum : c'est la matrice qui permet le bilan par radar
+        # (voir _build_per_radar). Auparavant seule la meilleure accroche
+        # survivait, et l'identité du radar gagnant était même perdue.
+        threat_hits: list[dict] = []
         for radar, (r_east, r_north) in zip(radars, radar_offsets):
             t_detect, dist_km, reason = _first_detection(
                 radar, r_east, r_north, threat_track, delay, rcs_multiplier
             )
+            threat_hits.append({"detectedAt": t_detect, "distanceKm": dist_km, "reason": reason})
             if t_detect is not None and (best_t is None or t_detect < best_t):
                 best_t, best_dist = t_detect, dist_km
             elif t_detect is None and block_reason is None:
                 block_reason = reason
 
         per_threat.append(
-            {"role": role, "detectedAt": best_t, "distanceKm": best_dist, "reason": block_reason}
+            {
+                "role": role,
+                "detectedAt": best_t,
+                "distanceKm": best_dist,
+                "reason": block_reason,
+                "hits": threat_hits,
+                "impactSec": flight_time + delay,
+            }
         )
 
-    king_result = next(r for r, t in zip(per_threat, threats) if t is king)
+    king_index = next(i for i, t in enumerate(threats) if t is king)
+    king_result = per_threat[king_index]
     detected_count = sum(1 for r in per_threat if r["detectedAt"] is not None)
     threshold = max(float(r.get("detectionThresholdSec", 30.0)) for r in radars)
+    # Bilan individuel de chaque radar — calculé dans TOUS les cas, y compris
+    # quand le Roi n'est jamais accroché : savoir POURQUOI chaque radar l'a raté
+    # (horizon, portée, plafond, cône) est justement l'information utile là.
+    per_radar = _build_per_radar(radars, per_threat, king_index, king_impact)
 
     # --- Roi jamais accroché : cause dominante expliquée. ---
     if king_result["detectedAt"] is None:
@@ -260,6 +351,7 @@ def compute_detection(
             **_empty_result(len(threats), f"The King was never locked: {reason}."),
             "verdict": "missed",
             "detectedCount": detected_count,
+            "perRadar": per_radar,
         }
 
     # --- Coût des leurres : tout leurre détecté avant le Roi OU dans sa fenêtre
@@ -295,6 +387,9 @@ def compute_detection(
             {"role": role, "costSec": round(cost)} for role, cost in decoy_costs.items()
         ],
         "cause": cause,
+        # Détail par radar : quel radar a accroché, quand, et à quel coût — le
+        # verdict ci-dessus reste celui du RÉSEAU (meilleure accroche).
+        "perRadar": per_radar,
     }
 
 
@@ -309,4 +404,8 @@ def _empty_result(total_threats: int, cause: str) -> dict:
         "decoyCostSec": None,
         "decoyBreakdown": [],
         "cause": cause,
+        # Toujours présent pour que le contrat soit stable côté front (le seul cas
+        # qui laisse cette liste vide est « aucun radar posé »). Les appelants qui
+        # ont un détail à donner l'écrasent.
+        "perRadar": [],
     }

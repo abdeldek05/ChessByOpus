@@ -88,7 +88,7 @@ export function StepRadar({
                       onRemoveRadar(radar.id)
                       if (radar.id === active?.id) setActiveId(radars.find((r) => r.id !== radar.id)!.id)
                     }}
-                    className={`-mr-1 flex size-4 items-center justify-center rounded-full text-[11px] ${
+                    className={`-mr-1 flex size-4 items-center justify-center rounded-full text-label ${
                       isActive ? 'hover:bg-black/20' : 'hover:bg-surface'
                     }`}
                   >

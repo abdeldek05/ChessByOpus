@@ -18,7 +18,7 @@ export function DayNightToggle({ mode, onToggle }: DayNightToggleProps) {
       onClick={onToggle}
       aria-label={goingNight ? 'Switch to night' : 'Switch to day'}
       title={goingNight ? 'Night mode' : 'Day mode'}
-      className="clip-corner-10 hud-btn-glow pointer-events-auto absolute top-6 left-6 z-10 flex h-11 w-11 items-center justify-center border border-accent-bright/40 bg-black/40 font-mono text-xl text-accent-bright transition-colors hover:bg-accent-bright/20"
+      className="hud-command clip-corner-10 pointer-events-auto absolute top-6 left-6 z-20 flex h-11 w-11 items-center justify-center font-mono text-xl text-accent-bright transition-colors hover:bg-accent-bright/20"
     >
       {goingNight ? '☾' : '☀'}
     </button>

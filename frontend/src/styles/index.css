@@ -1,26 +1,32 @@
-/* Trois familles, pas une de plus : Montserrat (texte/UI/données), Anton (gros
-   titres display), Jost (accents FINS/légers pour aérer). */
-@import "@fontsource/montserrat/400.css";
-@import "@fontsource/montserrat/500.css";
-@import "@fontsource/montserrat/600.css";
-@import "@fontsource/montserrat/700.css";
-@import "@fontsource/anton/400.css";
+/* Trois familles, pas une de plus : Space Grotesk (UI + titres), JetBrains Mono
+   (chiffres/télémétrie), Jost (accents FINS/légers pour aérer). */
+@import "@fontsource/space-grotesk/300.css";
+@import "@fontsource/space-grotesk/400.css";
+@import "@fontsource/space-grotesk/500.css";
+@import "@fontsource/space-grotesk/600.css";
+@import "@fontsource/space-grotesk/700.css";
+@import "@fontsource/jetbrains-mono/400.css";
+@import "@fontsource/jetbrains-mono/500.css";
+@import "@fontsource/jetbrains-mono/700.css";
 @import "@fontsource/jost/300.css";
 @import "@fontsource/jost/400.css";
 @import "tailwindcss";
 @import "./animations.css";
 
 @theme {
-  /* Montserrat = police d'UI par défaut (sans/mono/display/data) : tout le texte
-     courant reste propre et lisible. Anton (`font-title`) est RÉSERVÉ aux gros
-     titres hero, jamais l'UI courante (sinon tout devient lourd et gras). Jost
-     light (`font-fine`) = accents fins (labels de carte, sous-titres). */
-  --font-sans: "Montserrat", system-ui, sans-serif;
-  --font-mono: "Montserrat", system-ui, sans-serif;
-  --font-display: "Montserrat", system-ui, sans-serif;
-  --font-data: "Montserrat", system-ui, sans-serif;
-  --font-fine: "Jost", "Montserrat", system-ui, sans-serif;
-  --font-title: "Anton", "Montserrat", system-ui, sans-serif;
+  /* Space Grotesk = police d'UI et de titres. Grotesque technique dérivé de
+     Space Mono : il porte le caractère "instrument" sans devenir illisible en
+     petit corps, contrairement à une display pure (l'ancienne Anton, retirée).
+     JetBrains Mono (`font-mono`/`font-data`) est RÉSERVÉE aux chiffres et à la
+     télémétrie : c'est une vraie monospace, donc les colonnes de valeurs
+     cessent de vibrer quand un chiffre change en vol. Jost light
+     (`font-fine`) = accents fins (labels de carte, sous-titres). */
+  --font-sans: "Space Grotesk", system-ui, sans-serif;
+  --font-display: "Space Grotesk", system-ui, sans-serif;
+  --font-title: "Space Grotesk", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+  --font-data: "JetBrains Mono", ui-monospace, monospace;
+  --font-fine: "Jost", "Space Grotesk", system-ui, sans-serif;
 
   /* Fond : anthracite doux (plus tout à fait noir pur, moins "vantablack"). */
   --color-bg: #101210;
@@ -57,6 +63,112 @@
   --color-role-king: var(--color-alert);
   --color-role-queen: var(--color-accent-bright);
   --color-role-pawn: #8a8d86;
+
+  /* ── Échelle typographique ────────────────────────────────────────────────
+     Avant : 67 tailles en px et 69 trackings écrits à la main dans les
+     composants, dont 17 valeurs de tracking distinctes — la moitié utilisées
+     une seule fois. Résultat : chaque panneau réglé à l'œil, séparément.
+     Ici on nomme l'échelle une fois. Le plancher est à 12px (et non 11) parce
+     que les capitales très espacées deviennent illisibles en dessous.
+     Les 4 crans de tracking couvrent les 63 labels HUD en capitales. */
+  --text-micro: 0.625rem; /* 10px — pastilles, unités, mentions */
+  --text-label: 0.75rem; /* 12px — le label HUD standard (ex-11px) */
+  --text-body: 0.875rem; /* 14px — texte courant */
+  --text-readout: 1.5rem; /* 24px — valeur télémétrie (aligné sur l'existant) */
+  --text-readout-lg: 2.25rem; /* 36px — grande valeur (compte à rebours, verdict) */
+
+  --tracking-hud: 0.1em; /* dense : tableaux, listes serrées */
+  --tracking-label: 0.16em; /* label HUD standard */
+  --tracking-wide-hud: 0.24em; /* titre de section, en-tête de panneau */
+  --tracking-eyebrow: 0.3em; /* eyebrow très étalé, usage rare */
+
+  /* ── Profondeur des surfaces ──────────────────────────────────────────────
+     Avant : 51 fonds translucides écrits à la main, 9 valeurs d'opacité sans
+     progression (95/90/80/70/55/45/40/30/20/7), 20 alphas de bordure, 11 ombres.
+     Ici on nomme la progression une fois. Ces tokens sont consommés par les
+     rôles de surface ci-dessous — ils ne sont PAS des utilitaires Tailwind.
+
+     La hiérarchie est portée par la TEINTE et le FLOU, pas par la taille :
+     plus opaque = plus proche. Les dimensions restent dans le composant.
+
+     Règle de conception : le flou ne sert QUE s'il y a du média vivant derrière
+     (scène 3D, carte). Au-delà de ~88 % d'opacité il ne contribue plus rien de
+     visible, d'où le plafond de `--glass-tint-dense`. */
+  --glass-tint-dense: 88%; /* dalle d'information dense, qu'on lit longtemps */
+  --glass-tint: 62%; /* boîte standard */
+  --glass-tint-sheer: 38%; /* pastille flottante, badge de statut */
+
+  --glass-blur-dense: 14px;
+  --glass-blur: 8px;
+  --glass-blur-sheer: 5px;
+
+  --glass-edge-dense: 34%; /* alpha du liseré laiton */
+  --glass-edge: 24%;
+  --glass-edge-sheer: 16%;
+
+  /* Plaque sur fond PLAT (Analytics) : un cran de ton creusé dans la page, sans
+     flou — il n'y a rien à flouter derrière un fond opaque. */
+  --plate-tint: 22%;
+
+  /* Cran de ton interne : sous-bandeau dans un panneau déjà teinté (barres de
+     couverture). Ce n'est pas une surface, juste une nuance. */
+  --plate-inset: 12%;
+}
+
+/* ── Rôles typographiques ───────────────────────────────────────────────────
+   Un composant ne déclare plus "10px espacé de 0.24em" mais son INTENTION.
+
+   `@layer components` est indispensable ici : les utilitaires Tailwind vivent
+   dans `@layer utilities`, qui passe APRÈS. Un rôle pose donc la base, et un
+   `font-mono` / `font-light` / `text-sm` ajouté à côté garde la main. Sans ce
+   layer, ces classes gagneraient toujours et rendraient inertes les 9 endroits
+   qui combinent un rôle avec une famille ou un poids explicite. */
+@layer components {
+  /* Label HUD en capitales — le cas le plus fréquent de l'app. */
+  .type-label {
+    font-family: var(--font-sans);
+    font-size: var(--text-label);
+    font-weight: 500;
+    letter-spacing: var(--tracking-label);
+    text-transform: uppercase;
+  }
+
+  /* Même label, version dense : listes, barres, légendes serrées. */
+  .type-label-tight {
+    font-family: var(--font-sans);
+    font-size: var(--text-micro);
+    font-weight: 500;
+    letter-spacing: var(--tracking-hud);
+    text-transform: uppercase;
+  }
+
+  /* En-tête de panneau / titre de section : plus étalé, plus affirmé. */
+  .type-eyebrow {
+    font-family: var(--font-sans);
+    font-size: var(--text-micro);
+    font-weight: 600;
+    letter-spacing: var(--tracking-wide-hud);
+    text-transform: uppercase;
+  }
+
+  /* Valeur numérique de télémétrie : mono + chiffres à largeur fixe, donc une
+     valeur qui change en vol ne fait plus vibrer la ligne entière. */
+  .type-readout {
+    font-family: var(--font-mono);
+    font-size: var(--text-readout);
+    font-weight: 500;
+    letter-spacing: 0;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Grande valeur : compte à rebours, verdict de fin de mission. */
+  .type-readout-lg {
+    font-family: var(--font-mono);
+    font-size: var(--text-readout-lg);
+    font-weight: 700;
+    letter-spacing: 0;
+    font-variant-numeric: tabular-nums;
+  }
 }
 
 /* Thème « aérien sombre » (scopé à /simulation) : ardoise froide + accent
@@ -77,6 +189,27 @@
   color-scheme: dark;
 }
 
+/* Thème « console » (scopé à /admin) : dashboard d'opérateur — cartes pleines
+   arrondies, zéro bordure, zéro biseau/glow. Le laiton reste réservé à la
+   mission/fusée ; l'accent cyan signale ici « outil de diagnostic », un
+   registre volontairement différent du reste du site. Fond bleu-noir plus
+   profond que --color-bg par défaut, dans l'esprit d'un vrai panneau de
+   supervision (logs, uptime) plutôt que d'un HUD tactique. */
+.theme-console {
+  --color-bg: #0a0d12;
+  --color-bg-soft: #0e1218;
+  --color-surface: #12161d;
+  --color-surface-2: #1a2029;
+  --color-border: #1e2530;
+  --color-ink: #f2f4f7;
+  --color-ink-dim: #8891a0;
+  --color-ink-faint: #565f6c;
+  --color-accent: #2fb8b0;
+  --color-accent-bright: #4dd9c4;
+  --color-ok: #4dd9c4;
+  color-scheme: dark;
+}
+
 html {
   color-scheme: dark;
 }
@@ -87,18 +220,17 @@ body {
   color: var(--color-ink);
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
+  /* Chiffres à largeur fixe sur toute l'app. C'est LA correction du défaut
+     d'origine : Space Grotesk a des chiffres proportionnels, donc sans ça un
+     « 1 » est plus étroit qu'un « 8 » et chaque rafraîchissement de télémétrie
+     fait vibrer la ligne entière. */
+  font-variant-numeric: tabular-nums;
 }
 
 /* Vignette d'ambiance : assombrit franchement les bords (coins où vit le
    texte de l'overlay) pour garder la lisibilité même avec une carte claire. */
 .hud-vignette {
   background: radial-gradient(115% 95% at 50% 42%, transparent 38%, var(--color-bg) 90%);
-}
-
-/* Fond doux de la console mission : léger halo relevé en haut plutôt qu'un
-   noir plat, pour casser l'effet "vantablack". */
-.mission-bg {
-  background: radial-gradient(130% 80% at 50% -10%, var(--color-bg-soft) 0%, var(--color-bg) 55%);
 }
 
 /* Marqueur de site : losange laiton PLEIN et lumineux (aucun contour/stroke),
@@ -199,12 +331,12 @@ body {
   margin-left: 9px;
   transform: translateY(-50%);
   white-space: nowrap;
-  /* Jost light : label fin et discret. Anton (display) rendait ces petits
-     labels trop gros/gras et lourds à l'œil. */
+  /* Jost light : label fin et discret. Une display rendait ces petits labels
+     trop gros/gras et lourds à l'œil. */
   font-family: var(--font-fine);
-  font-size: 10px;
+  font-size: var(--text-micro);
   font-weight: 300;
-  letter-spacing: 0.08em;
+  letter-spacing: var(--tracking-hud);
   color: var(--color-ink);
   text-shadow:
     0 0 4px var(--color-bg),
@@ -256,28 +388,94 @@ body {
   transform: translateX(-50%);
 }
 
-/* Panneau HUD : aucune ornementation (pas de cadre, pas de coin coupé, pas
-   de glow, pas de blur) — fond plat, juste pour garder le texte lisible
-   au-dessus de la scène 3D. Pas de "chrome" sci-fi, façon tableau de bord
-   d'avionique réel plutôt que mood-board IA. */
-.hud-panel {
-  background: var(--color-bg);
-}
+/* ── Rôles de surface ───────────────────────────────────────────────────────
+   Un composant ne déclare plus « fond noir à 40 %, flou 6px, bordure laiton à
+   30 % » mais le RÔLE de sa surface. Comme pour les rôles typo, teinte + flou +
+   liseré + ombre voyagent ensemble : c'est ce qui empêche les 9 valeurs
+   d'opacité de réapparaître panneau par panneau.
 
-/* Séparateur de section : trait plat, fin, une seule couleur. */
-.hud-divider {
-  height: 1px;
-  background: var(--color-border);
-}
+   `@layer components` (même layer que les rôles typo) : les utilitaires
+   Tailwind vivent dans `@layer utilities` et passent APRÈS, donc un `bg-*` ou
+   un `border-*` posé à côté garde la main sur le rôle.
 
-/* Panneau holographique (légende du corridor de visibilité) : fond flouté
-   translucide + liseré laiton fin, coin biseauté — lit comme une projection
-   plutôt qu'une boîte pleine. */
-.hud-holo {
-  background: color-mix(in srgb, var(--color-bg) 55%, transparent);
-  backdrop-filter: blur(6px);
-  border: 1px solid color-mix(in srgb, var(--color-accent-bright) 30%, transparent);
-  clip-path: polygon(12px 0, 100% 0, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0 100%, 0 12px);
+   Le biseau reste COMPOSABLE (`clip-corner-*`), il n'est pas bagué dans les
+   rôles : les mêmes biseaux servent sur des boutons sans surface. */
+@layer components {
+  /* Verre standard : boîte posée sur du média vivant (scène 3D, carte). */
+  .hud-glass {
+    background: color-mix(in srgb, var(--color-bg) var(--glass-tint), transparent);
+    backdrop-filter: blur(var(--glass-blur));
+    border: 1px solid color-mix(in srgb, var(--color-accent-bright) var(--glass-edge), transparent);
+    box-shadow: 0 12px 32px color-mix(in srgb, #000 38%, transparent);
+  }
+
+  /* Dalle dense : panneau d'information qu'on lit longtemps. Plafonné à 88 %
+     et non 95 % — au-delà, le flou est payé sans être vu. */
+  .hud-glass--dense {
+    background: color-mix(in srgb, var(--color-bg) var(--glass-tint-dense), transparent);
+    backdrop-filter: blur(var(--glass-blur-dense));
+    border: 1px solid color-mix(in srgb, var(--color-accent-bright) var(--glass-edge-dense), transparent);
+    box-shadow: 0 18px 48px color-mix(in srgb, #000 52%, transparent);
+  }
+
+  /* Pastille : badge de statut, hint de carte, légende flottante. */
+  .hud-glass--sheer {
+    background: color-mix(in srgb, var(--color-bg) var(--glass-tint-sheer), transparent);
+    backdrop-filter: blur(var(--glass-blur-sheer));
+    border: 1px solid color-mix(in srgb, var(--color-accent-bright) var(--glass-edge-sheer), transparent);
+    box-shadow: 0 6px 18px color-mix(in srgb, #000 28%, transparent);
+  }
+
+  /* Commande du rail gauche : liseré plus affirmé que les panneaux (c'est
+     cliquable, ça doit se voir) + halo sombre pour décoller de la scène. */
+  .hud-command {
+    background: color-mix(in srgb, var(--color-bg) 40%, transparent);
+    backdrop-filter: blur(var(--glass-blur-sheer));
+    border: 1px solid color-mix(in srgb, var(--color-accent-bright) 40%, transparent);
+    box-shadow: 0 0 24px color-mix(in srgb, #000 35%, transparent);
+  }
+
+  /* Plaque sur fond PLAT (Analytics) : aucun flou. Un `backdrop-filter` sur un
+     fond opaque ne produit aucun pixel — ce serait du coût GPU pour rien. La
+     profondeur vient d'un cran de ton creusé dans la page. */
+  .hud-plate {
+    background: color-mix(in srgb, #000 var(--plate-tint), transparent);
+    border: 1px solid color-mix(in srgb, var(--color-accent-bright) var(--glass-edge), transparent);
+  }
+
+  /* Cran de ton interne : sous-bandeau DANS un panneau déjà teinté. Pas une
+     surface — ni bordure, ni ombre, ni flou. */
+  .hud-inset {
+    background: color-mix(in srgb, #000 var(--plate-inset), transparent);
+  }
+
+  /* Voile plein écran : masque la scène pendant un chargement ou une erreur.
+     Assez opaque pour couper la lecture de la 3D, assez transparent pour qu'on
+     devine qu'elle est toujours là. */
+  .hud-veil {
+    background: color-mix(in srgb, var(--color-bg) 80%, transparent);
+    backdrop-filter: blur(var(--glass-blur-sheer));
+  }
+
+  /* Lavis depuis le bord d'écran : pas une boîte. Le panneau se dissout dans la
+     scène au lieu de s'y poser, donc aucun liseré ni ombre — c'est un dispositif
+     de profondeur distinct du verre. */
+  .hud-scrim--left {
+    background: linear-gradient(
+      to right,
+      color-mix(in srgb, #000 80%, transparent),
+      color-mix(in srgb, #000 55%, transparent) 55%,
+      transparent
+    );
+  }
+  .hud-scrim--right {
+    background: linear-gradient(
+      to left,
+      color-mix(in srgb, #000 80%, transparent),
+      color-mix(in srgb, #000 55%, transparent) 55%,
+      transparent
+    );
+  }
 }
 
 /* Pastilles de la légende du corridor : mêmes teintes que le corridor 3D
@@ -326,20 +524,6 @@ body {
   cursor: pointer;
 }
 
-/* Champ HUD : lecture/saisie en ligne, soulignée seulement (pas de boîte
-   fermée autour de chaque valeur). */
-.hud-input {
-  background: transparent;
-  border: none;
-  border-bottom: 1px solid var(--color-border);
-  color: var(--color-ink);
-  transition: border-color 0.2s ease-out;
-}
-.hud-input:focus {
-  outline: none;
-  border-color: var(--color-accent);
-}
-
 /* Légende flottante reliée au modèle 3D par un trait fin, façon annotation
    de schéma technique (pas de glow, pas de dégradé). */
 .hud-callout {
@@ -364,6 +548,9 @@ body {
    style={{ clipPath }} inline vers des classes (taille de coupe = suffixe px). */
 .clip-corner-10 {
   clip-path: polygon(10px 0, 100% 0, 100% calc(100% - 10px), calc(100% - 10px) 100%, 0 100%, 0 10px);
+}
+.clip-corner-12 {
+  clip-path: polygon(12px 0, 100% 0, 100% calc(100% - 12px), calc(100% - 12px) 100%, 0 100%, 0 12px);
 }
 .clip-corner-14 {
   clip-path: polygon(14px 0, 100% 0, 100% calc(100% - 14px), calc(100% - 14px) 100%, 0 100%, 0 14px);

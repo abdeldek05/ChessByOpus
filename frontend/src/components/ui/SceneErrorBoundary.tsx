@@ -52,7 +52,7 @@ export class SceneErrorBoundary extends Component<
     return (
       <div className="hud-vignette fixed inset-0 z-50 flex flex-col items-center justify-center gap-6 bg-bg text-center">
         <div className="flex flex-col items-center gap-2">
-          <span className="font-fine text-[11px] font-light tracking-[0.3em] text-alert uppercase">
+          <span className="type-eyebrow font-fine font-light tracking-eyebrow text-alert">
             {this.props.label ?? 'Scène interrompue'}
           </span>
           <p className="max-w-sm text-sm text-ink-dim">
@@ -63,7 +63,7 @@ export class SceneErrorBoundary extends Component<
           <button
             type="button"
             onClick={this.handleRetry}
-            className="font-mono text-xs tracking-[0.2em] text-accent-bright uppercase transition-colors hover:text-ink"
+            className="font-mono text-xs tracking-label text-accent-bright uppercase transition-colors hover:text-ink"
           >
             Réessayer
           </button>
@@ -71,7 +71,7 @@ export class SceneErrorBoundary extends Component<
           <button
             type="button"
             onClick={this.handleReload}
-            className="font-mono text-xs tracking-[0.2em] text-ink-dim uppercase transition-colors hover:text-ink"
+            className="font-mono text-xs tracking-label text-ink-dim uppercase transition-colors hover:text-ink"
           >
             Recharger
           </button>

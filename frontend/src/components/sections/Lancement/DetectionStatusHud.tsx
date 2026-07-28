@@ -17,7 +17,7 @@ const REASON_LABEL: Record<string, string> = {
 }
 
 /**
- * Bandeau HUD live (esprit CorridorLegend/hud-holo) : nomme en direct POURQUOI
+ * Bandeau HUD live (esprit CorridorLegend, verre hud-glass) : nomme en direct POURQUOI
  * le Roi est vu ou perdu — « TRACKED — RADAR 1 » en vert d'accroche, ou
  * « LOST — CONE OF SILENCE » en alerte. Alimenté par useDetectionStatus (une
  * boucle rAF dédiée, pas de re-render à 60fps). Rendu pur, aucun état propre.
@@ -28,10 +28,10 @@ export function DetectionStatusHud({ status, radarCount }: DetectionStatusHudPro
   const radarSuffix = radarCount > 1 ? ` — RADAR ${status.radarIndex + 1}` : ''
 
   return (
-    <div className="hud-holo pointer-events-none absolute top-24 left-1/2 -translate-x-1/2 px-5 py-2.5">
+    <div className="hud-glass--sheer clip-corner-12 pointer-events-none absolute top-24 left-1/2 z-10 -translate-x-1/2 px-5 py-2.5">
       <div className="flex items-center gap-2.5">
         <span className={`h-2 w-2 rounded-full ${status.visible ? 'bg-accent-bright animate-pulse' : 'bg-alert'}`} />
-        <p className="font-mono text-[11px] tracking-[0.22em] uppercase">
+        <p className="type-eyebrow font-mono">
           <span className={status.visible ? 'text-accent-bright' : 'text-alert'}>
             {status.visible ? 'TRACKED' : 'LOST'}
           </span>

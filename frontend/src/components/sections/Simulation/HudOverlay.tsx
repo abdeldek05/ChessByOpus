@@ -9,12 +9,12 @@ export function HudOverlay() {
       <div className="absolute top-7 left-10">
         <Link
           to="/"
-          className="group pointer-events-auto inline-flex items-center gap-1.5 font-display text-[10px] tracking-[0.2em] text-ink-faint uppercase transition-colors hover:text-accent-bright"
+          className="type-label group pointer-events-auto inline-flex items-center gap-1.5 font-display text-ink-faint transition-colors hover:text-accent-bright"
         >
           <span className="transition-transform duration-300 group-hover:-translate-x-1">←</span>
           Mesange
         </Link>
-        <p className="mt-4 font-display text-[10px] tracking-[0.28em] text-accent uppercase">
+        <p className="type-eyebrow mt-4 font-display text-accent">
           Opus Aerospace · CHESS
         </p>
         <h1 className="mt-1 font-title text-2xl leading-tight tracking-wide text-ink">

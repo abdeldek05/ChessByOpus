@@ -8,16 +8,31 @@ import json
 import sqlite3
 from datetime import datetime, timezone
 from pathlib import Path
+from time import perf_counter
 
-from fastapi import FastAPI
+from fastapi import Depends, FastAPI
 from pydantic import BaseModel
 
+from admin import runtime_metrics
+from admin.routes import router as admin_router
+from auth.dependencies import require_user
+from auth.routes import router as auth_router
 from simulate import simulate, estimate_max_range, estimate_max_range_quick
 from radar import compute_detection
 
 DB_PATH = Path(__file__).parent / "missions.db"
 
 app = FastAPI()
+
+# Routes publiques (/auth/login, /auth/logout, /auth/me).
+app.include_router(auth_router)
+
+# Tableau de bord Admin — le routeur porte déjà sa propre garde de session.
+app.include_router(admin_router)
+
+# Toutes les routes métier exigent une session valide. Sans cette garde, le
+# login ne serait qu'un décor : /simulate resterait appelable en curl.
+PROTECTED = [Depends(require_user)]
 
 
 def get_connection() -> sqlite3.Connection:
@@ -86,7 +101,7 @@ class ScenarioPayload(BaseModel):
     mesangeConfigs: list[MesangeLaunchConfigPayload]
 
 
-@app.post("/missions")
+@app.post("/missions", dependencies=PROTECTED)
 def create_mission(payload: MissionPayload):
     confirmed_at = datetime.now(timezone.utc).isoformat()
 
@@ -105,7 +120,7 @@ def create_mission(payload: MissionPayload):
     return {"id": mission_id, "confirmedAt": confirmed_at}
 
 
-@app.get("/missions")
+@app.get("/missions", dependencies=PROTECTED)
 def list_missions():
     connection = get_connection()
     rows = connection.execute(
@@ -126,7 +141,7 @@ def list_missions():
     ]
 
 
-@app.post("/missions/{mission_id}/scenario")
+@app.post("/missions/{mission_id}/scenario", dependencies=PROTECTED)
 def create_scenario(mission_id: int, payload: ScenarioPayload):
     created_at = datetime.now(timezone.utc).isoformat()
     mesange_configs_json = json.dumps([config.model_dump() for config in payload.mesangeConfigs])
@@ -163,6 +178,12 @@ def create_scenario(mission_id: int, payload: ScenarioPayload):
 class RadarSpecPayload(BaseModel):
     """Caractéristiques COMPLÈTES d'un radar posé, telles que réglées par le client."""
 
+    # Identité renvoyée telle quelle dans le bilan par radar (voir compute_detection
+    # → perRadar) : sans elle, le front ne pouvait rattacher un résultat à SON radar
+    # que par le rang dans la liste — fragile dès qu'un radar est ajouté ou retiré.
+    # Optionnelles pour rester compatible avec un client qui ne les envoie pas.
+    id: str | None = None
+    name: str | None = None
     latitude: float
     longitude: float
     rangeKm: float
@@ -211,7 +232,7 @@ def _parse_launch_datetime(value: str | None) -> datetime | None:
     return parsed.astimezone(timezone.utc)
 
 
-@app.post("/simulate")
+@app.post("/simulate", dependencies=PROTECTED)
 def run_simulation(payload: SimulatePayload):
     """Vraie simulation de vol RocketPy + détection radar physique.
 
@@ -222,6 +243,8 @@ def run_simulation(payload: SimulatePayload):
        effective, plafond, cône de silence, balayage rotatif, coût des leurres
        → bilan de mission (verdict/préavis/diagnostic).
     """
+    # Chronométré pour l'onglet Admin (temps de réponse moyen, dernier échec).
+    started = perf_counter()
     try:
         result = simulate(
             latitude=payload.latitude,
@@ -241,8 +264,10 @@ def run_simulation(payload: SimulatePayload):
                 threats=[threat.model_dump() for threat in payload.threats],
                 flight=result,
             )
+        runtime_metrics.record_simulate(perf_counter() - started, success=True)
         return {"status": "ready", "flight": result, "detection": detection}
     except Exception as error:  # noqa: BLE001 — on remonte l'échec proprement au front
+        runtime_metrics.record_simulate(perf_counter() - started, success=False, error=str(error))
         return {"status": "failed", "error": str(error)}
 
 
@@ -255,7 +280,7 @@ class MaxRangePayload(BaseModel):
     azimuthStepDeg: float = 15.0
 
 
-@app.post("/simulate/max-range")
+@app.post("/simulate/max-range", dependencies=PROTECTED)
 def run_max_range_estimate(payload: MaxRangePayload):
     """Balaie les azimuts (météo réelle GFS du site à la date de tir) pour
     estimer, par élévation de tir, la distance max au sol atteignable selon
@@ -282,7 +307,7 @@ class MaxRangeQuickPayload(BaseModel):
     launchDateTime: str | None = None
 
 
-@app.post("/simulate/max-range-quick")
+@app.post("/simulate/max-range-quick", dependencies=PROTECTED)
 def run_max_range_quick_estimate(payload: MaxRangeQuickPayload):
     """Majorant rapide (quelques vols) de la distance max atteignable toutes
     directions confondues — pour l'afficher pendant le placement du radar,
@@ -299,7 +324,7 @@ def run_max_range_quick_estimate(payload: MaxRangeQuickPayload):
         return {"status": "failed", "error": str(error)}
 
 
-@app.get("/scenarios")
+@app.get("/scenarios", dependencies=PROTECTED)
 def list_scenarios():
     connection = get_connection()
     rows = connection.execute(

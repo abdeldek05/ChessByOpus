@@ -11,7 +11,9 @@ export type LaunchPhase = 'armed' | 'countdown' | 'running' | 'done' | 'error'
 
 interface UseLaunchSequenceParams {
   site: LaunchSite
-  radars: { config: RadarConfig; position: RadarPosition | null }[]
+  /** `id` inclus : il part au backend et revient dans le bilan par radar, ce qui
+   *  évite de rattacher un résultat à son radar par son rang (voir RadarResult). */
+  radars: { id: string; config: RadarConfig; position: RadarPosition | null }[]
   mesangeConfigs: MesangeLaunchConfig[]
   /** Menace principale (Roi) : azimut + élévation envoyés à RocketPy. */
   king: MesangeLaunchConfig | undefined

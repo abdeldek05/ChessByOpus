@@ -25,20 +25,20 @@ export function RocketInfoCallout({ elevationDeg, azimuthDeg, rangeKm, roleLabel
   return (
     <div className="mix-blend-difference w-56 space-y-3 text-right text-white">
       <div>
-        <p className="font-fine text-sm font-light tracking-[0.2em] uppercase">Role</p>
-        <p className="font-mono text-2xl">{roleLabel}</p>
+        <p className="font-fine text-sm font-light tracking-label uppercase">Role</p>
+        <p className="type-readout">{roleLabel}</p>
       </div>
       <div>
-        <p className="font-fine text-sm font-light tracking-[0.2em] uppercase">Elevation</p>
-        <p className="font-mono text-2xl">{elevationDeg.toFixed(0)}°</p>
+        <p className="font-fine text-sm font-light tracking-label uppercase">Elevation</p>
+        <p className="type-readout">{elevationDeg.toFixed(0)}°</p>
       </div>
       <div>
-        <p className="font-fine text-sm font-light tracking-[0.2em] uppercase">Azimuth</p>
-        <p className="font-mono text-2xl">{azimuthDeg.toFixed(0)}°</p>
+        <p className="font-fine text-sm font-light tracking-label uppercase">Azimuth</p>
+        <p className="type-readout">{azimuthDeg.toFixed(0)}°</p>
       </div>
       <div>
-        <p className="font-fine text-sm font-light tracking-[0.2em] uppercase">Est. range</p>
-        <p className="font-mono text-2xl">{rangeKm != null ? `≈ ${rangeKm.toFixed(0)} km` : '—'}</p>
+        <p className="font-fine text-sm font-light tracking-label uppercase">Est. range</p>
+        <p className="type-readout">{rangeKm != null ? `≈ ${rangeKm.toFixed(0)} km` : '—'}</p>
       </div>
     </div>
   )

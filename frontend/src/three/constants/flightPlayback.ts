@@ -46,11 +46,23 @@ export const LIFTOFF_TIME_SCALE = 2.5
  * estimée à l'œil en comparant à la fusée — cette dernière ne peut pas servir
  * de référence d'échelle.
  *
- * RÉDUIT (3.2 → 2.4) : à 3.2 la King écrasait la scène / paraissait démesurée
- * (demande « la réduire graphiquement ») — 2.4 reste bien lisible en vol sans
- * dominer le décor.
+ * RÉDUIT (3.2 → 2.4 → 1.2). Mesure de la taille à l'écran (hauteur, FOV 55°) qui
+ * a motivé la dernière baisse — le facteur avait été calibré pour le cas
+ * LOINTAIN alors que le mode par défaut est le cas PROCHE :
+ *
+ *   distance caméra   ×2.4        ×1.2
+ *   24 u (suivi)      54 %  →     27 %   ← le mode par défaut : elle bouchait la vue
+ *   150 u             8.6 % →     4.3 %
+ *   3200 u (radar)    0.4 % →     0.2 %
+ *
+ * Une taille FIXE en unités ne peut pas satisfaire les deux bouts (la caméra va
+ * de 24 à 4665 u, facteur 194). On privilégie donc le mode SUIVI, le seul où l'on
+ * regarde la fusée elle-même : en vue radar/large c'est le théâtre qu'on lit, et
+ * le CORRIDOR y reste parfaitement visible puisque son épaisseur est exprimée en
+ * pixels écran (voir visibilityCorridor.ts) — la trace ne dépend pas de la
+ * taille du modèle.
  */
-export const FLYING_ROCKET_SCALE = 2.4
+export const FLYING_ROCKET_SCALE = 1.2
 
 /**
  * Durée (s, temps de vol RÉEL non accéléré) sur laquelle l'échelle passe

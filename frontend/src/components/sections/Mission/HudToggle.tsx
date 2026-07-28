@@ -8,7 +8,7 @@ interface HudToggleProps {
 export function HudToggle({ label, checked, onChange }: HudToggleProps) {
   return (
     <div className="flex items-center justify-between font-mono">
-      <span className="text-[11px] tracking-[0.15em] text-ink-dim uppercase">{label}</span>
+      <span className="type-label text-ink-dim">{label}</span>
       <button
         type="button"
         role="switch"

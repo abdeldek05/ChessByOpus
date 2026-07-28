@@ -42,7 +42,7 @@ export function CoverageProfileLegend({ items, selection, onSelect }: CoveragePr
             >
               <span className={`h-0.5 w-4 ${item.swatchClass} ${active ? 'h-1' : ''}`} />
               <span
-                className={`font-mono text-[10px] tracking-[0.16em] uppercase ${
+                className={`type-label-tight font-mono ${
                   active ? 'text-ink' : 'text-ink-dim'
                 }`}
               >
