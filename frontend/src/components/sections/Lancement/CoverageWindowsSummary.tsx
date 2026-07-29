@@ -40,15 +40,15 @@ export function CoverageWindowsSummary({ radarCuts, liveIndex }: CoverageWindows
             <span className="inline-block h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: rc.color }} />
             <span className="shrink-0 text-ink-dim uppercase">{rc.name}</span>
             {!first ? (
-              <span className="text-ink-faint">{finished ? 'jamais en visibilité' : '—'}</span>
+              <span className="text-ink-faint">{finished ? 'never in sight' : '—'}</span>
             ) : ongoing ? (
               <span style={{ color: rc.color }}>
-                acquis T+{Math.round(first.tIn)}s @ {acqKm(first.sInM)} km<span className="text-ink-faint"> · en poursuite…</span>
+                acquired T+{Math.round(first.tIn)}s @ {acqKm(first.sInM)} km<span className="text-ink-faint"> · tracking…</span>
               </span>
             ) : (
               <span className="text-ink">
-                acquis T+{Math.round(first.tIn)}s @ {acqKm(first.sInM)} km → perdu T+{Math.round(last.tOut)}s
-                <span className="text-ink-faint"> · {Math.round(totalSec)}s au total</span>
+                acquired T+{Math.round(first.tIn)}s @ {acqKm(first.sInM)} km → lost T+{Math.round(last.tOut)}s
+                <span className="text-ink-faint"> · {Math.round(totalSec)}s total</span>
               </span>
             )}
           </div>

@@ -39,7 +39,7 @@ export function CoverageProfileLegend({ items, selection, onSelect }: CoveragePr
   return (
     <div className="border-t border-accent-bright/15">
       <p className="px-4 pt-2.5 pb-1 font-fine text-[0.65rem] font-light tracking-wide-hud text-ink-faint uppercase">
-        Courbes — cliquer pour isoler
+        Tracks — click to isolate
       </p>
 
       <ul className="flex flex-col gap-0.5 px-2 pb-1.5">
@@ -80,20 +80,20 @@ export function CoverageProfileLegend({ items, selection, onSelect }: CoveragePr
 
       {/* Repères de lecture : ce que le graphe encode et qu'aucune courbe ne dit. */}
       <dl className="grid grid-cols-[auto_1fr] gap-x-2.5 gap-y-1 border-t border-white/6 px-4 py-2 text-[0.7rem] leading-snug">
-        <dt className="font-mono text-accent-bright">Dôme</dt>
-        <dd className="text-ink-faint">Volume réellement couvert par le radar (portée × plafond)</dd>
+        <dt className="font-mono text-accent-bright">Dome</dt>
+        <dd className="text-ink-faint">Volume actually covered by the radar (range × ceiling)</dd>
 
-        <dt className="font-mono text-warning">Cône ↑</dt>
+        <dt className="font-mono text-warning">Cone ↑</dt>
         <dd className="text-ink-faint">
-          Angle mort au-dessus de l'antenne : le faisceau ne monte pas plus haut
+          Blind spot above the antenna — the beam climbs no higher
         </dd>
 
-        <dt className="font-mono text-alert">Rouge</dt>
-        <dd className="text-ink-faint">Portion de vol vue par un radar — acquisition puis perte</dd>
+        <dt className="font-mono text-alert">Red</dt>
+        <dd className="text-ink-faint">Stretch of flight seen by a radar — acquisition to loss</dd>
 
         <dt className="font-mono text-warning">T+</dt>
         <dd className="text-ink-faint">
-          Marques toutes les 20 s : serrées = la fusée ralentit, écartées = elle accélère
+          Marks every 20 s — tight spacing means slowing down, wide means speeding up
         </dd>
       </dl>
     </div>

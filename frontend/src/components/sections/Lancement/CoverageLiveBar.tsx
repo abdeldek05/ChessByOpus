@@ -20,7 +20,7 @@ export function CoverageLiveBar({ live, radarCuts }: CoverageLiveBarProps) {
   return (
     <div className="hud-inset flex flex-wrap items-center gap-x-4 gap-y-1 border-b border-accent-bright/15 px-4 py-2 font-mono">
       {!flying ? (
-        <span className="type-label-tight text-ink-faint">En attente de vol…</span>
+        <span className="type-label-tight text-ink-faint">Awaiting flight…</span>
       ) : (
         <>
           <span className="text-xs text-accent-bright">T+{Math.round(live.tSec)}s</span>
@@ -31,12 +31,12 @@ export function CoverageLiveBar({ live, radarCuts }: CoverageLiveBarProps) {
               {seen.map((rc) => (
                 <span key={rc.id} className="flex items-center gap-1" style={{ color: rc.color }}>
                   <span className="inline-block h-2 w-2 rounded-full" style={{ backgroundColor: rc.color }} />
-                  VU · {rc.name}
+                  SEEN · {rc.name}
                 </span>
               ))}
             </span>
           ) : (
-            <span className="text-label font-bold tracking-hud text-ink-faint">◌ ANGLE MORT</span>
+            <span className="text-label font-bold tracking-hud text-ink-faint">◌ BLIND SPOT</span>
           )}
         </>
       )}

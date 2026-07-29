@@ -22,9 +22,9 @@ export function useProfileLegendItems(
     const items: ProfileLegendItem[] = [
       {
         selection: { kind: 'king' },
-        label: 'Menace (Roi)',
+        label: 'Threat (King)',
         swatchClass: 'bg-accent-bright',
-        hint: 'Trajectoire réelle à détecter — trace neutre tant qu’aucun radar ne la voit',
+        hint: 'The real trajectory to detect — neutral while no radar sees it',
       },
     ]
 
@@ -42,8 +42,8 @@ export function useProfileLegendItems(
         // segments rouges séparés, mais qu'on ne compte pas à l'œil.
         hint:
           windows === 1
-            ? 'Vue par ce radar sur une seule fenêtre continue'
-            : `Vue par ce radar sur ${windows} fenêtres — perdue puis reprise`,
+            ? 'Seen by this radar in one continuous window'
+            : `Seen by this radar across ${windows} windows — lost, then reacquired`,
       })
     }
 
@@ -52,7 +52,7 @@ export function useProfileLegendItems(
         selection: { kind: 'decoy', decoyId: decoy.id },
         label: getMesangeRoleLabel(decoy.role),
         swatchClass: 'bg-role-pawn',
-        hint: 'Leurre : occupe le radar sans être la vraie menace',
+        hint: 'Decoy — occupies the radar without being the real threat',
       })
     }
 

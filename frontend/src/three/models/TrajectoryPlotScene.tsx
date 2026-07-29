@@ -350,7 +350,7 @@ export function TrajectoryPlotScene({
                   </mesh>
                   <Billboard position={[points[w.iOut].x, points[w.iOut].y - 0.7, points[w.iOut].z]}>
                     <Text fontSize={0.42} color={LABEL_COLOR} outlineWidth={0.02} outlineColor={LABEL_STROKE}>
-                      {`PERTE  T+${Math.round(w.tOut)}s`}
+                      {`LOST  T+${Math.round(w.tOut)}s`}
                     </Text>
                   </Billboard>
                 </>
@@ -368,7 +368,7 @@ export function TrajectoryPlotScene({
         </mesh>
         <Billboard position={[0, 0.7, 0]}>
           <Text fontSize={0.45} color={LABEL_COLOR} outlineWidth={0.02} outlineColor={LABEL_STROKE}>
-            {`APOGÉE ${apogeeKm.toFixed(1)} km`}
+            {`APOGEE ${apogeeKm.toFixed(1)} km`}
           </Text>
         </Billboard>
       </group>

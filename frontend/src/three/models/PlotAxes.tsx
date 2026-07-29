@@ -131,7 +131,7 @@ export function PlotAxes({ distTicks, scaleH, altTicks, scaleV }: PlotAxesProps)
           outlineWidth={0.025}
           outlineColor={LABEL_STROKE}
         >
-          DISTANCE SOL (km)
+          GROUND RANGE (km)
         </Text>
       </Billboard>
     </>
