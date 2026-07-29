@@ -16,9 +16,10 @@ interface RadarEnvelope3DProps {
   scaleV: number
   /** Rayon de CLIP (m) : enveloppe dessinée jusqu'à l'étendue de la zone de vol. */
   clipRadiusM: number
+  /** Teinte HDR propre à CE radar (voir PLOT_RADAR_COLORS) : distingue les dômes
+   *  quand plusieurs radars sont posés. Défaut cyan (radar unique). */
+  tint?: [number, number, number]
 }
-
-const ENVELOPE_COLOR = new THREE.Color(...PLOT_CYAN)
 /** Nombre de méridiens (rayons verticaux) et de parallèles (cercles) du dôme. */
 const MERIDIANS = 12
 const PARALLELS = 4
@@ -32,7 +33,15 @@ const PARALLELS = 4
  * (repère de volume) + grille fine cyan. depthWrite=false → ne masque jamais
  * la trajectoire.
  */
-export function RadarEnvelope3D({ center, config, scaleH, scaleV, clipRadiusM }: RadarEnvelope3DProps) {
+export function RadarEnvelope3D({
+  center,
+  config,
+  scaleH,
+  scaleV,
+  clipRadiusM,
+  tint = PLOT_CYAN,
+}: RadarEnvelope3DProps) {
+  const envelopeColor = useMemo(() => new THREE.Color(...tint), [tint])
   const { surface, meridians, parallels } = useMemo(() => {
     const lobeHalf = computeCoverageLobeHalf({
       rangeM: config.rangeKm * 1000,
@@ -88,24 +97,27 @@ export function RadarEnvelope3D({ center, config, scaleH, scaleV, clipRadiusM }:
 
   return (
     <group position={[center.x, 0, center.z]}>
-      {/* Surface interne très subtile : donne le volume sans le remplir. */}
+      {/* Surface interne : donne le volume sans le remplir. Opacité RELEVÉE
+          (0.03 → 0.07) — à 0.03 le dôme était pratiquement invisible, donc la
+          portée du radar ne se lisait pas sur le graphe. */}
       <mesh geometry={surface}>
         <meshBasicMaterial
-          color={ENVELOPE_COLOR}
+          color={envelopeColor}
           transparent
-          opacity={0.03}
+          opacity={0.07}
           side={THREE.DoubleSide}
           depthWrite={false}
           blending={THREE.AdditiveBlending}
           toneMapped={false}
         />
       </mesh>
-      {/* Grille de dôme FINE (méridiens + parallèles) = radôme instrumenté. */}
+      {/* Grille de dôme FINE (méridiens + parallèles) = radôme instrumenté.
+          Opacités relevées pour que la silhouette du lobe se lise vraiment. */}
       {meridians.map((pts, i) => (
-        <Line key={`mer${i}`} points={pts} color={ENVELOPE_COLOR} lineWidth={0.6} transparent opacity={0.4} toneMapped={false} />
+        <Line key={`mer${i}`} points={pts} color={envelopeColor} lineWidth={0.6} transparent opacity={0.55} toneMapped={false} />
       ))}
       {parallels.map((pts, i) => (
-        <Line key={`par${i}`} points={pts} color={ENVELOPE_COLOR} lineWidth={0.6} transparent opacity={0.3} toneMapped={false} />
+        <Line key={`par${i}`} points={pts} color={envelopeColor} lineWidth={0.6} transparent opacity={0.42} toneMapped={false} />
       ))}
     </group>
   )

@@ -20,17 +20,30 @@ export function useProfileLegendItems(
 ): ProfileLegendItem[] {
   return useMemo(() => {
     const items: ProfileLegendItem[] = [
-      { selection: { kind: 'king' }, label: 'Threat', swatchClass: 'bg-accent-bright' },
+      {
+        selection: { kind: 'king' },
+        label: 'Menace (Roi)',
+        swatchClass: 'bg-accent-bright',
+        hint: 'Trajectoire réelle à détecter — trace neutre tant qu’aucun radar ne la voit',
+      },
     ]
 
     for (const rc of radarCuts) {
       if (rc.windows.length === 0) continue
+      const windows = rc.windows.length
       items.push({
         selection: { kind: 'radar', radarId: rc.id },
         // La PORTÉE réglée est rappelée ici : c'est elle qui explique la taille du
         // dôme affiché, et on ne pouvait la lire nulle part sur le profil.
         label: `${rc.name} · ${Math.round(rc.rangeM / 1000)} km`,
         swatchClass: 'bg-alert',
+        // Le NOMBRE de fenêtres dit tout de suite si le radar a suivi la menace
+        // d'un bloc ou l'a perdue puis reprise — l'info que le graphe montre en
+        // segments rouges séparés, mais qu'on ne compte pas à l'œil.
+        hint:
+          windows === 1
+            ? 'Vue par ce radar sur une seule fenêtre continue'
+            : `Vue par ce radar sur ${windows} fenêtres — perdue puis reprise`,
       })
     }
 
@@ -39,6 +52,7 @@ export function useProfileLegendItems(
         selection: { kind: 'decoy', decoyId: decoy.id },
         label: getMesangeRoleLabel(decoy.role),
         swatchClass: 'bg-role-pawn',
+        hint: 'Leurre : occupe le radar sans être la vraie menace',
       })
     }
 

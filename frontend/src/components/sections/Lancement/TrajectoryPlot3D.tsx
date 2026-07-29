@@ -128,10 +128,14 @@ export function TrajectoryPlot3D({
       />
 
       {/* Post : Bloom SÉLECTIF (luminanceThreshold ~0.9 → seuls les traits HDR
-          > 1.0 glow, le reste reste net) + vignette douce (focalise, look écran). */}
+          > 1.0 glow, le reste reste net) + vignette douce (focalise, look écran).
+          RESSERRÉ (intensity 0.9 → 0.55, radius 0.6 → 0.4) en même temps que les
+          couleurs HDR ont été rabaissées : un halo large sur des traits déjà
+          lumineux empâtait la courbe et les étiquettes en néon diffus. Le glow
+          souligne maintenant le trait au lieu de le remplacer. */}
       <EffectComposer>
-        <Bloom mipmapBlur luminanceThreshold={0.9} luminanceSmoothing={0.3} intensity={0.9} radius={0.6} />
-        <Vignette eskil={false} offset={0.3} darkness={0.5} />
+        <Bloom mipmapBlur luminanceThreshold={0.9} luminanceSmoothing={0.25} intensity={0.55} radius={0.4} />
+        <Vignette eskil={false} offset={0.32} darkness={0.42} />
       </EffectComposer>
     </Canvas>
   )

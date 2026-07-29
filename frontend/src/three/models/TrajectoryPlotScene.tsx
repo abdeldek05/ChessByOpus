@@ -3,7 +3,10 @@ import { Line, CatmullRomLine, Text, Billboard, Trail } from '@react-three/drei'
 import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 import { RadarEnvelope3D } from './RadarEnvelope3D'
+import { RadarSilenceCone } from './RadarSilenceCone'
+import { PlotAxes } from './PlotAxes'
 import { useTrajectoryPlotGeometry } from '@/three/hooks/useTrajectoryPlotGeometry'
+import { useTrajectoryTimeTicks } from '@/three/hooks/useTrajectoryTimeTicks'
 import { computeRadarEnu } from '@/lib/coverage/computeRadarEnu'
 import { computeNiceTicks } from '@/lib/coverage/computeNiceTicks'
 import {
@@ -14,6 +17,13 @@ import {
   PLOT_AMBER,
   PLOT_GRID_SECTION,
   PLOT_DECOY_COLOR,
+  PLOT_RADAR_COLORS,
+  PLOT_DOT_ACQ,
+  PLOT_DOT_LOSS,
+  PLOT_DOT_APOGEE,
+  PLOT_DOT_SITE,
+  PLOT_DOT_HEAD,
+  PLOT_TIME_TICK_SEC,
 } from '@/three/constants/trajectoryPlot'
 import { useProfileCurveStyle } from '@/three/hooks/useProfileCurveStyle'
 import type { ProfileSelection } from '@/types/coverageProfile.types'
@@ -154,9 +164,17 @@ export function TrajectoryPlotScene({
           const clipRadiusM = Math.max(extentM * MIN_ENVELOPE_CLIP_RATIO, extentM - distM)
           return { rc, center: toPlot(enu.eastM, enu.northM, 0), config: placed.config, clipRadiusM }
         })
-        .filter((v): v is NonNullable<typeof v> => v !== null),
+        .filter((v): v is NonNullable<typeof v> => v !== null)
+        // Teinte propre à chaque radar, assignée par RANG dans la liste (donc
+        // stable d'un render à l'autre) : avec deux dômes tous cyan, on ne savait
+        // pas lequel appartenait à quel radar.
+        .map((p, i) => ({ ...p, tint: PLOT_RADAR_COLORS[i % PLOT_RADAR_COLORS.length] })),
     [cut.radarCuts, radars, site, toPlot, extentM],
   )
+
+  // Marques temporelles régulières le long de la trajectoire : leur ESPACEMENT
+  // donne la vitesse à l'œil, ce qu'un axe distance/altitude ne peut pas montrer.
+  const timeTicks = useTrajectoryTimeTicks(flight.trajectory, points)
 
   useFrame(() => {
     const head = headRef.current
@@ -186,36 +204,48 @@ export function TrajectoryPlotScene({
       {/* Axe vertical (altitude) au pas de tir. */}
       <Line points={[[0, 0, 0], [0, topY, 0]]} color={CYAN} lineWidth={0.6} transparent opacity={0.4} toneMapped={false} />
 
-      {/* Graduations km (texte SDF face caméra). Altitude → scaleV, distance → scaleH. */}
-      {altTicks.map((km) => (
-        <Billboard key={`alt${km}`} position={[-0.9, km * 1000 * scaleV, 0]}>
-          <Text fontSize={0.7} color={LABEL_COLOR} anchorX="right" outlineWidth={0.02} outlineColor={LABEL_STROKE}>
-            {km}km
-          </Text>
-        </Billboard>
-      ))}
-      {distTicks.map((km) => (
-        <Billboard key={`dist${km}`} position={[km * 1000 * scaleH, -0.8, 0]}>
-          <Text fontSize={0.7} color={LABEL_COLOR} anchorY="top" outlineWidth={0.02} outlineColor={LABEL_STROKE}>
-            {km}
-          </Text>
-        </Billboard>
-      ))}
+      {/* Axes NOMMÉS et gradués (traits + titres + unités) : sans eux, les
+          nombres nus ne disaient pas ce qu'ils mesuraient. */}
+      <PlotAxes distTicks={distTicks} scaleH={scaleH} altTicks={altTicks} scaleV={scaleV} />
 
-      {/* Volume de couverture de chaque radar (holographique) + repère sol + nom. */}
-      {radarPlacements.map(({ rc, center, config, clipRadiusM }) => (
+      {/* Chaque radar : son dôme de portée (holographique) DANS SA TEINTE, son
+          cône de silence (angle mort au-dessus de l'antenne), son repère au sol
+          et son étiquette nom + portée + élévation max. */}
+      {radarPlacements.map(({ rc, center, config, clipRadiusM, tint }) => (
         <group key={rc.id}>
-          <RadarEnvelope3D center={center} config={config} scaleH={scaleH} scaleV={scaleV} clipRadiusM={clipRadiusM} />
-          <Line points={[[center.x, 0, center.z], [center.x, MARK * 2, center.z]]} color={CYAN} lineWidth={0.8} toneMapped={false} />
+          <RadarEnvelope3D
+            center={center}
+            config={config}
+            scaleH={scaleH}
+            scaleV={scaleV}
+            clipRadiusM={clipRadiusM}
+            tint={tint}
+          />
+          {/* Angle mort vertical : le faisceau ne monte pas au-delà de
+              elevationMaxDeg, une menace peut donc passer à la verticale sans
+              être vue. Le dôme creusait déjà ce cône sans le nommer. */}
+          <RadarSilenceCone
+            center={center}
+            elevationMaxDeg={config.elevationMaxDeg}
+            rangeM={rc.rangeM}
+            scaleH={scaleH}
+            scaleV={scaleV}
+          />
+          <Line
+            points={[[center.x, 0, center.z], [center.x, MARK * 2, center.z]]}
+            color={new THREE.Color(...tint)}
+            lineWidth={0.8}
+            toneMapped={false}
+          />
           <mesh position={[center.x, 0, center.z]}>
-            <coneGeometry args={[MARK * 1.4, MARK * 3, 4]} />
-            <meshBasicMaterial color={PLOT_CYAN} toneMapped={false} />
+            <coneGeometry args={[MARK * 1.1, MARK * 2.4, 4]} />
+            <meshBasicMaterial color={tint} toneMapped={false} />
           </mesh>
-          {/* Nom + PORTÉE réglée : c'est elle qui dimensionne le dôme au-dessus,
-              et elle n'était lisible nulle part sur le graphe. */}
+          {/* Nom + PORTÉE (qui dimensionne le dôme) + ÉLÉVATION MAX (qui ouvre
+              le cône de silence) : les deux réglages que le graphe montre. */}
           <Billboard position={[center.x, MARK * 4, center.z]}>
             <Text fontSize={0.55} color={LABEL_COLOR} outlineWidth={0.025} outlineColor={LABEL_STROKE}>
-              {`${rc.name} · ${Math.round(rc.rangeM / 1000)} km`}
+              {`${rc.name} · ${Math.round(rc.rangeM / 1000)} km · ↑${config.elevationMaxDeg ?? 30}°`}
             </Text>
           </Billboard>
         </group>
@@ -304,7 +334,7 @@ export function TrajectoryPlotScene({
                 />
               )}
               <mesh position={points[w.iIn]}>
-                <sphereGeometry args={[MARK * 1.6, 14, 14]} />
+                <sphereGeometry args={[MARK * PLOT_DOT_ACQ, 12, 12]} />
                 <meshBasicMaterial color={PLOT_RED} toneMapped={false} />
               </mesh>
               <Billboard position={[points[w.iIn].x, points[w.iIn].y + 0.7, points[w.iIn].z]}>
@@ -315,7 +345,7 @@ export function TrajectoryPlotScene({
               {outReached && (
                 <>
                   <mesh position={points[w.iOut]}>
-                    <sphereGeometry args={[MARK * 1.2, 12, 12]} />
+                    <sphereGeometry args={[MARK * PLOT_DOT_LOSS, 10, 10]} />
                     <meshBasicMaterial color={PLOT_RED} transparent opacity={0.5} toneMapped={false} />
                   </mesh>
                   <Billboard position={[points[w.iOut].x, points[w.iOut].y - 0.7, points[w.iOut].z]}>
@@ -333,7 +363,7 @@ export function TrajectoryPlotScene({
       {/* Marqueur d'APOGÉE (ambre) — repère de lecture clé. */}
       <group position={apogee}>
         <mesh>
-          <sphereGeometry args={[MARK * 1.5, 14, 14]} />
+          <sphereGeometry args={[MARK * PLOT_DOT_APOGEE, 12, 12]} />
           <meshBasicMaterial color={PLOT_AMBER} toneMapped={false} />
         </mesh>
         <Billboard position={[0, 0.7, 0]}>
@@ -345,15 +375,44 @@ export function TrajectoryPlotScene({
 
       {/* Pas de tir (cyan). */}
       <mesh position={[0, 0, 0]}>
-        <sphereGeometry args={[MARK * 1.2, 12, 12]} />
+        <sphereGeometry args={[MARK * PLOT_DOT_SITE, 10, 10]} />
         <meshBasicMaterial color={PLOT_CYAN} toneMapped={false} />
       </mesh>
+
+      {/* Marques TEMPORELLES sur la trajectoire (T+20s, T+40s…) : un tick court
+          perpendiculaire + le temps. Leur ESPACEMENT donne la vitesse à l'œil —
+          serrées en fin de montée (la fusée ralentit), écartées en chute (elle
+          accélère) — information qu'aucune graduation d'axe ne porte. Révélées
+          au fil du tracé, comme le reste. La vitesse n'est chiffrée qu'une marque
+          sur deux, pour ne pas saturer la courbe d'étiquettes. */}
+      {timeTicks.map((tick) =>
+        tick.index >= revealed ? null : (
+          <group key={`t${tick.tSec}`} position={tick.position}>
+            <mesh>
+              <sphereGeometry args={[MARK * 0.32, 8, 8]} />
+              <meshBasicMaterial color={PLOT_AMBER} toneMapped={false} />
+            </mesh>
+            <Billboard position={[0, -0.55, 0]}>
+              <Text
+                fontSize={0.34}
+                color={LABEL_COLOR}
+                outlineWidth={0.015}
+                outlineColor={LABEL_STROKE}
+              >
+                {tick.tSec % (PLOT_TIME_TICK_SEC * 2) === 0
+                  ? `T+${tick.tSec}s · ${Math.round(tick.speedMs)} m/s`
+                  : `T+${tick.tSec}s`}
+              </Text>
+            </Billboard>
+          </group>
+        ),
+      )}
 
       {/* Tête de piste live + sillage (Trail) = sens du vol évident. */}
       <group ref={headRef} visible={false}>
         <Trail width={2} length={5} color={new THREE.Color(...PLOT_AMBER)} attenuation={(t) => t * t}>
           <mesh>
-            <sphereGeometry args={[MARK * 1.6, 16, 16]} />
+            <sphereGeometry args={[MARK * PLOT_DOT_HEAD, 12, 12]} />
             <meshBasicMaterial color={PLOT_AMBER} toneMapped={false} />
           </mesh>
         </Trail>

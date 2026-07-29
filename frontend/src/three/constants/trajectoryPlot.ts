@@ -47,12 +47,44 @@ export const PLOT_DECOY_ACTIVE_WIDTH = 2.2
 export const PLOT_PICK_THRESHOLD_PX = 8
 
 // --- Palette HDR (>1) — glow via Bloom. Format [r,g,b] pour meshBasicMaterial. ---
+// Intensités RABAISSÉES (cyan 4.6 → 2.2, rouge 4.6 → 2.4, ambre 4.4 → 2.3) : au
+//-delà de ~2.5 le Bloom (seuil 0.9) empâte les traits en halos qui se recouvrent
+// et le graphe devient un néon illisible — « le glow doit servir la lecture, pas
+// primer sur la substance » (voir skill threejs-dataviz-design). On reste >1 pour
+// garder un glow franc sur les seuls traits de donnée, sans noyer les labels.
 /** Cyan froid : trace/trajectoire NEUTRE (non encore détectée), axes, radar. */
-export const PLOT_CYAN: [number, number, number] = [0.1, 3.4, 4.6]
+export const PLOT_CYAN: [number, number, number] = [0.08, 1.7, 2.2]
 /** Rouge ALARME : portions de trajectoire VUES par un radar (détection). */
-export const PLOT_RED: [number, number, number] = [4.6, 0.4, 0.5]
+export const PLOT_RED: [number, number, number] = [2.4, 0.25, 0.32]
 /** Ambre : valeurs à surveiller, marqueur d'apogée, échos (fatigue moins l'œil). */
-export const PLOT_AMBER: [number, number, number] = [4.4, 2.2, 0.5]
+export const PLOT_AMBER: [number, number, number] = [2.3, 1.15, 0.28]
+
+/** Teintes HDR par RADAR (cycle) : avec deux radars ou plus, un dôme et un cône
+ *  tous cyan ne disent pas À QUI ils appartiennent. Chaque radar reçoit donc sa
+ *  propre teinte froide, reprise par son dôme, son cône d'azimut, son marqueur au
+ *  sol et sa pastille de légende. Le ROUGE reste hors de ce cycle : il est réservé
+ *  à la détection (doctrine MIL-STD), jamais à l'identité d'un équipement. */
+export const PLOT_RADAR_COLORS: [number, number, number][] = [
+  [0.08, 1.7, 2.2], // cyan
+  [0.5, 1.1, 2.3], // bleu azur
+  [0.15, 2.0, 1.3], // turquoise
+  [1.0, 1.5, 2.4], // bleu pâle
+]
+
+/** Rayon des marqueurs sphériques, en fraction de MARK (voir TrajectoryPlotScene).
+ *  RÉDUITS : les billes d'acquisition/apogée (1.5-1.6 × MARK) mangeaient la courbe
+ *  qu'elles étaient censées annoter. Un instrument pointe, il n'empâte pas. */
+export const PLOT_DOT_ACQ = 0.7
+export const PLOT_DOT_LOSS = 0.55
+export const PLOT_DOT_APOGEE = 0.65
+export const PLOT_DOT_SITE = 0.6
+export const PLOT_DOT_HEAD = 0.8
+
+/** Intervalle (s de vol) entre deux marques temporelles posées sur la trajectoire.
+ *  Le graphe est un profil distance × altitude : sans repères de temps, on ne voit
+ *  pas que la fusée ralentit en montant puis accélère en chute — l'espacement des
+ *  marques le rend lisible d'un coup d'œil. */
+export const PLOT_TIME_TICK_SEC = 20
 
 /** Gris bleuté SDR (pas de glow) des traces de LEURRE : contexte, jamais
  *  prioritaire sur la menace réelle. Volontairement sous 1.0 sur tous les canaux
