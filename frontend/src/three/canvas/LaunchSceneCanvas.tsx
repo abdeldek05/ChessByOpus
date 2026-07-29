@@ -241,7 +241,14 @@ export function LaunchSceneCanvas({
       // Priorité fluidité (60 FPS stable), voir feedback_gpu_budget.
       dpr={[1, 1.25]}
       gl={{
-        antialias: true,
+        // AA natif coupé QUAND le post-traitement tourne : celui-ci rend hors
+        // écran et fait l'anti-aliasing en SMAA (voir PostFX, `multisampling={0}`).
+        // Laisser `antialias: true` faisait allouer et remplir un framebuffer
+        // MSAA que le composer n'échantillonne jamais — coût de fill payé pour
+        // rien à chaque frame, sans différence visible.
+        // Reste lié au flag : si POSTFX_ENABLED retombe à false (secours driver),
+        // le MSAA natif redevient la SEULE source d'AA et doit revenir.
+        antialias: !POSTFX_ENABLED,
         powerPreference: 'high-performance',
         // AgX (remplace ACESFilmic) : courbe filmique moderne qui écrase les
         // hautes lumières en DOUCEUR (roll-off progressif) au lieu de les

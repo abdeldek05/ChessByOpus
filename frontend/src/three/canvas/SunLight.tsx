@@ -65,13 +65,15 @@ export function SunLight({ shadowRadius = 60, mode = 'day' }: SunLightProps) {
         color={keyColor}
         intensity={keyIntensity}
         castShadow
-        // ABAISSÉ (4096 → 2048) : une shadow map 4096² coûte 4× la mémoire et le
-        // fill d'une 2048², rendue à chaque re-cuit. Sur la zone RAPPROCHÉE du
-        // pad (shadowRadius restreint), 2048² garde un texel fin (~0.2u) et un
-        // contour net à l'œil, pour un quart du coût. Contribue au retour à
-        // 60 FPS stable (fin des bonds de la fusée). Voir feedback_gpu_budget.
-        shadow-mapSize-width={1024}
-        shadow-mapSize-height={1024}
+        // 2048² : les ombres sont FIGÉES (shadowMap.autoUpdate = false dans
+        // LaunchSceneCanvas, re-cuites quelques frames par FreezeShadows), donc
+        // la résolution ne se paie qu'au re-cuit — pas à chaque frame comme
+        // avec des ombres dynamiques. À 1024² sur la zone rapprochée du pad, le
+        // texel était grossier et les contours crénelés en permanence à l'écran ;
+        // 2048² les affine pour un coût ponctuel négligeable. Le vrai risque
+        // driver vient du pic de TRIANGLES (herbe/rochers/arbres), pas d'ici.
+        shadow-mapSize-width={2048}
+        shadow-mapSize-height={2048}
         shadow-camera-left={-shadowRadius}
         shadow-camera-right={shadowRadius}
         shadow-camera-top={shadowRadius}
