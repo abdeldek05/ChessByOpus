@@ -13,6 +13,9 @@ const MAP_STYLE = 'https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.j
 
 // Recolorage « gris foncé + réseau blanc lumineux » : fond gris neutre, eau
 // en creux, routes/frontières en blanc léger et lumineux, labels blancs.
+// Hex littéraux assumés : MapLibre applique ces valeurs via `setPaintProperty`
+// (hors pipeline Tailwind, et `line` porte un canal alpha `4d`). Les garder
+// groupés ici tient lieu de token — ne pas les recopier dans le JSX.
 const MAP_COLORS = {
   background: '#141517',
   land: '#191b1e',

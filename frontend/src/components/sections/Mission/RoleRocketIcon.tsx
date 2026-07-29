@@ -7,8 +7,8 @@ interface RoleRocketIconProps {
 
 /**
  * Icône de rôle : une fusée-SONDE (silhouette fine et élancée, ogive
- * effilée — mêmes proportions que SoundingRocket2D, la référence visuelle du
- * sujet réel) coiffée d'une couronne selon le rôle — Roi (couronne à
+ * effilée, aux proportions du sujet réel) coiffée d'une couronne selon
+ * le rôle — Roi (couronne à
  * pointes), Dame (couronne à perles), Pion (nue). Corps mince, PAS une fusée
  * spatiale trapue.
  */

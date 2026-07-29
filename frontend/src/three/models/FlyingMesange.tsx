@@ -7,6 +7,7 @@ import { ExhaustPlume } from './ExhaustPlume'
 import { KingAltitudeTag } from './KingAltitudeTag'
 import { useTrajectoryPlayback } from '@/three/hooks/useTrajectoryPlayback'
 import { PAWN_BURN_TIME_SEC } from '@/lib/decoyTrajectory'
+import { vectorKey } from '@/lib/vectorKey'
 import type { FlightData } from '@/lib/api'
 import type { MesangeRole } from '@/types/mission.types'
 
@@ -84,12 +85,16 @@ export function FlyingMesange({
   // PGRV en chute, burn de 35.7s). Seul le Pion a sa PROPRE physique JS
   // (montée+chute complète sur la spline, burn court) — voir useRealDescent.
   const isPawn = role === 'PAWN'
-  // Stabilise l'origine/direction (évite un nouveau Vector3 à chaque render → reset hook).
-  const originStable = useMemo(() => origin.clone(), [origin.x, origin.y, origin.z])
-  const directionStable = useMemo(
-    () => initialDirection.clone(),
-    [initialDirection.x, initialDirection.y, initialDirection.z],
-  )
+  // Stabilise l'origine/direction : l'appelant reconstruit souvent un Vector3 à
+  // chaque render, ce qui relancerait le playback (nouvelle identité d'objet) même
+  // à coordonnées identiques. On ne re-clone donc que si les COMPOSANTES bougent,
+  // en dépendant d'une clé de valeur plutôt que de l'objet.
+  const originKey = vectorKey(origin)
+  const directionKey = vectorKey(initialDirection)
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- clé de valeur volontaire : voir ci-dessus
+  const originStable = useMemo(() => origin.clone(), [originKey])
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- clé de valeur volontaire : voir ci-dessus
+  const directionStable = useMemo(() => initialDirection.clone(), [directionKey])
 
   const { groupRef, phase, thrusting, brokenElapsed, impact, hasStarted } = useTrajectoryPlayback({
     flight,
