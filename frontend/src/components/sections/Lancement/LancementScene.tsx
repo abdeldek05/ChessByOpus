@@ -254,7 +254,14 @@ export function LancementScene({ state }: LancementSceneProps) {
         </>
       )}
 
-      {(sequence.phase === 'done' || sequence.phase === 'error') && (
+      {/* Bilan : affiché à la fin du tir, et CONSERVÉ après un clic Relaunch
+          (phase repassée à 'armed' mais bilan encore en mémoire) — l'opérateur
+          garde la lecture de sa passe précédente tant que le nouveau tir n'a pas
+          produit la sienne. Masqué pendant le décompte et le vol, où il n'aurait
+          plus de sens ; le nouveau bilan le remplace à l'impact suivant. */}
+      {(sequence.phase === 'done' ||
+        sequence.phase === 'error' ||
+        (sequence.phase === 'armed' && sequence.result !== null)) && (
         <MissionBilan
           result={sequence.result}
           siteName={state.site.name}
@@ -265,7 +272,9 @@ export function LancementScene({ state }: LancementSceneProps) {
         />
       )}
 
-      {sequence.phase === 'done' && <FlightTelemetryChart flight={sequence.flight} />}
+      {(sequence.phase === 'done' || (sequence.phase === 'armed' && sequence.result !== null)) && (
+        <FlightTelemetryChart flight={sequence.flight} />
+      )}
 
       {/* Légende du corridor de visibilité : visible dès qu'un vol est lancé
           (running) et jusqu'à la fin, pour expliquer le tracé coloré. */}

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { simulateFlight, type FlightData } from '@/lib/api'
 import { buildSimulatePayload } from '@/lib/buildSimulatePayload'
+import { buildSimulationCacheKey } from '@/lib/simulationCacheKey'
 import { useSimulationCacheStore } from '@/stores/simulationCacheStore'
 import type { RadarConfig } from '@/types/radar.types'
 import type { RadarPosition, MesangeLaunchConfig } from '@/types/mission.types'
@@ -73,6 +74,16 @@ export function useLaunchSequence({
   // que la simu répond, mais affiché seulement quand la fusée touche
   // effectivement le relief 3D — jamais avant, jamais après.
   const pendingDetection = useRef<MissionResult | null>(null)
+  // Simulation VERROUILLÉE du tir en cours : un REPLAY doit rejouer exactement
+  // le même vol, or le cache de prefetch sert la même clé en DEUX VAGUES
+  // (atmosphère standard d'abord, météo GFS réelle ensuite, qui remplace
+  // l'entrée). Sans ce verrou, relancer après l'arrivée de la vague GFS rejouait
+  // une AUTRE trajectoire : sur un tir de référence, 45.8 km en standard contre
+  // 43.8 km en GFS, soit ~2 km d'écart pour un scénario identique. On mémorise
+  // donc la réponse effectivement jouée et on la réutilise au replay.
+  const lockedSim = useRef<Awaited<ReturnType<typeof simulateFlight>> | null>(null)
+  // Clé de scénario du verrou : le relâche si les réglages changent (voir launch).
+  const lockedKey = useRef<string | null>(null)
 
   const clearTimers = useCallback(() => {
     if (countdownTimer.current) clearInterval(countdownTimer.current)
@@ -92,9 +103,22 @@ export function useLaunchSequence({
     //    payload changé depuis), on relance l'appel comme avant : le décompte
     //    de 3 s reste affiché dans tous les cas (effet dramatique voulu),
     //    seul le risque d'ATTENTE au-delà du décompte disparaît.
+    //    Un REPLAY réutilise la simulation déjà jouée (lockedSim) sans repasser
+    //    par le cache : c'est ce qui garantit une trajectoire IDENTIQUE d'un
+    //    replay à l'autre, même si la vague GFS est arrivée entre-temps.
     const payload = buildSimulatePayload({ site, radars, mesangeConfigs, king, temperatureC })
+    // Le verrou ne vaut que pour le scénario qui l'a produit : si les réglages
+    // ont changé depuis (autre radar, autre azimut…), la clé diffère et on
+    // recalcule au lieu de rejouer un vol qui ne correspond plus à l'écran.
+    const key = payload ? buildSimulationCacheKey(payload) : null
+    if (lockedSim.current && lockedKey.current !== key) lockedSim.current = null
+    lockedKey.current = key
+
     const cached = payload ? useSimulationCacheStore.getState().get(payload) : null
-    const simPromise = (cached ?? (payload ? simulateFlight(payload) : Promise.reject())).catch(() => ({
+    const source = lockedSim.current
+      ? Promise.resolve(lockedSim.current)
+      : (cached ?? (payload ? simulateFlight(payload) : Promise.reject()))
+    const simPromise = source.catch(() => ({
       status: 'failed' as const,
       error: 'Backend unreachable',
     }))
@@ -118,6 +142,10 @@ export function useLaunchSequence({
         setMessage(sim.error ?? 'Simulation unavailable')
         return
       }
+      // Verrouille CETTE réponse : tous les replays suivants la rejoueront à
+      // l'identique (voir lockedSim), au lieu de re-consulter un cache dont
+      // l'entrée peut avoir changé de vague entre-temps.
+      lockedSim.current = sim
       const flightData = sim.flight
       setFlight(flightData)
       setWeather(flightData.weather)
@@ -143,9 +171,13 @@ export function useLaunchSequence({
     pendingDetection.current = null
     setCountdown(COUNTDOWN_START)
     setMessage('')
-    setResult(null)
-    setFlight(null)
-    setWeather(null)
+    // `result`/`flight`/`weather` sont CONSERVÉS : ils décrivent le tir précédent
+    // et restent le dernier bilan connu jusqu'à ce que le nouveau vol produise
+    // le sien (voir reportImpact). Les remettre à null ici faisait disparaître
+    // les résultats dès le clic sur Relaunch, alors que le nouveau tir n'a pas
+    // encore de bilan à afficher — l'opérateur perdait la lecture de sa passe.
+    // Le rendu de la scène ne s'appuie pas sur eux pour savoir s'il doit animer
+    // (c'est `phase` qui le dit), donc les garder n'anime rien par erreur.
     setPhase('armed')
   }, [clearTimers])
 
