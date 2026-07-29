@@ -1,3 +1,5 @@
+import { PHOTO_MODE, PHOTO_ENVIRONMENT_INTENSITY } from '@/three/constants/photoMode'
+
 // Conditions atmosphériques : JOUR, GOLDEN HOUR (soleil bas, lumière chaude).
 // (Le fichier garde son nom historique `launchDaylight` pour ne pas casser les
 // imports.) Ciel + IBL fournis par une VRAIE HDRI photographique (voir
@@ -50,7 +52,7 @@ export const LIGHTING = {
 // feedback_gpu_budget) : une valeur trop haute cumulée aux god rays/bloom a
 // fait cramer toute l'image en blanc uniforme (constaté à 1.35) — le gain de
 // qualité doit rester perceptible sans saturer le tone mapping AgX.
-export const ENVIRONMENT_INTENSITY = 1.15
+export const ENVIRONMENT_INTENSITY = PHOTO_MODE ? PHOTO_ENVIRONMENT_INTENSITY : 1.15
 
 // Rendu : tone mapping AgX (voir LaunchSceneCanvas), exposition calée jour.
 // AgX gérant déjà le roll-off des hautes lumières, l'exposition reste neutre

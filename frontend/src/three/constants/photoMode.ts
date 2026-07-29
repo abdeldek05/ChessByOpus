@@ -8,7 +8,7 @@
 // nettement plus bas — c'est attendu, on fige l'image pour la capturer.
 
 /** Active le mode photo. Passer à `true` le temps des captures, puis remettre `false`. */
-export const PHOTO_MODE = false
+export const PHOTO_MODE = true
 
 // --- Densité et détail du décor ---------------------------------------------
 
@@ -70,3 +70,44 @@ export const PHOTO_METAL_ENV_INTENSITY = 2.4
  *  reflets nets. Reste au-dessus de 0 — un métal parfaitement lisse fait
  *  plastique, l'inox réel garde un fin brossage. */
 export const PHOTO_METAL_ROUGHNESS = 0.22
+
+// --- Lumière : golden hour assumée -------------------------------------------
+// L'HDRI est déjà une capture golden hour (soleil à 5° d'élévation), mais
+// l'éclairage DIRECT ne l'exploitait pas : soleil tiède, rim froid presque aussi
+// fort que la clé, hémisphérique élevé qui délavait les ombres. Résultat, une
+// lumière « midi nuageux » plaquée sur un ciel doré. Ces valeurs assument
+// l'heure dorée : clé chaude et intense, ambiance basse, contre-jour discret.
+
+/** Couleur du soleil : ambre franc plutôt que blanc-crème. À 5° d'élévation la
+ *  lumière traverse beaucoup d'atmosphère — elle est réellement orangée, pas
+ *  jaune pâle. C'est ce qui fait lire « fin de journée » au premier regard. */
+export const PHOTO_SUN_COLOR = '#ff9d4d'
+
+/** Intensité de la clé : montée pour que la lumière rasante SCULPTE (faces
+ *  éclairées franches contre faces à l'ombre), au lieu d'un éclairage plat. */
+export const PHOTO_SUN_INTENSITY = 2.9
+
+/** Hémisphérique ABAISSÉ : c'est lui qui remplit les ombres. Trop haut, il
+ *  annule le contraste que le soleil rasant vient de créer et tout redevient
+ *  plat. Bas, les ombres gardent de la densité — signature de l'heure dorée. */
+export const PHOTO_HEMI_INTENSITY = 0.5
+
+/** Teinte du ciel pour le remplissage : bleu franc. Le contraste chaud/froid
+ *  (soleil ambre vs ombres bleutées) est ce qui donne sa richesse à une image
+ *  golden hour — un remplissage neutre gris rendrait la scène terne. */
+export const PHOTO_SKY_TINT = '#7ea8e8'
+
+/** Rebond du sol : herbe chauffée par le soleil bas, plus doré que le vert cru. */
+export const PHOTO_GROUND_TINT = '#6b5a2e'
+
+/** Contre-jour AFFAIBLI (0.85 → 0.35) : à 0.85 il rivalisait avec le soleil et
+ *  éclairait les faces qui doivent rester dans l'ombre. Un liseré qui détache
+ *  le sujet du fond suffit. */
+export const PHOTO_RIM_INTENSITY = 0.35
+
+/** Teinte du contre-jour : bleu crépusculaire, complémentaire de l'ambre. */
+export const PHOTO_RIM_COLOR = '#9fc0ea'
+
+/** Intensité de l'IBL (HDRI) en photo : légèrement montée — les reflets du ciel
+ *  doré sur l'inox et le fuselage font une bonne part de l'ambiance. */
+export const PHOTO_ENVIRONMENT_INTENSITY = 1.35
