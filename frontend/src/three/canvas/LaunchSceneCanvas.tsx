@@ -7,6 +7,7 @@ import { computeLaunchCameraStart } from '@/lib/computeLaunchCameraStart'
 import { GlContextReleaser } from './GlContextReleaser'
 import { PostFX } from './PostFX'
 import { POSTFX_ENABLED, POSTFX_QUALITY } from '@/three/constants/postFx'
+import { PerfHud } from './PerfHud'
 import { GroundMesh } from '@/three/models/GroundMesh'
 import { FarHorizon } from '@/three/models/FarHorizon'
 import { HorizonHaze } from '@/three/models/HorizonHaze'
@@ -269,6 +270,11 @@ export function LaunchSceneCanvas({
           empêche l'accumulation de contextes orphelins → « Context Lost ». */}
       <GlContextReleaser />
 
+      {/* Mesure des perfs (draw calls / triangles / ms GPU) — éteint par
+          défaut, voir PERF_HUD_ENABLED. Le composant décide seul de ne rien
+          rendre : à allumer le temps d'un diagnostic de chute de FPS. */}
+      <PerfHud />
+
       {/* Ciel + IBL depuis une vraie HDRI golden hour (fond, nuages, halo
           solaire réels + reflets sur les matériaux PBR) — voir EnvironmentSky.
           Suspense LOCAL : le chargement (réseau/disque) ne doit jamais
@@ -338,7 +344,7 @@ export function LaunchSceneCanvas({
       {/* Herbe 3D (streaming par tuiles autour de la caméra) + rochers + arbres semés. */}
       <GrassField />
       <RockField terrainRadius={DETAIL_RADIUS} />
-      <TreeField />
+      <TreeField terrainRadius={DETAIL_RADIUS} />
 
       {/* Pas de tir : plateforme béton à gradins + rampe + console + fusée. Le
           pad est dans la zone plate du sol (sampleGroundHeight = 0 pile à

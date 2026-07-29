@@ -3,6 +3,11 @@ import * as THREE from 'three'
 import { useScatterInstances } from '@/three/hooks/useScatterInstances'
 import { TREE, TREE_SCATTER } from '@/three/constants/trees'
 
+interface TreeFieldProps {
+  /** Rayon de la zone de terrain détaillée : borne le semis (aucun arbre au-delà). */
+  terrainRadius: number
+}
+
 /**
  * Arbres procéduraux SEMÉS sur toute la map (même pattern que RockField) :
  * tronc effilé + houppier en plusieurs amas de feuillage, réduits à DEUX
@@ -11,8 +16,15 @@ import { TREE, TREE_SCATTER } from '@/three/constants/trees'
  * (source de vérité du sol : sampleGroundHeight) ; chaque blob de feuillage
  * est dérivé de la matrice de son tronc.
  */
-export function TreeField() {
-  const trunkMatrices = useScatterInstances(TREE_SCATTER)
+export function TreeField({ terrainRadius }: TreeFieldProps) {
+  // Semis borné à la zone de terrain DÉTAILLÉE, comme RockField. Sans ce
+  // plafond, `TREE_SCATTER.cutoffRadius` (30000) semait une partie des arbres
+  // loin au-delà du relief, dans le sol plat noyé par le fog : géométrie et
+  // shadow pass payés pour des arbres invisibles.
+  const trunkMatrices = useScatterInstances({
+    ...TREE_SCATTER,
+    cutoffRadius: Math.min(TREE_SCATTER.cutoffRadius, terrainRadius),
+  })
 
   // Géométrie tronc : cône effilé, pivot à la base (y ∈ [0, trunkHeight]).
   const trunkGeometry = useMemo(() => {
@@ -101,12 +113,16 @@ export function TreeField() {
         </instancedMesh>
       )}
 
+      {/* Feuillage SANS castShadow (retiré) : 5 amas par arbre, soit ~2100
+          icosaèdres qui traversaient le shadow pass à chaque re-cuit (voir
+          FreezeShadows, relancé au départ de vol et à chaque réorientation de
+          rampe). L'ombre portée de l'arbre reste dessinée par son tronc ; le
+          houppier n'y ajoutait qu'un pâté peu lisible à cette résolution. */}
       {blobMatrices.length > 0 && (
         <instancedMesh
           key={`blobs-${blobMatrices.length}`}
           ref={blobRef}
           args={[blobGeometry, undefined, blobMatrices.length]}
-          castShadow
         >
           <meshStandardMaterial color={TREE.leafColor} roughness={0.85} metalness={0} flatShading />
         </instancedMesh>
