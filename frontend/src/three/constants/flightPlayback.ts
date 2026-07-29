@@ -46,14 +46,23 @@ export const LIFTOFF_TIME_SCALE = 2.5
  * estimée à l'œil en comparant à la fusée — cette dernière ne peut pas servir
  * de référence d'échelle.
  *
- * RÉDUIT (3.2 → 2.4 → 1.2). Mesure de la taille à l'écran (hauteur, FOV 55°) qui
- * a motivé la dernière baisse — le facteur avait été calibré pour le cas
- * LOINTAIN alors que le mode par défaut est le cas PROCHE :
+ * RÉDUIT (3.2 → 2.4 → 1.2 → 0.8). Mesure de la taille à l'écran (hauteur, FOV 55°) :
  *
- *   distance caméra   ×2.4        ×1.2
- *   24 u (suivi)      54 %  →     27 %   ← le mode par défaut : elle bouchait la vue
- *   150 u             8.6 % →     4.3 %
- *   3200 u (radar)    0.4 % →     0.2 %
+ *   distance caméra   ×2.4        ×1.2        ×0.8
+ *   24 u (suivi)      54 %  →     27 %  →     18 %   ← le mode par défaut
+ *   150 u             8.6 % →     4.3 % →     2.9 %
+ *   3200 u (radar)    0.4 % →     0.2 % →     0.13 %
+ *
+ * La dernière baisse (1.2 → 0.8) corrige une incohérence de perception : au-delà
+ * de 1, la fusée EN VOL est plus grande qu'au sol sur sa rampe (à ×1.2 elle
+ * faisait 107 % de la hauteur du mât, contre 89 % posée) — elle semblait donc
+ * GROSSIR en décollant, l'inverse de ce que l'œil attend d'un objet qui s'éloigne.
+ * Sous 1 elle rétrécit légèrement en montant (71 % du mât), ce qui se lit
+ * naturellement comme de l'éloignement.
+ *
+ * Ne touche QUE le vol : au sol le modèle reste à sa taille brute (5.62 u), donc
+ * le rapport avec le pas de tir calibré à la main (mât 6.3 u, dalle 13×10 u —
+ * voir launcherRig.ts) est préservé.
  *
  * Une taille FIXE en unités ne peut pas satisfaire les deux bouts (la caméra va
  * de 24 à 4665 u, facteur 194). On privilégie donc le mode SUIVI, le seul où l'on
@@ -62,7 +71,7 @@ export const LIFTOFF_TIME_SCALE = 2.5
  * pixels écran (voir visibilityCorridor.ts) — la trace ne dépend pas de la
  * taille du modèle.
  */
-export const FLYING_ROCKET_SCALE = 1.2
+export const FLYING_ROCKET_SCALE = 0.8
 
 /**
  * Durée (s, temps de vol RÉEL non accéléré) sur laquelle l'échelle passe
