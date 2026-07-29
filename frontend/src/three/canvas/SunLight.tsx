@@ -3,34 +3,7 @@ import * as THREE from 'three'
 import { getSunDirection, LIGHTING } from '@/three/constants/launchDaylight'
 import { getMoonDirection, NIGHT_LIGHTING } from '@/three/constants/launchNight'
 import { LAUNCH_CENTER } from '@/three/constants/sceneLayout'
-import {
-  PHOTO_MODE,
-  PHOTO_SHADOW_MAP_SIZE,
-  PHOTO_SUN_COLOR,
-  PHOTO_SUN_INTENSITY,
-  PHOTO_HEMI_INTENSITY,
-  PHOTO_SKY_TINT,
-  PHOTO_GROUND_TINT,
-  PHOTO_RIM_COLOR,
-  PHOTO_RIM_INTENSITY,
-} from '@/three/constants/photoMode'
 import type { SceneMode } from '@/types/scene.types'
-
-/** Résolution de la shadow map : 2048 en usage normal, poussée en mode photo
- *  (ombres figées → le coût n'est payé qu'au re-cuit, voir FreezeShadows). */
-const SHADOW_MAP_SIZE = PHOTO_MODE ? PHOTO_SHADOW_MAP_SIZE : 2048
-
-/** Jeu de lumière du jour en MODE PHOTO — même forme que LIGHTING, valeurs
- *  golden hour assumées (voir photoMode.ts pour le raisonnement de chacune). */
-const PHOTO_DAY_LIGHTING: typeof LIGHTING = {
-  sunColor: PHOTO_SUN_COLOR,
-  sunIntensity: PHOTO_SUN_INTENSITY,
-  skyTint: PHOTO_SKY_TINT,
-  groundTint: PHOTO_GROUND_TINT,
-  hemiIntensity: PHOTO_HEMI_INTENSITY,
-  rimColor: PHOTO_RIM_COLOR,
-  rimIntensity: PHOTO_RIM_INTENSITY,
-}
 
 interface SunLightProps {
   /** Demi-étendue (unités) de la shadow-camera : couvre le pas de tir + décor. */
@@ -60,19 +33,13 @@ export function SunLight({ shadowRadius = 60, mode = 'day' }: SunLightProps) {
   const night = mode === 'night'
   // Direction de la source (soleil le jour, lune la nuit) + jeu de lumière.
   const direction = useMemo(() => (night ? getMoonDirection() : getSunDirection()), [night])
-
-  // Jeu de lumière du JOUR : golden hour assumée en mode photo (clé ambre
-  // intense, ambiance basse pour garder des ombres denses, contre-jour discret),
-  // réglages courants sinon. La NUIT n'est jamais touchée par le mode photo.
-  const day = PHOTO_MODE ? PHOTO_DAY_LIGHTING : LIGHTING
-
-  const keyColor = night ? NIGHT_LIGHTING.moonColor : day.sunColor
-  const keyIntensity = night ? NIGHT_LIGHTING.moonIntensity : day.sunIntensity
-  const skyTint = night ? NIGHT_LIGHTING.skyTint : day.skyTint
-  const groundTint = night ? NIGHT_LIGHTING.groundTint : day.groundTint
-  const hemiIntensity = night ? NIGHT_LIGHTING.hemiIntensity : day.hemiIntensity
-  const rimColor = night ? NIGHT_LIGHTING.rimColor : day.rimColor
-  const rimIntensity = night ? NIGHT_LIGHTING.rimIntensity : day.rimIntensity
+  const keyColor = night ? NIGHT_LIGHTING.moonColor : LIGHTING.sunColor
+  const keyIntensity = night ? NIGHT_LIGHTING.moonIntensity : LIGHTING.sunIntensity
+  const skyTint = night ? NIGHT_LIGHTING.skyTint : LIGHTING.skyTint
+  const groundTint = night ? NIGHT_LIGHTING.groundTint : LIGHTING.groundTint
+  const hemiIntensity = night ? NIGHT_LIGHTING.hemiIntensity : LIGHTING.hemiIntensity
+  const rimColor = night ? NIGHT_LIGHTING.rimColor : LIGHTING.rimColor
+  const rimIntensity = night ? NIGHT_LIGHTING.rimIntensity : LIGHTING.rimIntensity
 
   // Distance de la source : grande devant shadowRadius → rayons quasi parallèles.
   const lightPosition = useMemo((): [number, number, number] => {
@@ -105,8 +72,8 @@ export function SunLight({ shadowRadius = 60, mode = 'day' }: SunLightProps) {
         // texel était grossier et les contours crénelés en permanence à l'écran ;
         // 2048² les affine pour un coût ponctuel négligeable. Le vrai risque
         // driver vient du pic de TRIANGLES (herbe/rochers/arbres), pas d'ici.
-        shadow-mapSize-width={SHADOW_MAP_SIZE}
-        shadow-mapSize-height={SHADOW_MAP_SIZE}
+        shadow-mapSize-width={2048}
+        shadow-mapSize-height={2048}
         shadow-camera-left={-shadowRadius}
         shadow-camera-right={shadowRadius}
         shadow-camera-top={shadowRadius}

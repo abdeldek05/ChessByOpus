@@ -1,10 +1,3 @@
-import {
-  PHOTO_MODE,
-  PHOTO_GRASS_DENSITY_FACTOR,
-  PHOTO_GRASS_RADIUS_FACTOR,
-  PHOTO_GRASS_MAX_FACTOR,
-} from '@/three/constants/photoMode'
-
 // Herbe instanciée à DENSITÉ UNIFORME et dense PARTOUT sur la map, via un
 // STREAMING PAR TUILES autour de la caméra : la map est découpée en tuiles
 // carrées fixes ; seules les tuiles dans un rayon autour de la caméra sont
@@ -25,15 +18,15 @@ export const GRASS_TILE_SIZE = 80
 // (~(2·600/80)² tuiles). À 320 la charge géométrie/instances chute d'un facteur
 // ~3,5 tout en gardant de l'herbe dense sur toute la zone réellement visible
 // autour de la caméra. Voir feedback_gpu_budget (priorité fluidité).
-export const GRASS_STREAM_RADIUS = PHOTO_MODE ? 320 * PHOTO_GRASS_RADIUS_FACTOR : 320
+export const GRASS_STREAM_RADIUS = 320
 
 // Densité d'herbe (touffes par unité² de tuile) — LA MÊME PARTOUT, aucune
 // décroissance avec la distance : c'est le streaming (pas la densité) qui
 // gère le coût.
-export const GRASS_DENSITY = PHOTO_MODE ? 0.1 * PHOTO_GRASS_DENSITY_FACTOR : 0.1
+export const GRASS_DENSITY = 0.1
 // Plafond d'instances PAR TUILE (garde-fou, ne devrait jamais être atteint à
 // cette taille de tuile).
-export const GRASS_MAX_PER_TILE = PHOTO_MODE ? 4000 * PHOTO_GRASS_MAX_FACTOR : 4000
+export const GRASS_MAX_PER_TILE = 4000
 
 // Rayon intérieur laissé TOTALEMENT libre autour de la dalle du pas de tir
 // (pas d'herbe qui traverse la plateforme) — calé sur le demi-côté du gradin

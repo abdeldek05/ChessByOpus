@@ -2,7 +2,6 @@ import { useEffect, useMemo } from 'react'
 import * as THREE from 'three'
 import { createConcreteTexture } from '@/lib/createConcreteTexture'
 import { PAD_TIERS, PAD_TOP_Y, FLAME_PIT, CONCRETE_COLOR } from '@/three/constants/launchComplex'
-import { PHOTO_MODE, PHOTO_TEXTURE_SIZE } from '@/three/constants/photoMode'
 
 /**
  * Plateforme de lancement en béton, à gradins : des dalles carrées empilées du
@@ -11,25 +10,14 @@ import { PHOTO_MODE, PHOTO_TEXTURE_SIZE } from '@/three/constants/photoMode'
  * l'échelle de la fusée-sonde. Rendu seul — dimensions en constantes.
  */
 export function LaunchPad() {
-  // En MODE PHOTO la texture passe en haute résolution : le grain du béton, les
-  // joints de dilatation et les traces d'usure restent nets en gros plan au lieu
-  // de baver (512 suffit à distance de jeu, pas sur une capture).
-  const { colorMap, normalMap } = useMemo(
-    () => createConcreteTexture(PHOTO_MODE ? PHOTO_TEXTURE_SIZE : 512, 4),
-    [],
-  )
+  const { colorMap, normalMap } = useMemo(() => createConcreteTexture(512, 4), [])
 
   const material = useMemo(
     () =>
       new THREE.MeshStandardMaterial({
         map: colorMap,
         normalMap,
-        // Relief accentué en photo : le rasant du soleil bas accroche alors le
-        // micro-relief de la dalle et les joints se lisent vraiment.
-        normalScale: new THREE.Vector2(
-          PHOTO_MODE ? 1.1 : 0.6,
-          PHOTO_MODE ? 1.1 : 0.6,
-        ),
+        normalScale: new THREE.Vector2(0.6, 0.6),
         color: CONCRETE_COLOR,
         roughness: 0.9,
         metalness: 0.02,
