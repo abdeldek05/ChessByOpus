@@ -1,10 +1,10 @@
 """Simulation de vol de la Mesange V2 avec RocketPy.
 
 Construit le moteur, la fusée et l'environnement à partir des données réelles du
-dossier de prédesign (thrust_curve.csv, CD_Power_*_us.csv, masses/inerties du
-notebook), lance le vol selon l'azimut et l'élévation choisis par le client, et
-renvoie la trajectoire échantillonnée + les métriques clés sous forme de dict
-JSON-sérialisable.
+prédesign (backend/data/ : thrust_curve.csv, CD_Power_*_us.csv, et masses/inerties
+en constantes ci-dessous), lance le vol selon l'azimut et l'élévation choisis par
+le client, et renvoie la trajectoire échantillonnée + les métriques clés sous
+forme de dict JSON-sérialisable.
 
 Testable en ligne de commande :
     python simulate.py --lat 44.36 --lng -1.26 --elevation 80 --azimuth 30
@@ -22,11 +22,11 @@ from pathlib import Path
 from rocketpy import Environment, SolidMotor, Rocket, Flight
 from rocketpy.mathutils import Function
 
-# --- Données Mesange V2 (dossier predesign) -----------------------------------
-PREDESIGN = Path(__file__).parent.parent / "rocketpy_predisgn"
-THRUST_CURVE = str(PREDESIGN / "thrust_curve.csv")
-CD_POWER_ON = str(PREDESIGN / "CD_Power_On_us.csv")
-CD_POWER_OFF = str(PREDESIGN / "CD_Power_Off_us.csv")
+# --- Données Mesange V2 (issues du prédesign) ---------------------------------
+DATA_DIR = Path(__file__).parent / "data"
+THRUST_CURVE = str(DATA_DIR / "thrust_curve.csv")
+CD_POWER_ON = str(DATA_DIR / "CD_Power_On_us.csv")
+CD_POWER_OFF = str(DATA_DIR / "CD_Power_Off_us.csv")
 
 # Masses (kg) et géométrie, valeurs calculées du notebook.
 DRY_MASS = 66.38  # masse à vide (structure + moteur vide + charge utile)
@@ -195,9 +195,9 @@ def build_rocket(motor: SolidMotor) -> Rocket:
         coordinate_system_orientation="tail_to_nose",
     )
     rocket.add_motor(motor, position=-1.6)
-    # Nez ogival à l'avant + ailerons + jupe de queue (boat-tail), dimensions du
-    # notebook de prédesign (rocketpy_predisgn/Mesange_V2_predim_separated_tanks
-    # .ipynb) : root/tip chord et envergure exacts, et le boat-tail — ABSENT ici
+    # Nez ogival à l'avant + ailerons + jupe de queue (boat-tail), dimensions
+    # reprises du notebook de prédesign Mesange V2 (hors dépôt) : root/tip chord
+    # et envergure exacts, et le boat-tail — ABSENT ici
     # avant ce correctif — qui déplace le centre de poussée vers l'arrière et
     # relève la marge statique réelle (~2,5 cal dans le notebook, contre ~1,2 cal
     # mesurée sans lui). Sans cette marge, la fusée "weathercocke" excessivement
