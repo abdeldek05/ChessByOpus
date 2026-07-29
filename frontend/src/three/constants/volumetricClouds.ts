@@ -1,3 +1,5 @@
+import { PHOTO_MODE, PHOTO_CLOUD_STEPS } from '@/three/constants/photoMode'
+
 // Couche de nuages VOLUMÉTRIQUES à hauteur de vol (voir VolumetricClouds.tsx) :
 // un grand plan horizontal rendu par un shader de raymarching COURT (densité
 // fBm), placé au niveau où la fusée passe — vrais nuages 3D vus de dessous/
@@ -31,7 +33,9 @@ export const CLOUD_PLANE_HALF_SIZE = 9000
  *  (24 → 12, garde-fou 70 FPS) : le raymarching coûte N échantillons par pixel
  *  du plan de nuages (très large) — 12 pas suffisent pour une couche fine et
  *  douce et divisent ce coût par 2. Voir feedback_gpu_budget (priorité fluidité). */
-export const CLOUD_RAYMARCH_STEPS = 12
+// Le shader borne sa boucle à 64 itérations en dur : la valeur photo (32) reste
+// donc sous le plafond, aucun GLSL à toucher.
+export const CLOUD_RAYMARCH_STEPS = PHOTO_MODE ? PHOTO_CLOUD_STEPS : 12
 
 /** Couverture (0-1) : seuil de densité — haut = ciel plus dégagé (quelques
  *  nuages épars), bas = couche plus continue. */

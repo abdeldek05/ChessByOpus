@@ -3,7 +3,12 @@ import * as THREE from 'three'
 import { getSunDirection, LIGHTING } from '@/three/constants/launchDaylight'
 import { getMoonDirection, NIGHT_LIGHTING } from '@/three/constants/launchNight'
 import { LAUNCH_CENTER } from '@/three/constants/sceneLayout'
+import { PHOTO_MODE, PHOTO_SHADOW_MAP_SIZE } from '@/three/constants/photoMode'
 import type { SceneMode } from '@/types/scene.types'
+
+/** Résolution de la shadow map : 2048 en usage normal, poussée en mode photo
+ *  (ombres figées → le coût n'est payé qu'au re-cuit, voir FreezeShadows). */
+const SHADOW_MAP_SIZE = PHOTO_MODE ? PHOTO_SHADOW_MAP_SIZE : 2048
 
 interface SunLightProps {
   /** Demi-étendue (unités) de la shadow-camera : couvre le pas de tir + décor. */
@@ -72,8 +77,8 @@ export function SunLight({ shadowRadius = 60, mode = 'day' }: SunLightProps) {
         // texel était grossier et les contours crénelés en permanence à l'écran ;
         // 2048² les affine pour un coût ponctuel négligeable. Le vrai risque
         // driver vient du pic de TRIANGLES (herbe/rochers/arbres), pas d'ici.
-        shadow-mapSize-width={2048}
-        shadow-mapSize-height={2048}
+        shadow-mapSize-width={SHADOW_MAP_SIZE}
+        shadow-mapSize-height={SHADOW_MAP_SIZE}
         shadow-camera-left={-shadowRadius}
         shadow-camera-right={shadowRadius}
         shadow-camera-top={shadowRadius}

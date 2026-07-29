@@ -8,6 +8,7 @@ import {
   PAD_FLOODLIGHTS,
   FLOODLIGHT,
 } from '@/three/constants/launchComplex'
+import { usePadMetalProps } from '@/three/hooks/usePadMetalProps'
 
 /**
  * Détails techniques et de sécurité SUR le plateau supérieur de la plateforme :
@@ -18,6 +19,11 @@ import {
  */
 export function PadDetails() {
   const topHalf = PAD_TIERS[PAD_TIERS.length - 1].half // demi-côté du plateau
+  // Aspect PBR des pièces métalliques : inox poli et reflets HDRI poussés en
+  // mode photo, valeurs d'origine sinon (voir usePadMetalProps).
+  const railMetal = usePadMetalProps(0.4, 0.7)
+  const pipeMetal = usePadMetalProps(0.5, 0.6)
+  const poleMetal = usePadMetalProps(0.5, 0.5)
 
   // Poteaux de rambarde le long des deux bords opposés (côtés dégagés).
   const railPosts = useMemo(() => {
@@ -34,14 +40,14 @@ export function PadDetails() {
       {railPosts.map(([x, z], i) => (
         <mesh key={i} position={[x, PAD_DETAILS.railHeight / 2, z]} castShadow>
           <cylinderGeometry args={[0.05, 0.05, PAD_DETAILS.railHeight, 6]} />
-          <meshStandardMaterial color={PAD_DETAILS.railColor} roughness={0.4} metalness={0.7} />
+          <meshStandardMaterial color={PAD_DETAILS.railColor} {...railMetal} />
         </mesh>
       ))}
       {[-topHalf + 0.3, topHalf - 0.3].map((z, k) =>
         [PAD_DETAILS.railHeight * 0.95, PAD_DETAILS.railHeight * 0.5].map((ry, m) => (
           <mesh key={`${k}-${m}`} position={[0, ry, z]} rotation={[0, 0, Math.PI / 2]}>
             <cylinderGeometry args={[0.035, 0.035, topHalf * 2 - 1, 6]} />
-            <meshStandardMaterial color={PAD_DETAILS.railColor} roughness={0.4} metalness={0.7} />
+            <meshStandardMaterial color={PAD_DETAILS.railColor} {...railMetal} />
           </mesh>
         )),
       )}
@@ -74,7 +80,7 @@ export function PadDetails() {
           castShadow
         >
           <cylinderGeometry args={[0.18, 0.18, topHalf * 1.6, 10]} />
-          <meshStandardMaterial color={PAD_DETAILS.pipeColor} roughness={0.5} metalness={0.6} />
+          <meshStandardMaterial color={PAD_DETAILS.pipeColor} {...pipeMetal} />
         </mesh>
       ))}
 
@@ -89,7 +95,7 @@ export function PadDetails() {
         <group key={i} position={[x, 0, z]}>
           <mesh position={[0, FLOODLIGHT.height / 2, 0]} castShadow>
             <cylinderGeometry args={[0.1, 0.13, FLOODLIGHT.height, 6]} />
-            <meshStandardMaterial color={FLOODLIGHT.poleColor} roughness={0.5} metalness={0.5} />
+            <meshStandardMaterial color={FLOODLIGHT.poleColor} {...poleMetal} />
           </mesh>
           <mesh position={[0, FLOODLIGHT.height, 0]} rotation={[Math.PI / 5, 0, 0]}>
             <boxGeometry args={[1, 0.5, 0.35]} />

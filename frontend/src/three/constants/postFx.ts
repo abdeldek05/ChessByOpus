@@ -1,3 +1,5 @@
+import { PHOTO_MODE, PHOTO_AO_QUALITY, PHOTO_GOD_RAYS_SAMPLES } from '@/three/constants/photoMode'
+
 // Réglages du post-processing — RENDU MAXIMAL (voir feedback_gpu_budget,
 // 2026-07-23) : le FPS n'est plus la contrainte, seule la STABILITÉ du
 // driver AMD l'est encore (pas de retour au pic de triangles qui l'avait
@@ -37,7 +39,9 @@ export const AO_DISTANCE_FALLOFF = 1.2
 // rafraîchie 4×/s au lieu de 60). 'medium' garde des ombres de contact
 // crédibles pour un coût très inférieur. Priorité fluidité (voir feedback_gpu_budget,
 // MAJ : 60 FPS stable requis, la fusée en vol doit être fluide).
-export const AO_QUALITY: 'performance' | 'low' | 'medium' | 'high' | 'ultra' = 'performance'
+export const AO_QUALITY: 'performance' | 'low' | 'medium' | 'high' | 'ultra' = PHOTO_MODE
+  ? PHOTO_AO_QUALITY
+  : 'performance'
 
 // God Rays (rayons crépusculaires) : le soleil (SunMesh, aligné sur l'HDRI)
 // est occlus par le décor (arbres, rampe, pad) — c'est cette occlusion qui
@@ -56,4 +60,4 @@ export const GOD_RAYS_EXPOSURE = 0.55
 // ABAISSÉ (60 → 30 samples) : les God Rays échantillonnent le tampon N fois
 // par pixel — 60 samples plein écran est un poste lourd cumulé à l'AO. 30
 // garde le halo golden hour visible pour la moitié du coût. Priorité fluidité.
-export const GOD_RAYS_SAMPLES = 30
+export const GOD_RAYS_SAMPLES = PHOTO_MODE ? PHOTO_GOD_RAYS_SAMPLES : 30

@@ -8,6 +8,7 @@ import { GlContextReleaser } from './GlContextReleaser'
 import { PostFX } from './PostFX'
 import { POSTFX_ENABLED, POSTFX_QUALITY } from '@/three/constants/postFx'
 import { PerfHud } from './PerfHud'
+import { PHOTO_MODE, PHOTO_DPR_MAX } from '@/three/constants/photoMode'
 import { GroundMesh } from '@/three/models/GroundMesh'
 import { FarHorizon } from '@/three/models/FarHorizon'
 import { HorizonHaze } from '@/three/models/HorizonHaze'
@@ -240,7 +241,7 @@ export function LaunchSceneCanvas({
       // le GPU AMD, d'où la fusée qui avançait PAR BONDS. 1.5 divise la charge
       // de rasterisation par ~1.8 pour une netteté quasi identique à l'œil.
       // Priorité fluidité (60 FPS stable), voir feedback_gpu_budget.
-      dpr={[1, 1.25]}
+      dpr={[1, PHOTO_MODE ? PHOTO_DPR_MAX : 1.25]}
       gl={{
         // AA natif coupé QUAND le post-traitement tourne : celui-ci rend hors
         // écran et fait l'anti-aliasing en SMAA (voir PostFX, `multisampling={0}`).
@@ -476,7 +477,12 @@ export function LaunchSceneCanvas({
           FPS mesuré → fusée par bonds). SMAA seul + les autres allègements
           visent 70 FPS constant PENDANT LE VOL, moment où la fluidité compte.
           Voir feedback_gpu_budget (priorité fluidité en vol). */}
-      {POSTFX_ENABLED && <PostFX quality={flying ? 'smaa' : POSTFX_QUALITY} sunRef={sunMeshRef} />}
+      {/* En MODE PHOTO la chaîne complète est maintenue même en vol : l'allègement
+          à SMAA seul protège le FPS pendant le tir, mais on veut justement l'AO,
+          les god rays et le bloom sur une capture de la fusée en l'air. */}
+      {POSTFX_ENABLED && (
+        <PostFX quality={flying && !PHOTO_MODE ? 'smaa' : POSTFX_QUALITY} sunRef={sunMeshRef} />
+      )}
 
       {/* Compteur FPS (développement uniquement) : mesure avant/après chaque
           réglage graphique — budget cible 60 FPS. */}

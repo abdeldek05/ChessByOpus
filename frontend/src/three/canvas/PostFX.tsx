@@ -13,6 +13,7 @@ import {
   GOD_RAYS_EXPOSURE,
   GOD_RAYS_SAMPLES,
 } from '@/three/constants/postFx'
+import { PHOTO_MODE } from '@/three/constants/photoMode'
 
 interface PostFxProps {
   /** 'smaa' = AA seul (budget serré) ; 'realistic' = rendu naturel ; 'full' = chaîne cinéma complète. */
@@ -43,6 +44,7 @@ export function PostFX({ quality = 'realistic', sunRef }: PostFxProps) {
   // image déjà correctement ombrée (contacts assombris), pas l'inverse.
   const ao = (
     <N8AO
+      key="ao"
       aoRadius={AO_RADIUS}
       distanceFalloff={AO_DISTANCE_FALLOFF}
       intensity={AO_INTENSITY}
@@ -58,6 +60,7 @@ export function PostFX({ quality = 'realistic', sunRef }: PostFxProps) {
   // met à jour toute seule dès le rendu suivant (React re-render fréquent ici).
   const godRays = (
     <GodRays
+      key="godrays"
       sun={sunRef as React.RefObject<THREE.Mesh>}
       density={GOD_RAYS_DENSITY}
       decay={GOD_RAYS_DECAY}
@@ -73,7 +76,14 @@ export function PostFX({ quality = 'realistic', sunRef }: PostFxProps) {
   // le seuil et le Bloom faisait « flasher » l'écran au lieu de ne faire
   // rayonner que les vraies zones très brillantes (soleil, reflets nets).
   const bloom = (
-    <Bloom mipmapBlur intensity={0.45} luminanceThreshold={0.85} luminanceSmoothing={0.25} radius={0.5} />
+    <Bloom
+      key="bloom"
+      mipmapBlur
+      intensity={0.45}
+      luminanceThreshold={0.85}
+      luminanceSmoothing={0.25}
+      radius={0.5}
+    />
   )
 
   if (quality === 'realistic') {
@@ -82,6 +92,23 @@ export function PostFX({ quality = 'realistic', sunRef }: PostFxProps) {
     // elle plombait le framerate (chutes à ~4 FPS → fusée par bonds). On garde
     // AO (contacts) + Bloom (halo) + SMAA (AA), l'ambiance golden hour vient
     // surtout de l'HDRI/lumière, pas des rayons. Voir feedback_gpu_budget.
+    //
+    // EXCEPTION mode photo : les rayons crépusculaires sont précisément ce qui
+    // fait le « beau soleil » sur une capture, et le FPS n'y est plus une
+    // contrainte — on les remet dans la chaîne.
+    // Deux chaînes écrites en toutes lettres : EffectComposer type ses enfants
+    // comme des Element non-nullables et refuse aussi bien `{cond && …}` qu'un
+    // tableau — la duplication est ce que ce typage impose.
+    if (PHOTO_MODE) {
+      return (
+        <EffectComposer multisampling={0}>
+          {ao}
+          {godRays}
+          {bloom}
+          <SMAA />
+        </EffectComposer>
+      )
+    }
     return (
       <EffectComposer multisampling={0}>
         {ao}
