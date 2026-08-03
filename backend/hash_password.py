@@ -21,8 +21,13 @@ def main() -> None:
         print("Abandon : les deux saisies diffèrent.")
         return
 
-    print("\nÀ coller dans backend/.env :\n")
-    print(f"AUTH_PASSWORD_HASH={hash_password(password)}")
+    # Le même hash sert aux deux comptes : on affiche les deux lignes possibles
+    # plutôt que de demander « admin ou invité ? » avant même de savoir si les
+    # deux saisies concordent.
+    digest = hash_password(password)
+    print("\nÀ coller dans backend/.env, selon le compte :\n")
+    print(f"AUTH_PASSWORD_HASH={digest}    # opérateur (accès complet)")
+    print(f"GUEST_PASSWORD_HASH={digest}   # invité (simulation seule)")
 
 
 if __name__ == "__main__":

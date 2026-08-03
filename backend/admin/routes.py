@@ -1,4 +1,7 @@
-"""Routes de l'onglet Admin. Toutes exigent une session valide.
+"""Routes de l'onglet Admin. Toutes exigent une session valide ET le rôle admin.
+
+Un compte invité, pourtant authentifié, reçoit 403 ici : il a accès à la chaîne
+de simulation, pas au journal des connexions ni aux sessions ouvertes.
 
 Une seule route écrit : la révocation de session. Le reste est en lecture seule.
 """
@@ -10,7 +13,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request, status
 
 from auth.client_info import client_ip
 from auth.config import SESSION_COOKIE_NAME
-from auth.dependencies import require_user
+from auth.dependencies import require_admin
 from auth.store import close_session
 from auth.tokens import decode_access_token
 
@@ -20,9 +23,9 @@ from . import runtime_metrics
 
 DB_PATH = Path(__file__).resolve().parent.parent / "missions.db"
 
-# `require_user` sur le routeur entier : impossible d'ajouter plus bas une route
-# qui oublierait la garde.
-router = APIRouter(prefix="/admin", tags=["admin"], dependencies=[Depends(require_user)])
+# `require_admin` sur le routeur entier : impossible d'ajouter plus bas une
+# route qui oublierait la garde.
+router = APIRouter(prefix="/admin", tags=["admin"], dependencies=[Depends(require_admin)])
 
 
 @router.get("/overview")

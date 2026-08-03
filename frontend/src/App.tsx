@@ -5,6 +5,7 @@ import { Contact } from '@/pages/Contact'
 import { Login } from '@/pages/Login'
 import { NotFound } from '@/pages/NotFound'
 import { ProtectedOutlet } from '@/components/routing/ProtectedOutlet'
+import { AdminOutlet } from '@/components/routing/AdminOutlet'
 import { useAuthBootstrap } from '@/hooks/useAuthBootstrap'
 // (sonde de dev LaunchProbe retirée — diagnostic terminé)
 
@@ -34,7 +35,12 @@ export default function App() {
             de son côté (401 sans session) : cette garde soigne l'expérience,
             elle n'est pas ce qui protège les données. */}
         <Route element={<ProtectedOutlet />}>
-          <Route path="/admin" element={<Admin />} />
+          {/* Réservé au rôle opérateur : un compte invité connecté est
+              renvoyé vers la simulation (le back répond 403 sur /admin/*). */}
+          <Route element={<AdminOutlet />}>
+            <Route path="/admin" element={<Admin />} />
+          </Route>
+
           <Route path="/simulation" element={<Simulation />} />
           <Route path="/mission" element={<Mission />} />
           <Route path="/historique" element={<Historique />} />

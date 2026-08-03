@@ -1,7 +1,16 @@
 /** Contrats de données de l'authentification (côté client). */
 
+/**
+ * Rôle du compte connecté, tel que renvoyé par le back.
+ *
+ * `admin` = opérateur complet (simulation + onglet Admin).
+ * `guest` = invité : la chaîne de simulation, rien d'autre.
+ */
+export type AuthRole = 'admin' | 'guest'
+
 export interface AuthUser {
   username: string
+  role: AuthRole
 }
 
 export interface LoginCredentials {

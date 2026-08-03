@@ -35,6 +35,16 @@ class AuthSettings(BaseSettings):
     # `python hash_password.py`.
     auth_password_hash: str = Field(min_length=20)
 
+    # Compte invité (rôle `guest`) : la chaîne de simulation, jamais l'onglet
+    # Admin. Facultatif, contrairement aux champs ci-dessus — vides, aucun
+    # invité n'existe et seul l'opérateur peut se connecter. Un site sans
+    # invité est une situation normale ; un site sans opérateur, non.
+    guest_username: str = ""
+
+    # Hash bcrypt du mot de passe invité, généré par `python hash_password.py`.
+    # Les deux champs invité vont ensemble : voir `accounts.list_accounts`.
+    guest_password_hash: str = ""
+
     # Clé de signature HS256. 32 octets aléatoires minimum (64 caractères hex) :
     # en dessous, la signature devient attaquable hors ligne.
     jwt_secret: str = Field(min_length=32)

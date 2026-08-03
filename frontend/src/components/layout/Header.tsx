@@ -1,4 +1,5 @@
 import { Link, useLocation } from 'react-router-dom'
+import { AdminNavLink } from './AdminNavLink'
 import { LogoMark } from './LogoMark'
 import { NavLink } from './NavLink'
 import { navLinks } from './navLinks'
@@ -6,7 +7,6 @@ import { ProtectedNavLink } from './ProtectedNavLink'
 import { SignOutButton } from './SignOutButton'
 
 const SIMULATION_ITEM = { label: 'Simulation', href: '/simulation' } as const
-const ADMIN_ITEM = { label: 'Admin', href: '/admin' } as const
 
 export function Header() {
   const { pathname } = useLocation()
@@ -26,9 +26,10 @@ export function Header() {
             <NavLink key={item.href} item={item} active={item.href === pathname} />
           ))}
           {/* Onglets réservés à une session ouverte — masqués sinon, pour ne
-              pas laisser croire à un accès libre (voir ProtectedNavLink). */}
+              pas laisser croire à un accès libre (voir ProtectedNavLink).
+              L'onglet Admin demande en plus le rôle opérateur. */}
           <ProtectedNavLink item={SIMULATION_ITEM} />
-          <ProtectedNavLink item={ADMIN_ITEM} />
+          <AdminNavLink />
         </nav>
 
         <SignOutButton />
