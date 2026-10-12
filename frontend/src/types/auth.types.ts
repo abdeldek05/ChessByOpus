@@ -1,7 +1,20 @@
 /** Contrats de données de l'authentification (côté client). */
 
+/**
+ * Espace ouvert par la session.
+ *
+ * `operator` = compte de travail, accès complet (onglet Admin inclus).
+ * `guest` = espace invité de démonstration, sans l'onglet Admin.
+ *
+ * Le rôle vient du serveur à chaque /auth/me : le front ne le déduit jamais de
+ * l'identifiant, et le masquage d'un onglet reste du confort — la vraie règle
+ * est appliquée par l'API (403).
+ */
+export type AuthRole = 'operator' | 'guest'
+
 export interface AuthUser {
   username: string
+  role: AuthRole
 }
 
 export interface LoginCredentials {

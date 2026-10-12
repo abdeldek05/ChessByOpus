@@ -7,16 +7,19 @@ front ne suffit plus à voler la session (contrairement à un token rangé dans
 
 Chaque tentative — réussie ou non — est journalisée dans `login_events` pour
 alimenter l'onglet Admin.
+
+Deux espaces peuvent se connecter ici (opérateur, invité) : c'est
+`auth/accounts.py` qui sait lesquels existent, ces routes n'en connaissent que
+le résultat.
 """
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from pydantic import BaseModel
 
-from . import rate_limit, store
+from . import accounts, rate_limit, store
 from .client_info import client_ip, client_user_agent
 from .config import ACCESS_TOKEN_TTL_SECONDS, SESSION_COOKIE_NAME, get_auth_settings
 from .dependencies import require_user
-from .hashing import DUMMY_HASH, verify_password
 from .tokens import create_access_token, decode_access_token
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -53,13 +56,11 @@ def login(payload: LoginPayload, request: Request, response: Response) -> dict[s
             headers={"Retry-After": str(blocked_for)},
         )
 
-    # On vérifie TOUJOURS un hash, même sur identifiant inconnu (voir DUMMY_HASH)
-    # afin que les deux cas d'échec prennent le même temps.
-    username_matches = payload.username == settings.auth_username
-    expected_hash = settings.auth_password_hash if username_matches else DUMMY_HASH
-    password_matches = verify_password(payload.password, expected_hash)
+    # Opérateur ou invité : `authenticate` connaît les comptes ouverts et
+    # consomme le même temps sur identifiant inconnu (voir DUMMY_HASH).
+    account = accounts.authenticate(payload.username, payload.password)
 
-    if not (username_matches and password_matches):
+    if account is None:
         rate_limit.register_failure(ip)
         store.record_login_attempt(
             username=payload.username,
@@ -67,7 +68,9 @@ def login(payload: LoginPayload, request: Request, response: Response) -> dict[s
             user_agent=user_agent,
             success=False,
             failure_reason=(
-                store.FAILURE_BAD_PASSWORD if username_matches else store.FAILURE_UNKNOWN_USER
+                store.FAILURE_BAD_PASSWORD
+                if accounts.find_account(payload.username)
+                else store.FAILURE_UNKNOWN_USER
             ),
         )
         raise HTTPException(
@@ -77,16 +80,16 @@ def login(payload: LoginPayload, request: Request, response: Response) -> dict[s
 
     rate_limit.reset(ip)
 
-    session = create_access_token(settings.auth_username)
+    session = create_access_token(account.username)
     store.open_session(
         jti=session.jti,
-        username=settings.auth_username,
+        username=account.username,
         ip=ip,
         user_agent=user_agent,
         expires_at=session.expires_at,
     )
     store.record_login_attempt(
-        username=settings.auth_username, ip=ip, user_agent=user_agent, success=True
+        username=account.username, ip=ip, user_agent=user_agent, success=True
     )
 
     response.set_cookie(
@@ -99,7 +102,10 @@ def login(payload: LoginPayload, request: Request, response: Response) -> dict[s
         path="/",
     )
 
-    return {"username": settings.auth_username}
+    # Le rôle est renvoyé pour que le front sache quel espace afficher (l'onglet
+    # Admin n'existe pas pour un invité). Ce n'est qu'un confort d'interface : la
+    # règle est appliquée côté serveur par `require_operator`.
+    return {"username": account.username, "role": account.role}
 
 
 @router.post("/logout")
@@ -120,5 +126,6 @@ def logout(request: Request, response: Response) -> dict[str, bool]:
 
 @router.get("/me")
 def read_current_user(username: str = Depends(require_user)) -> dict[str, str]:
-    """Qui est connecté — le front s'en sert pour restaurer la session au F5."""
-    return {"username": username}
+    """Qui est connecté, et dans quel espace — le front s'en sert pour restaurer
+    la session au F5, onglets réservés compris."""
+    return {"username": username, "role": accounts.role_for(username)}

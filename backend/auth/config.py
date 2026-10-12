@@ -23,6 +23,15 @@ ACCESS_TOKEN_TTL_SECONDS = 8 * 60 * 60
 # dans l'inspecteur du navigateur, au milieu des cookies de MapLibre & co.
 SESSION_COOKIE_NAME = "chess_session"
 
+# Espace invité (voir `auth/accounts.py`). Son identifiant ET son mot de passe
+# sont publics par nature : ce hash-ci ne protège donc rien, c'est le hash
+# bcrypt de « guest ». Il vit dans le code plutôt que dans `.env` pour que
+# l'espace de démonstration existe sur toute installation sans étape de
+# configuration ; `.env` peut le remplacer (GUEST_PASSWORD_HASH) ou fermer
+# l'espace (GUEST_USERNAME vide).
+GUEST_USERNAME_DEFAULT = "guest"
+GUEST_PASSWORD_HASH_DEFAULT = "$2b$12$UwQLZB6XjeF9n6kL8JsW1uw5dEDL9d/1kMp0No2AVxxQfMvNW6Qpm"
+
 
 class AuthSettings(BaseSettings):
     """Identifiants et secret de signature. Tous requis, tous hors du code."""
@@ -38,6 +47,13 @@ class AuthSettings(BaseSettings):
     # Clé de signature HS256. 32 octets aléatoires minimum (64 caractères hex) :
     # en dessous, la signature devient attaquable hors ligne.
     jwt_secret: str = Field(min_length=32)
+
+    # Espace invité. Contrairement aux trois champs ci-dessus, ces deux-ci ont
+    # une valeur par défaut : ils ne gardent aucun secret (accès de
+    # démonstration, sans l'onglet Admin), donc un `.env` qui les ignore doit
+    # laisser l'application démarrer.
+    guest_username: str = GUEST_USERNAME_DEFAULT
+    guest_password_hash: str = GUEST_PASSWORD_HASH_DEFAULT
 
     # `Secure` sur le cookie : impose HTTPS. Faux en dev (localhost est en
     # HTTP simple), VRAI en production — sinon le cookie de session circule en
