@@ -10,3 +10,20 @@ backend/*.db
 
 # Sortie runtime de simulate.py, pas du code source.
 backend/last_simulation.json
+
+# Documentation : fichiers intermediaires de LaTeX.
+docs/tn/*.aux
+docs/tn/*.toc
+docs/tn/*.out
+docs/tn/*.lof
+docs/tn/*.lot
+
+# Documentation : tout ce que les scripts du diaporama regenerent.
+# python-pptx est installe la, ce n'est pas une dependance du projet.
+docs/tn/pptx/.libs/
+docs/tn/pptx/charts/
+docs/tn/pptx/crops/
+docs/tn/pptx/schemas/png/
+# Sorties de relecture : l'export PDF du diaporama et ses apercus.
+docs/tn/pptx/deck.pdf
+docs/tn/pptx/apercu/
