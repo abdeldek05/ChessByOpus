@@ -22,6 +22,7 @@ import { ScorchDecal } from '@/three/models/ScorchDecal'
 import { ControlConsole } from '@/three/models/ControlConsole'
 import { FlyingMesange } from '@/three/models/FlyingMesange'
 import { SceneReadySignal } from '@/three/models/SceneReadySignal'
+import { ShaderWarmup } from './ShaderWarmup'
 import { RocketInfoHologram } from '@/three/models/RocketInfoHologram'
 import { VisibilityCorridor } from '@/three/models/VisibilityCorridor'
 import {
@@ -354,6 +355,9 @@ export function LaunchSceneCanvas({
           échec de chargement est capté par le SceneErrorBoundary parent. */}
       <Suspense fallback={null}>
       {onSceneReady && <SceneReadySignal onReady={onSceneReady} />}
+      {/* Compile les shaders du panache/débris/impact PENDANT le chargement,
+          pas à leur première apparition en vol (freeze au décollage/impact). */}
+      <ShaderWarmup />
       <group position={LAUNCH_CENTER}>
         <LaunchComplex />
         <group position={[0, PAD_TOP_Y, 0]}>

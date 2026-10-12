@@ -3,6 +3,7 @@ import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 import type { FlightData } from '@/lib/api'
 import { sampleSceneGround } from '@/lib/sampleSceneGround'
+import { useSmoothedFrameDelta } from '@/three/hooks/useSmoothedFrameDelta'
 import { toScene, realTimeFromAnim } from '@/lib/trajectoryPlayback'
 import { PAD_TOP_Y } from '@/three/constants/launchComplex'
 import { LAUNCH_CENTER } from '@/three/constants/sceneLayout'
@@ -172,6 +173,8 @@ export function useTrajectoryPlayback({
   onImpact,
 }: UseTrajectoryPlaybackParams): UseTrajectoryPlaybackResult {
   const groupRef = useRef<THREE.Group>(null)
+  // Horloge lissée : absorbe les pics de frame isolés (anti-téléportation).
+  const smoothDelta = useSmoothedFrameDelta()
   const animElapsed = useRef(0)
   const brokenElapsed = useRef(0)
   const thrusting = useRef(true)
@@ -260,16 +263,15 @@ export function useTrajectoryPlayback({
     const group = groupRef.current
     if (!group || !started.current || positions.length < 2 || times.length < 2 || !flight) return
 
+    // Pas d'animation de CETTE frame : delta LISSÉ (voir useSmoothedFrameDelta).
+    // L'ancien plafond brut `Math.min(delta, 0.1)` laissait une seule frame
+    // longue (compilation de shader au décollage, GC) avancer le vol de 0,3 s
+    // d'un coup (× TIME_SCALE) — ~85 m de téléportation en chute rapide. Le
+    // lissage absorbe les pics isolés et suit les changements durables de
+    // cadence, donc la vitesse de lecture reste juste sur machine lente.
+    const frameDelta = smoothDelta(delta)
+
     if (phase === 'flying') {
-      // Pas d'animation de CETTE frame. On BORNE la frame (anti-saut sur un gros
-      // lag ponctuel) mais SANS jeter le temps perdu comme avant : l'ancien
-      // `Math.min(delta, 0.05)` PLAFONNAIT l'avance et perdait le surplus à
-      // chaque frame longue → la fusée avançait par à-coups irréguliers (le
-      // fameux « gros bonds »), d'autant plus visibles que TIME_SCALE multiplie
-      // ce pas en temps de vol. On garde le vrai delta (borné à 0.1 s max pour
-      // ne pas téléporter après un freeze complet), et on SOUS-ÉCHANTILLONNE
-      // ci-dessous pour rester fluide même quand la frame est longue.
-      const frameDelta = Math.min(delta, 0.1)
 
       // Délai de mise à feu (voir launchDelaySec) : tant qu'il n'est pas écoulé,
       // la mésange ATTEND, posée au point de départ (t=0) de sa trajectoire —
@@ -416,7 +418,9 @@ export function useTrajectoryPlayback({
       const scaleProgress = Math.min(1, rawT / SCALE_TRANSITION_SEC)
       group.scale.setScalar(THREE.MathUtils.lerp(1, FLYING_ROCKET_SCALE * scaleMultiplier, scaleProgress))
     } else {
-      brokenElapsed.current += delta
+      // Même horloge lissée pour les débris : un spike pendant l'explosion ne
+      // doit pas téléporter les fragments non plus.
+      brokenElapsed.current += frameDelta
     }
   })
 
