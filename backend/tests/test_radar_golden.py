@@ -228,6 +228,14 @@ def test_cone_de_silence_au_zenith():
     assert reason == "inside the overhead cone of silence"
 
 
+def test_gf300_voit_au_zenith():
+    # Même cible au zénith, mais le radar voit jusqu'à 90° : plus de zone aveugle.
+    track = [{"t": 0.0, "x": 0.0, "y": 50.0, "z": 10000.0}]
+    t, _, reason = _first_detection(_radar(maxElevationDeg=90.0), 0.0, 0.0, track, 0.0)
+    assert reason is None
+    assert t == pytest.approx(0.0)
+
+
 def test_attente_du_faisceau_rotatif():
     # 10 tr/min = 60°/s. À t=0 le faisceau pointe l'azimut 0 (nord) ; cible plein
     # est (azimut 90°) → attente analytique de 90/60 = 1.5 s avant l'accroche.

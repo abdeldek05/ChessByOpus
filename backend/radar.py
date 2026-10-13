@@ -105,6 +105,8 @@ def _first_detection(
     min_rcs = max(0.01, float(radar.get("minRcsM2", 1.0)))
     rotating = bool(radar.get("rotating", True))
     rpm = max(1.0, float(radar.get("rotationRpm", 40.0)))
+    max_elev = float(radar.get("maxElevationDeg", CONE_OF_SILENCE_ELEV_DEG))
+
 
     best_block: tuple[float, str] | None = None  # (slant le plus proche, raison)
     prev: dict | None = None
@@ -147,7 +149,7 @@ def _first_detection(
 
         # 5. Cône de silence au zénith.
         elev_deg = math.degrees(math.atan2(lz, horiz)) if horiz > 1e-6 else 90.0
-        if elev_deg > CONE_OF_SILENCE_ELEV_DEG:
+        if elev_deg > max_elev:
             if best_block is None or slant < best_block[0]:
                 best_block = (slant, "inside the overhead cone of silence")
             continue
