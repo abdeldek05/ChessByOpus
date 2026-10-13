@@ -1,0 +1,96 @@
+﻿diff --git a/backend/.env.example b/backend/.env.example
+index 0a298ec..d899478 100644
+--- a/backend/.env.example
++++ b/backend/.env.example
+@@ -8,9 +8,9 @@ AUTH_USERNAME=
+ AUTH_PASSWORD_HASH=
+ 
+ # ── Espace invité (démonstration) ─────────────────────────────────────────────
+-# Facultatif : par défaut, `guest` / `guest`, accès complet SAUF l'onglet Admin.
+-# Laisser GUEST_USERNAME vide FERME l'espace invité.
+-# GUEST_USERNAME=guest
++# Facultatif et FERMÉ par défaut. Accès complet SAUF l'onglet Admin.
++# Pour l'ouvrir, définir les deux lignes ci-dessous.
++# GUEST_USERNAME=
+ # GUEST_PASSWORD_HASH=   # hash bcrypt (python hash_password.py) pour un autre mdp
+ 
+ # Clé de signature des jetons de session (32 octets mini).
+diff --git a/backend/auth/accounts.py b/backend/auth/accounts.py
+index 66faa82..080770e 100644
+--- a/backend/auth/accounts.py
++++ b/backend/auth/accounts.py
+@@ -48,7 +48,7 @@ def list_accounts() -> list[Account]:
+     # masquerait le compte de travail, et son mot de passe public deviendrait
+     # celui de l'opérateur.
+     guest_username = settings.guest_username.strip()
+-    if guest_username and guest_username != settings.auth_username:
++    if guest_username and settings.guest_password_hash and guest_username != settings.auth_username:
+         accounts.append(
+             Account(
+                 username=guest_username,
+diff --git a/backend/auth/config.py b/backend/auth/config.py
+index f05fdd6..cf2d0a4 100644
+--- a/backend/auth/config.py
++++ b/backend/auth/config.py
+@@ -23,14 +23,12 @@ ACCESS_TOKEN_TTL_SECONDS = 8 * 60 * 60
+ # dans l'inspecteur du navigateur, au milieu des cookies de MapLibre & co.
+ SESSION_COOKIE_NAME = "chess_session"
+ 
+-# Espace invité (voir `auth/accounts.py`). Son identifiant ET son mot de passe
+-# sont publics par nature : ce hash-ci ne protège donc rien, c'est le hash
+-# bcrypt de « guest ». Il vit dans le code plutôt que dans `.env` pour que
+-# l'espace de démonstration existe sur toute installation sans étape de
+-# configuration ; `.env` peut le remplacer (GUEST_PASSWORD_HASH) ou fermer
+-# l'espace (GUEST_USERNAME vide).
+-GUEST_USERNAME_DEFAULT = "guest"
+-GUEST_PASSWORD_HASH_DEFAULT = "$2b$12$UwQLZB6XjeF9n6kL8JsW1uw5dEDL9d/1kMp0No2AVxxQfMvNW6Qpm"
++# Espace invité (voir `auth/accounts.py`). FERMÉ par défaut : l'ouvrir demande
++# de définir explicitement GUEST_USERNAME et GUEST_PASSWORD_HASH dans `.env`.
++# Aucun hash par défaut — un mot de passe connu de tous dans le code ouvrirait
++# l'accès sur toute installation qui oublie de le changer.
++GUEST_USERNAME_DEFAULT = ""
++GUEST_PASSWORD_HASH_DEFAULT = ""
+ 
+ 
+ class AuthSettings(BaseSettings):
+@@ -48,10 +46,8 @@ class AuthSettings(BaseSettings):
+     # en dessous, la signature devient attaquable hors ligne.
+     jwt_secret: str = Field(min_length=32)
+ 
+-    # Espace invité. Contrairement aux trois champs ci-dessus, ces deux-ci ont
+-    # une valeur par défaut : ils ne gardent aucun secret (accès de
+-    # démonstration, sans l'onglet Admin), donc un `.env` qui les ignore doit
+-    # laisser l'application démarrer.
++    # Espace invité. Facultatifs : un `.env` qui les ignore démarre avec
++    # l'espace invité fermé.
+     guest_username: str = GUEST_USERNAME_DEFAULT
+     guest_password_hash: str = GUEST_PASSWORD_HASH_DEFAULT
+ 
+diff --git a/backend/auth/dependencies.py b/backend/auth/dependencies.py
+index 48cb68c..2793808 100644
+--- a/backend/auth/dependencies.py
++++ b/backend/auth/dependencies.py
+@@ -8,7 +8,7 @@ direct à /simulate (curl, script) reçoit 401 et n'exécute rien.
+ 
+ from fastapi import HTTPException, Request, status
+ 
+-from .accounts import ROLE_OPERATOR, role_for
++from .accounts import ROLE_OPERATOR, find_account, role_for
+ from .config import SESSION_COOKIE_NAME
+ from .store import is_session_active
+ from .tokens import decode_access_token
+@@ -27,6 +27,14 @@ def require_user(request: Request) -> str:
+ 
+     username, jti = decoded
+ 
++    # Compte fermé ou renommé depuis l'émission du jeton : sa signature reste
++    # valide jusqu'à `exp`, mais il ne doit plus ouvrir aucune porte.
++    if find_account(username) is None:
++        raise HTTPException(
++            status_code=status.HTTP_401_UNAUTHORIZED,
++            detail="Compte fermé",
++        )
++
+     # Session révoquée depuis l'onglet Admin : le jeton est encore valablement
+     # signé, mais il ne doit plus ouvrir aucune porte.
+     if jti and not is_session_active(jti):
