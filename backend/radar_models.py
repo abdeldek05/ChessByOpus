@@ -45,3 +45,31 @@ def resolve_radar(model: str, overrides: dict | None = None) -> dict:
         if value is not None:
             merged[key] = value
     return RadarSpec(**merged).model_dump()
+
+
+# Les champs "matériel" qu'un preset fournit et qu'un utilisateur peut écraser —
+# par opposition aux champs de mission (position, seuil de préavis, id/nom).
+HARDWARE_FIELDS = (
+    "rangeKm", "ceilingM", "rotating", "rotationRpm",
+    "antennaHeightM", "minRcsM2", "maxElevationDeg",
+)
+
+
+def radar_for_engine(data: dict) -> dict:
+    """Prépare un radar du payload API pour compute_detection.
+
+    Deux formats cohabitent (strangler pattern, le temps de migrer le front) :
+    - NOUVEAU : {"model": "GM400", ...overrides...} → fiche du preset fusionnée
+      avec les réglages utilisateur non vides, revalidée.
+    - ANCIEN : pas de "model" → les champs passent tels quels ; les None sont
+      retirés pour que le moteur retombe sur ses propres défauts (.get).
+    Les champs de mission (id, name, latitude, longitude, seuil) traversent
+    inchangés dans les deux cas.
+    """
+    model = data.get("model")
+    cleaned = {k: v for k, v in data.items() if v is not None and k != "model"}
+    if not model:
+        return cleaned
+    overrides = {k: data.get(k) for k in HARDWARE_FIELDS}
+    resolved = resolve_radar(model, overrides)
+    return {**cleaned, **resolved}

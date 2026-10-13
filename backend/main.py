@@ -19,6 +19,7 @@ from auth.dependencies import require_user
 from auth.routes import router as auth_router
 from simulate import simulate, estimate_max_range, estimate_max_range_quick
 from radar import compute_detection
+from radar_models import radar_for_engine
 
 DB_PATH = Path(__file__).parent / "missions.db"
 
@@ -176,7 +177,14 @@ def create_scenario(mission_id: int, payload: ScenarioPayload):
 
 
 class RadarSpecPayload(BaseModel):
-    """Caractéristiques COMPLÈTES d'un radar posé, telles que réglées par le client."""
+    """Un radar posé : un modèle du catalogue (GM400/GF300) et/ou ses réglages.
+
+    Deux usages (voir radar_models.radar_for_engine) :
+    - `model` fourni → la fiche du preset remplit tout, et chaque champ matériel
+      envoyé en plus est un OVERRIDE utilisateur (None = « pas touché »).
+    - pas de `model` (ancien front) → les champs passent tels quels au moteur,
+      qui garde ses défauts historiques pour ceux laissés à None.
+    """
 
     # Identité renvoyée telle quelle dans le bilan par radar (voir compute_detection
     # → perRadar) : sans elle, le front ne pouvait rattacher un résultat à SON radar
@@ -186,12 +194,14 @@ class RadarSpecPayload(BaseModel):
     name: str | None = None
     latitude: float
     longitude: float
-    rangeKm: float
-    ceilingM: float
-    rotating: bool = True
-    rotationRpm: float = 40.0
-    minRcsM2: float = 1.0
-    antennaHeightM: float = 4.0
+    model: str | None = None
+    rangeKm: float | None = None
+    ceilingM: float | None = None
+    rotating: bool | None = None
+    rotationRpm: float | None = None
+    minRcsM2: float | None = None
+    antennaHeightM: float | None = None
+    maxElevationDeg: float | None = None
     detectionThresholdSec: float = 30.0
 
 
@@ -260,7 +270,7 @@ def run_simulation(payload: SimulatePayload):
             detection = compute_detection(
                 site_latitude=payload.latitude,
                 site_longitude=payload.longitude,
-                radars=[radar.model_dump() for radar in payload.radars],
+                radars=[radar_for_engine(radar.model_dump()) for radar in payload.radars],
                 threats=[threat.model_dump() for threat in payload.threats],
                 flight=result,
             )

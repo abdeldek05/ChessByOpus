@@ -308,3 +308,30 @@ def test_resolve_radar_defaults_et_overrides():
     assert custom["rangeKm"] == 470.0
     # Un None est ignoré : le défaut du preset gagne.
     assert resolve_radar("GM400", {"antennaHeightM": None})["antennaHeightM"] == 8.0
+
+
+def test_radar_for_engine_preset_overrides_et_ancien_format():
+    from radar_models import radar_for_engine
+
+    # NOUVEAU format : le preset remplit tout, l'identité de mission traverse.
+    base = {"id": "r1", "name": "Nord", "latitude": 43.0, "longitude": 6.0,
+            "detectionThresholdSec": 60.0, "model": "GM400",
+            "rangeKm": None, "antennaHeightM": None}
+    out = radar_for_engine(base)
+    assert out["rangeKm"] == 470.0
+    assert out["maxElevationDeg"] == 40.0
+    assert out["id"] == "r1" and out["detectionThresholdSec"] == 60.0
+
+    # Override utilisateur : seul le champ touché change.
+    bride = radar_for_engine({**base, "rangeKm": 300.0})
+    assert bride["rangeKm"] == 300.0
+    assert bride["rotationRpm"] == 10.0
+
+    # ANCIEN format (pas de model) : passe tel quel, les None sont retirés
+    # pour laisser le moteur appliquer ses propres défauts.
+    legacy = radar_for_engine({"latitude": 43.0, "longitude": 6.0,
+                               "rangeKm": 100.0, "ceilingM": 25000.0,
+                               "rotationRpm": None})
+    assert legacy["rangeKm"] == 100.0
+    assert "rotationRpm" not in legacy
+    assert "model" not in legacy
