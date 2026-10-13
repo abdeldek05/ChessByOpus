@@ -8,7 +8,7 @@ direct à /simulate (curl, script) reçoit 401 et n'exécute rien.
 
 from fastapi import HTTPException, Request, status
 
-from .accounts import ROLE_OPERATOR, role_for
+from .accounts import ROLE_OPERATOR, find_account, role_for
 from .config import SESSION_COOKIE_NAME
 from .store import is_session_active
 from .tokens import decode_access_token
@@ -26,6 +26,14 @@ def require_user(request: Request) -> str:
         )
 
     username, jti = decoded
+
+    # Compte fermé ou renommé depuis l'émission du jeton : sa signature reste
+    # valide jusqu'à `exp`, mais il ne doit plus ouvrir aucune porte.
+    if find_account(username) is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Compte fermé",
+        )
 
     # Session révoquée depuis l'onglet Admin : le jeton est encore valablement
     # signé, mais il ne doit plus ouvrir aucune porte.

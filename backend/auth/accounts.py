@@ -48,7 +48,7 @@ def list_accounts() -> list[Account]:
     # masquerait le compte de travail, et son mot de passe public deviendrait
     # celui de l'opérateur.
     guest_username = settings.guest_username.strip()
-    if guest_username and guest_username != settings.auth_username:
+    if guest_username and settings.guest_password_hash and guest_username != settings.auth_username:
         accounts.append(
             Account(
                 username=guest_username,
