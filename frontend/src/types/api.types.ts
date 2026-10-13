@@ -30,6 +30,8 @@ export interface RadarSpec {
   rotationRpm: number
   minRcsM2: number
   antennaHeightM: number
+  model?: string
+  maxElevationDeg?: number
   detectionThresholdSec: number
 }
 

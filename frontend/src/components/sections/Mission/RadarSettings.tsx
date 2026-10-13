@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { HudRange } from './HudRange'
 import { HudToggle } from './HudToggle'
+import { COVERAGE_ELEVATION_MAX_DEG } from '@/constants/coverage'
 import type { RadarConfig } from '@/types/radar.types'
 
 interface RadarSettingsProps {
@@ -20,7 +21,8 @@ export function RadarSettings({ config, onChange }: RadarSettingsProps) {
       <div className="space-y-6 rounded-3xl bg-surface p-6">
         <p className="text-sm font-medium text-ink-dim">Settings — {config.name}</p>
 
-        <HudRange label="Range" value={config.rangeKm} min={5} max={150} unit="km" onChange={(v) => onChange({ rangeKm: v })} />
+        {/* Bornes calibrées pour les radars longue portée (GM400 : 470 km). */}
+        <HudRange label="Range" value={config.rangeKm} min={5} max={600} step={5} unit="km" onChange={(v) => onChange({ rangeKm: v })} />
         <HudRange label="Ceiling" value={config.ceilingM} min={1000} max={40000} step={500} unit="m" onChange={(v) => onChange({ ceilingM: v })} />
         <HudToggle label="Rotating" checked={config.rotating} onChange={(v) => onChange({ rotating: v })} />
         {config.rotating && (
@@ -34,6 +36,19 @@ export function RadarSettings({ config, onChange }: RadarSettingsProps) {
             onChange={(v) => onChange({ rotationRpm: v })}
           />
         )}
+
+        {/* Site max du faisceau : au-dessus, cône de silence. 90° = pas de zone
+            aveugle (GF300) ; 40° = gros trou au zénith (GM400). Envoyé au moteur
+            via maxElevationDeg (buildSimulatePayload). */}
+        <HudRange
+          label="Max elevation"
+          value={config.elevationMaxDeg ?? COVERAGE_ELEVATION_MAX_DEG}
+          min={20}
+          max={90}
+          step={5}
+          unit="°"
+          onChange={(v) => onChange({ elevationMaxDeg: v })}
+        />
 
         {showRcs && (
           <>

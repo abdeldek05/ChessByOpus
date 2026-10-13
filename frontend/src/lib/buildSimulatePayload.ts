@@ -23,6 +23,9 @@ function buildRadarSpecs(
       rotationRpm: r.config.rotationRpm ?? 40,
       minRcsM2: r.config.minDetectableRcsM2,
       antennaHeightM: r.config.antennaHeightM ?? 4,
+      model: r.config.model,
+      maxElevationDeg: r.config.elevationMaxDeg,
+
       detectionThresholdSec: r.config.detectionThresholdSec ?? 30,
     }))
 }

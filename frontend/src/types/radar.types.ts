@@ -1,5 +1,6 @@
 export interface RadarTemplate {
   id: string
+  model?: string
   name: string
   manufacturer: string
   rangeKm: number
