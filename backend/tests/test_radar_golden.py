@@ -17,6 +17,7 @@ import math
 import pytest
 
 from pawn_track import GRAVITY_MS2, PAWN_APOGEE_RATIO, PAWN_RANGE_FACTOR, build_pawn_track
+from radar_models import resolve_radar
 from radar import (
     RCS_NOSE_M2,
     RCS_SIDE_M2,
@@ -292,3 +293,18 @@ def test_pion_valeurs_d_or_pour_equivalence_front():
         assert p["x"] == pytest.approx(x, abs=1e-6)
         assert p["y"] == pytest.approx(y, abs=1e-6)
         assert p["z"] == pytest.approx(z, abs=1e-6)
+
+
+# --------------------------------------------------------------------------
+# Resolve des presets (defaults + overrides utilisateur)
+# --------------------------------------------------------------------------
+
+def test_resolve_radar_defaults_et_overrides():
+    # Sans override : la fiche du preset sort telle quelle.
+    assert resolve_radar("GM400")["rangeKm"] == 470.0
+    # Un override n'écrase que son champ, le reste vient du preset.
+    custom = resolve_radar("GM400", {"antennaHeightM": 15.0})
+    assert custom["antennaHeightM"] == 15.0
+    assert custom["rangeKm"] == 470.0
+    # Un None est ignoré : le défaut du preset gagne.
+    assert resolve_radar("GM400", {"antennaHeightM": None})["antennaHeightM"] == 8.0
