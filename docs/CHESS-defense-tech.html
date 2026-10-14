@@ -1,0 +1,255 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CHESS — La vague Anduril</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&family=Jost:wght@300;400&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #101210; --bg-soft: #191c19; --surface: #1b1e1a; --surface-2: #242822;
+    --border: #2e312c;
+    --ink: #e2e4e0; --ink-dim: #93968f; --ink-faint: #6a6d63;
+    --accent: #94866e; --accent-bright: #cdbb98;
+    --ok: #8fe28a; --alert: #e0584f; --warning: #d98a3d;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: var(--bg); color: var(--ink);
+    font-family: 'Space Grotesk', system-ui, sans-serif;
+    font-size: 15px; line-height: 1.55;
+    padding: 48px 16px 80px;
+  }
+  .wrap { max-width: 1180px; margin: 0 auto; }
+
+  .eyebrow {
+    font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 500;
+    letter-spacing: 0.3em; text-transform: uppercase; color: var(--accent-bright);
+  }
+  h1 { font-size: 34px; font-weight: 700; margin: 8px 0 10px; }
+  .sub { font-family: 'Jost', sans-serif; font-weight: 300; color: var(--ink-dim); font-size: 17px; max-width: 800px; }
+
+  .ref {
+    margin: 28px 0 40px; background: var(--surface);
+    border: 1px solid var(--border); border-left: 3px solid var(--warning);
+    border-radius: 10px; padding: 18px 22px;
+  }
+  .ref h2 { font-size: 16px; margin-bottom: 6px; }
+  .ref p { color: var(--ink-dim); font-size: 14px; }
+  .ref strong { color: var(--ink); }
+
+  section { margin-bottom: 46px; }
+  .cat {
+    display: flex; align-items: baseline; gap: 14px; margin-bottom: 14px;
+    border-bottom: 1px solid var(--border); padding-bottom: 10px;
+  }
+  .cat .n { font-family: 'JetBrains Mono', monospace; font-size: 13px; color: var(--accent-bright); letter-spacing: 0.2em; }
+  .cat h2 { font-size: 21px; font-weight: 600; }
+  .cat .hint { font-family: 'Jost', sans-serif; font-weight: 300; color: var(--ink-faint); font-size: 14px; }
+
+  .tablewrap { overflow-x: auto; border: 1px solid var(--border); border-radius: 10px; }
+  table { border-collapse: collapse; width: 100%; min-width: 980px; background: var(--surface); }
+  thead th {
+    font-family: 'JetBrains Mono', monospace; font-size: 10.5px; font-weight: 500;
+    letter-spacing: 0.18em; text-transform: uppercase; color: var(--ink-faint);
+    text-align: left; padding: 12px 16px; background: var(--bg-soft);
+    border-bottom: 1px solid var(--border); white-space: nowrap;
+  }
+  tbody td {
+    padding: 16px; vertical-align: top; border-bottom: 1px solid var(--border);
+    color: var(--ink-dim); font-size: 13.5px;
+  }
+  tbody tr:last-child td { border-bottom: none; }
+  tbody tr:hover td { background: rgba(205,187,152,0.03); }
+
+  td.tool { width: 200px; min-width: 180px; }
+  td.tool a {
+    color: var(--accent-bright); font-weight: 600; font-size: 15px;
+    text-decoration: none; border-bottom: 1px dashed rgba(205,187,152,0.45);
+  }
+  td.tool a:hover { color: #ffffff; border-bottom-color: #ffffff; }
+  td.tool .org {
+    display: block; margin-top: 5px;
+    font-family: 'JetBrains Mono', monospace; font-size: 10px;
+    letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink-faint);
+  }
+  td.what { width: 33%; }
+  td.trac { width: 22%; }
+  td.diff {
+    width: 30%; background: rgba(217,138,61,0.05);
+    border-left: 2px solid rgba(217,138,61,0.55); color: var(--ink-dim);
+  }
+  td.diff strong, td.what strong, td.trac strong { color: var(--ink); font-weight: 600; }
+  th.diff-h { color: var(--warning) !important; }
+
+  .creneau {
+    margin-top: 44px; background: var(--surface); border: 1px solid var(--accent);
+    border-radius: 10px; padding: 20px 24px;
+  }
+  .creneau h2 { font-size: 17px; margin-bottom: 10px; color: var(--accent-bright); }
+  .creneau p { color: var(--ink-dim); font-size: 14.5px; margin-bottom: 8px; }
+  .creneau strong { color: var(--ink); }
+
+  .foot {
+    margin-top: 38px; border-top: 1px solid var(--border); padding-top: 16px;
+    display: flex; justify-content: space-between; gap: 16px; flex-wrap: wrap;
+    font-family: 'JetBrains Mono', monospace; font-size: 10.5px;
+    letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink-faint);
+  }
+  @media (max-width: 700px) {
+    h1 { font-size: 26px; }
+    body { padding: 28px 12px 60px; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <p class="eyebrow">Opus Aerospace · CHESS — Benchmark défense-tech</p>
+  <h1>La vague Anduril : les nouveaux primes</h1>
+  <p class="sub">Une génération d'entreprises « logiciel d'abord » est en train de bousculer les primes
+  historiques de la défense : capital massif, cycles de développement courts, produits finis plutôt que
+  programmes. Qui elles sont, ce qu'elles font — et ce que leur trajectoire enseigne à Opus pour CHESS.</p>
+
+  <div class="ref">
+    <h2>Pourquoi ce benchmark</h2>
+    <p>Aucune de ces sociétés ne vend un simulateur d'exercice radar — ce ne sont pas des concurrents
+    directs de CHESS (voir le document <strong>Paysage concurrentiel</strong> pour ça). Mais toutes
+    démontrent trois choses : le <strong>logiciel de défense lève des milliards</strong>, l'IA de défense
+    s'entraîne et se prouve <strong>en simulation</strong>, et le modèle « capacité en service » rapporte
+    plus que la vente one-shot. Trois thèses au cœur de CHESS.</p>
+  </div>
+
+  <!-- ══════════ CATÉGORIE 1 ══════════ -->
+  <section>
+    <div class="cat">
+      <span class="n">01</span>
+      <h2>Les nouveaux primes « logiciel d'abord »</h2>
+      <span class="hint">plateformes de commandement &amp; systèmes intégrés</span>
+    </div>
+    <div class="tablewrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Société</th>
+          <th>Ce qu'elle fait</th>
+          <th>Traction</th>
+          <th class="diff-h">Ce que ça dit pour Opus / CHESS</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="tool"><a href="https://www.anduril.com/" target="_blank" rel="noopener">Anduril</a><span class="org">USA · 2017 · ~61 Md$</span></td>
+          <td class="what">Systèmes autonomes (intercepteurs Anvil et Roadrunner, tours Sentry, drones) pilotés par <strong>Lattice</strong>, logiciel de commandement qui fusionne radars, capteurs et effecteurs en une interface unique. Colonne vertébrale C2 de la lutte anti-drones (contrat ministère de la Défense néerlandais, task orders US).</td>
+          <td class="trac">Série H de <strong>5 Md$ à ~61 Md$</strong> de valorisation (mai 2026) ; ~2,2 Md$ de revenus 2025, en doublement annuel.</td>
+          <td class="diff">Le modèle intégral : <strong>du vrai matériel + du logiciel qui orchestre</strong>. Opus a le même ADN à son échelle — la fusée (crédibilité hardware) + CHESS (le logiciel). C'est ce couple qui se valorise, pas l'un sans l'autre.</td>
+        </tr>
+        <tr>
+          <td class="tool"><a href="https://www.palantir.com/" target="_blank" rel="noopener">Palantir</a><span class="org">USA · 2003 · cotée (NASDAQ)</span></td>
+          <td class="what">Plateformes de données et d'IA (Gotham, et le programme Maven côté US) devenues infrastructure de commandement et de renseignement des armées occidentales. L'archétype de l'éditeur logiciel qui s'est imposé aux armées depuis l'extérieur du sérail.</td>
+          <td class="trac">Société cotée, parmi les plus grosses capitalisations logicielles du secteur défense ; cité par le fondateur de Comand AI comme son « concurrent direct ».</td>
+          <td class="diff">La preuve historique qu'on peut <strong>vendre du logiciel fini aux armées sans être un prime</strong> — à condition d'être 10× plus simple à déployer que l'existant. L'argument « jouable en minutes » de CHESS est exactement cette carte.</td>
+        </tr>
+        <tr>
+          <td class="tool"><a href="https://helsing.ai/" target="_blank" rel="noopener">Helsing</a><span class="org">Allemagne · 2021 · ~18 Md$</span></td>
+          <td class="what">Le champion européen de l'IA de défense : munition rôdeuse <strong>HX-2</strong> (contrat Bundeswehr de 269 M€, cadre jusqu'à 1,46 Md€), pilote IA <strong>Centaur</strong> (démontré sur Gripen avec Saab), avion de combat autonome <strong>CA-1 Europa</strong> avec HENSOLDT (premier vol prévu 2027). S'étend au maritime et au terrestre.</td>
+          <td class="trac">Série E de <strong>1,8 Md$ à ~18 Md$</strong> (2026) — la plus grosse valorisation privée tech d'Europe.</td>
+          <td class="diff">La démonstration que <strong>le récit souverain européen lève des milliards</strong> — et que l'IA de combat s'entraîne massivement en simulation. CHESS surfe sur les deux : souveraineté + simulation comme usine à IA.</td>
+        </tr>
+      </tbody>
+    </table>
+    </div>
+  </section>
+
+  <!-- ══════════ CATÉGORIE 2 ══════════ -->
+  <section>
+    <div class="cat">
+      <span class="n">02</span>
+      <h2>Autonomie &amp; drones</h2>
+      <span class="hint">l'IA pilote, la simulation l'entraîne</span>
+    </div>
+    <div class="tablewrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Société</th>
+          <th>Ce qu'elle fait</th>
+          <th>Traction</th>
+          <th class="diff-h">Ce que ça dit pour Opus / CHESS</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="tool"><a href="https://shield.ai/" target="_blank" rel="noopener">Shield AI</a><span class="org">USA · 2015 · ~12,7 Md$</span></td>
+          <td class="what">Pilote IA <strong>Hivemind</strong> (drone V-BAT, démonstrations sur F-16) et développement du <strong>X-BAT</strong>, chasseur VTOL autonome. Hivemind — le logiciel — pèse déjà ~30 % des revenus : l'IA entraînée en simulation devient le produit vendu.</td>
+          <td class="trac">Série G de <strong>2 Md$ à 12,7 Md$</strong> (mars 2026) ; en discussions rapportées autour de 20 Md$ fin 2026. Revenus ~300-400 M$.</td>
+          <td class="diff">Le miroir de la phase 3 de CHESS : <strong>un adversaire IA qui apprend en simulation</strong>, puis se vend comme produit. Ce que Hivemind est au pilotage, l'adversaire CHESS peut l'être à la doctrine de salve.</td>
+        </tr>
+        <tr>
+          <td class="tool"><a href="https://quantum-systems.com/" target="_blank" rel="noopener">Quantum Systems</a><span class="org">Allemagne · 2015 · ~3 Md€+</span></td>
+          <td class="what">Drones ISR électriques à décollage vertical (<strong>Vector</strong>, Twister), éprouvés intensivement en Ukraine ; positionnement dual-use (défense + civil) revendiqué.</td>
+          <td class="trac">Licorne en mai 2025 (160 M€), valorisation <strong>triplée à plus de 3 Md€</strong> six mois après (extension de 180 M€) ; série D ~8 Md$ rapportée en 2026 (à confirmer).</td>
+          <td class="diff">Un <strong>produit spécialisé bien exécuté suffit</strong> à créer un champion européen en trois ans. Pas besoin d'être généraliste : CHESS peut gagner en restant LE spécialiste de l'exercice radar.</td>
+        </tr>
+        <tr>
+          <td class="tool"><a href="https://www.tekever.com/" target="_blank" rel="noopener">Tekever</a><span class="org">Portugal · 2001 · ~6,4 Md$</span></td>
+          <td class="what">Drones ISR (AR3, AR5) massivement utilisés en Ukraine et sur la Manche — vendus surtout comme <strong>service</strong> : la donnée et la capacité en vol, pas la cellule. </td>
+          <td class="trac">Licorne en mai 2025, puis série D de <strong>580 M$ à 6,4 Md$</strong> — ×5 en un an.</td>
+          <td class="diff">La validation du modèle <strong>« capacité as a service »</strong> : le client paie l'effet, pas la machine. C'est exactement la logique de l'offre « exercice as a service » de CHESS.</td>
+        </tr>
+      </tbody>
+    </table>
+    </div>
+  </section>
+
+  <!-- ══════════ CATÉGORIE 3 ══════════ -->
+  <section>
+    <div class="cat">
+      <span class="n">03</span>
+      <h2>Défense sol-air &amp; anti-saturation</h2>
+      <span class="hint">le problème que CHESS fait précisément jouer</span>
+    </div>
+    <div class="tablewrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Société</th>
+          <th>Ce qu'elle fait</th>
+          <th>Traction</th>
+          <th class="diff-h">Ce que ça dit pour Opus / CHESS</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="tool"><a href="https://epirusinc.com/" target="_blank" rel="noopener">Epirus</a><span class="org">USA · 2018</span></td>
+          <td class="what"><strong>Leonidas</strong> : micro-ondes de forte puissance (GaN) pour neutraliser des <strong>essaims de drones</strong> entiers — la réponse « effecteur » au problème de la saturation. Retenu par l'US Army (RCCTO) après avoir surclassé six systèmes concurrents en essais.</td>
+          <td class="trac">Contrats US Army : <strong>66,1 M$</strong> (prototypes IFPC-HPM, 2023) puis <strong>43,6 M$</strong> (Leonidas Génération II, 2025, portée doublée).</td>
+          <td class="diff">La saturation est <strong>LE problème sol-air du moment</strong> — exactement le scénario que CHESS fait jouer (les Pions). Chaque nouvel effecteur anti-essaim devra être évalué, intégré et son opérateur entraîné : autant de clients potentiels pour un banc d'exercice numérique.</td>
+        </tr>
+      </tbody>
+    </table>
+    </div>
+  </section>
+
+  <div class="creneau">
+    <h2>Les trois leçons de cette vague pour Opus</h2>
+    <p><strong>1 · Le couple hardware + logiciel se valorise plus que chacun séparément.</strong>
+    Anduril vaut 61 Md$ parce que Lattice orchestre du matériel réel. Opus a la même structure en miniature :
+    la fusée crédibilise CHESS, CHESS valorise la fusée.</p>
+    <p><strong>2 · La simulation est l'usine à IA de défense.</strong> Helsing et Shield AI entraînent leurs
+    pilotes IA dans des millions d'engagements simulés avant de toucher une cellule réelle. CHESS applique
+    le même schéma au couple radar/menace — et peut devenir le banc d'évaluation neutre de ces systèmes.</p>
+    <p><strong>3 · Le service récurrent bat la vente one-shot.</strong> Tekever vend la capacité, pas le drone ;
+    QinetiQ vend des campagnes de cibles managées. L'« exercice as a service » de CHESS est dans le sens du marché.</p>
+  </div>
+
+  <div class="foot">
+    <span>CHESS byOpus — benchmark défense-tech</span>
+    <span>Octobre 2026 · diffusion interne</span>
+  </div>
+
+</div>
+</body>
+</html>

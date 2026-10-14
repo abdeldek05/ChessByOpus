@@ -1,0 +1,320 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CHESS — Paysage concurrentiel</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&family=Jost:wght@300;400&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #101210; --bg-soft: #191c19; --surface: #1b1e1a; --surface-2: #242822;
+    --border: #2e312c;
+    --ink: #e2e4e0; --ink-dim: #93968f; --ink-faint: #6a6d63;
+    --accent: #94866e; --accent-bright: #cdbb98;
+    --ok: #8fe28a; --alert: #e0584f; --warning: #d98a3d;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: var(--bg); color: var(--ink);
+    font-family: 'Space Grotesk', system-ui, sans-serif;
+    font-size: 15px; line-height: 1.55;
+    padding: 48px 16px 80px;
+  }
+  .wrap { max-width: 1180px; margin: 0 auto; }
+
+  .eyebrow {
+    font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 500;
+    letter-spacing: 0.3em; text-transform: uppercase; color: var(--accent-bright);
+  }
+  h1 { font-size: 34px; font-weight: 700; margin: 8px 0 10px; }
+  .sub { font-family: 'Jost', sans-serif; font-weight: 300; color: var(--ink-dim); font-size: 17px; max-width: 760px; }
+
+  .ref {
+    margin: 28px 0 40px; background: var(--surface);
+    border: 1px solid var(--border); border-left: 3px solid var(--warning);
+    border-radius: 10px; padding: 18px 22px;
+  }
+  .ref h2 { font-size: 16px; margin-bottom: 6px; }
+  .ref p { color: var(--ink-dim); font-size: 14px; }
+  .ref strong { color: var(--ink); }
+
+  section { margin-bottom: 46px; }
+  .cat {
+    display: flex; align-items: baseline; gap: 14px; margin-bottom: 14px;
+    border-bottom: 1px solid var(--border); padding-bottom: 10px;
+  }
+  .cat .n {
+    font-family: 'JetBrains Mono', monospace; font-size: 13px; color: var(--accent-bright);
+    letter-spacing: 0.2em;
+  }
+  .cat h2 { font-size: 21px; font-weight: 600; }
+  .cat .hint { font-family: 'Jost', sans-serif; font-weight: 300; color: var(--ink-faint); font-size: 14px; }
+
+  .tablewrap { overflow-x: auto; border: 1px solid var(--border); border-radius: 10px; }
+  table { border-collapse: collapse; width: 100%; min-width: 980px; background: var(--surface); }
+  thead th {
+    font-family: 'JetBrains Mono', monospace; font-size: 10.5px; font-weight: 500;
+    letter-spacing: 0.18em; text-transform: uppercase; color: var(--ink-faint);
+    text-align: left; padding: 12px 16px; background: var(--bg-soft);
+    border-bottom: 1px solid var(--border); white-space: nowrap;
+  }
+  tbody td {
+    padding: 16px; vertical-align: top; border-bottom: 1px solid var(--border);
+    color: var(--ink-dim); font-size: 13.5px;
+  }
+  tbody tr:last-child td { border-bottom: none; }
+  tbody tr:hover td { background: rgba(205,187,152,0.03); }
+
+  td.tool { width: 190px; min-width: 170px; }
+  td.tool a {
+    color: var(--accent-bright); font-weight: 600; font-size: 15px;
+    text-decoration: none; border-bottom: 1px dashed rgba(205,187,152,0.45);
+  }
+  td.tool a:hover { color: #ffffff; border-bottom-color: #ffffff; }
+  td.tool .org {
+    display: block; margin-top: 5px;
+    font-family: 'JetBrains Mono', monospace; font-size: 10px;
+    letter-spacing: 0.12em; text-transform: uppercase; color: var(--ink-faint);
+  }
+  td.what { width: 31%; }
+  td.limits { width: 24%; }
+  td.diff {
+    width: 30%; background: rgba(217,138,61,0.05);
+    border-left: 2px solid rgba(217,138,61,0.55); color: var(--ink-dim);
+  }
+  td.diff strong, td.what strong, td.limits strong { color: var(--ink); font-weight: 600; }
+  th.diff-h { color: var(--warning) !important; }
+
+  .foot {
+    margin-top: 38px; border-top: 1px solid var(--border); padding-top: 16px;
+    display: flex; justify-content: space-between; gap: 16px; flex-wrap: wrap;
+    font-family: 'JetBrains Mono', monospace; font-size: 10.5px;
+    letter-spacing: 0.14em; text-transform: uppercase; color: var(--ink-faint);
+  }
+  .creneau {
+    margin-top: 44px; background: var(--surface); border: 1px solid var(--accent);
+    border-radius: 10px; padding: 20px 24px;
+  }
+  .creneau h2 { font-size: 17px; margin-bottom: 8px; color: var(--accent-bright); }
+  .creneau p { color: var(--ink-dim); font-size: 14.5px; }
+  .creneau strong { color: var(--ink); }
+
+  @media (max-width: 700px) {
+    h1 { font-size: 26px; }
+    body { padding: 28px 12px 60px; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <p class="eyebrow">Opus Aerospace · CHESS — Analyse concurrentielle</p>
+  <h1>Qui fait quoi autour de CHESS</h1>
+  <p class="sub">Les outils existants se répartissent en trois familles : les wargames qui jouent des scénarios,
+  les outils d'ingénierie qui calculent la physique radar, et les moyens d'exercice réels.
+  Aucun ne couvre les trois à la fois — c'est le créneau de CHESS.</p>
+
+  <div class="ref">
+    <h2>CHESS, pour référence</h2>
+    <p>Un exercice de défense sol-air <strong>jouable en minutes</strong> : dispositif radar paramétrable
+    (GM400/GF300), salve de menaces selon la doctrine Roi/Dame/Pion, physique de détection réelle
+    (horizon radar, équation radar, SER d'aspect), vol 3D temps réel et débrief automatique —
+    le tout <strong>sans mobiliser le moindre moyen réel</strong>, déployable on-premise.</p>
+  </div>
+
+  <!-- ══════════ CATÉGORIE 1 ══════════ -->
+  <section>
+    <div class="cat">
+      <span class="n">01</span>
+      <h2>Wargaming &amp; simulation d'exercice</h2>
+      <span class="hint">jouer un scénario militaire</span>
+    </div>
+    <div class="tablewrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Outil</th>
+          <th>Ce qu'il fait</th>
+          <th>Accès &amp; limites</th>
+          <th class="diff-h">La différence avec CHESS</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="tool"><a href="https://command.matrixgames.com/" target="_blank" rel="noopener">Command PE</a><span class="org">Slitherine / Matrix Pro Sims · UK</span></td>
+          <td class="what">Simulation air-mer-terre à l'échelle d'un théâtre entier : immense base de données de plateformes, capteurs et armements ; édition fine des scénarios (doctrine, règles d'engagement) ; journalisation complète pour l'analyse. Utilisé par <strong>150+ organisations de défense</strong> (USAF, UK DSTL, Boeing, Lockheed…) pour l'entraînement, la planification et les études capacitaires.</td>
+          <td class="limits">Licence professionnelle réservée au monde de la défense ; outil généraliste à la prise en main lourde — il faut des analystes pour construire et exploiter un scénario.</td>
+          <td class="diff">Command couvre un théâtre entier ; CHESS est <strong>mono-problème</strong> (un dispositif radar contre une salve de leurres), donc opérationnel en minutes, avec un débrief 3D immédiat et une boucle d'optimisation IA intégrée — pas besoin d'une cellule d'analystes.</td>
+        </tr>
+        <tr>
+          <td class="tool"><a href="https://dsiac.dtic.mil/models" target="_blank" rel="noopener">AFSIM</a><span class="org">AFRL / DoD · USA</span></td>
+          <td class="what">Framework gouvernemental américain de simulation d'engagements multi-domaines, très modulaire, devenu la référence pour les études d'acquisition et d'analyse opérationnelle du DoD.</td>
+          <td class="limits"><strong>Réservé au DoD</strong> et aux partenaires autorisés — non commercialisable, inaccessible hors écosystème américain.</td>
+          <td class="diff">Là où AFSIM est fermé, CHESS est un <strong>produit souverain léger</strong> qu'un client européen peut acheter et déployer on-premise, avec ses propres radars et ses propres scénarios.</td>
+        </tr>
+        <tr>
+          <td class="tool"><a href="https://masasim.com/" target="_blank" rel="noopener">MASA SWORD</a><span class="org">MASA Group · France</span></td>
+          <td class="what">Wargame constructif pour l'entraînement des états-majors : une IA doctrinale anime des milliers d'unités selon la doctrine validée, ce qui réduit le coût d'animation des grands exercices. Licence globale de l'armée de Terre française (programme SOULT).</td>
+          <td class="limits">Centré sur la manœuvre terrestre à l'échelle état-major ; la détection radar et la lutte sol-air ne sont pas son cœur de métier.</td>
+          <td class="diff">SWORD joue la <strong>brigade</strong>, CHESS joue le <strong>poste de l'opérateur radar</strong> avec la physique capteur au premier plan. Plus complémentaire que concurrent — et c'est la preuve que l'IA doctrinale se vend.</td>
+        </tr>
+        <tr>
+          <td class="tool"><a href="https://www.mak.com/mak-one/products/vr-forces" target="_blank" rel="noopener">VR-Forces</a><span class="org">MAK Technologies · USA</span></td>
+          <td class="what">Générateur de forces (CGF) pour construire des scénarios interactifs : expérimentations de défense sol-air avec exécution en lot (Monte-Carlo) pour estimer des probabilités d'issue, modes radar configurables (veille/poursuite), visualisation des enveloppes de menace.</td>
+          <td class="limits">C'est une <strong>boîte à outils</strong> : l'exercice, les comportements et les modèles fins restent à construire et à paramétrer par le client.</td>
+          <td class="diff">CHESS livre <strong>l'exercice fini</strong> — doctrine de salve, physique de détection, verdict, débrief — là où VR-Forces livre les briques pour le fabriquer.</td>
+        </tr>
+        <tr>
+          <td class="tool"><a href="https://bisimulations.com/" target="_blank" rel="noopener">VBS4</a><span class="org">BISim (BAE Systems) · CZ/US</span></td>
+          <td class="what">Environnement d'entraînement tactique immersif « monde entier » : infanterie, véhicules, drones, tir et manœuvre en vue 3D, très répandu dans les armées OTAN.</td>
+          <td class="limits">Pas de modélisation radar sérieuse ; l'immersion individuelle prime sur l'analyse capteur.</td>
+          <td class="diff">Segment différent : VBS entraîne le combattant débarqué, CHESS entraîne et outille la <strong>défense aérienne</strong>. Peu de recouvrement réel.</td>
+        </tr>
+      </tbody>
+    </table>
+    </div>
+  </section>
+
+  <!-- ══════════ CATÉGORIE 2 ══════════ -->
+  <section>
+    <div class="cat">
+      <span class="n">02</span>
+      <h2>Ingénierie radar &amp; analyse de couverture</h2>
+      <span class="hint">calculer la physique, sans scénario adverse</span>
+    </div>
+    <div class="tablewrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Outil</th>
+          <th>Ce qu'il fait</th>
+          <th>Accès &amp; limites</th>
+          <th class="diff-h">La différence avec CHESS</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="tool"><a href="https://www.ansys.com/products/missions/ansys-stk" target="_blank" rel="noopener">Ansys STK</a><span class="org">Ansys · USA</span></td>
+          <td class="what">« Digital mission engineering » : scénarios 3D/4D multi-domaines, module radar (monostatique/bistatique, veille/poursuite), cartes de couverture dynamiques avec masquage terrain, trajectoires, capteurs électro-optiques/IR. La référence industrielle pour l'analyse de mission.</td>
+          <td class="limits">Outil d'ingénieur : licences coûteuses, expertise requise ; <strong>aucune notion d'exercice jouable</strong>, d'adversaire ou d'entraînement d'opérateur.</td>
+          <td class="diff">CHESS transforme ce type d'analyse en <strong>exercice interactif</strong> : une salve adverse qui exploite les angles morts, un verdict, un opérateur qui apprend. STK calcule la couverture ; CHESS la met à l'épreuve.</td>
+        </tr>
+        <tr>
+          <td class="tool"><a href="https://www.tno.nl/en/safe/information-sensor-systems/carpet-computer-aided-radar-performance" target="_blank" rel="noopener">CARPET 3</a><span class="org">TNO · Pays-Bas</span></td>
+          <td class="what">L'outil de référence d'évaluation de performance radar depuis 1993 (<strong>600+ licences vendues</strong>) : équation radar, propagation et réfraction (plug-in TERPEM), effet du terrain, clutter, probabilité de piste ferme, scripting Python.</td>
+          <td class="limits">Mono-radar et statique : <strong>aucune menace scénarisée</strong>, pas de dimension temps réel ni d'interface grand public — un outil d'expert radar.</td>
+          <td class="diff">Même physique de fond (horizon, propagation, SER), mais CHESS la met en <strong>scénario dynamique multi-menaces</strong> avec vol 3D, carte tactique et débrief — lisible par un décideur, pas seulement par un ingénieur radar.</td>
+        </tr>
+        <tr>
+          <td class="tool"><a href="https://www.mathworks.com/products/radar.html" target="_blank" rel="noopener">Radar Toolbox</a><span class="org">MathWorks (MATLAB) · USA</span></td>
+          <td class="what">Bibliothèques de modélisation radar pour ingénieurs : formes d'onde, SER, propagation, algorithmes de détection et de pistage, scénarios scriptés.</td>
+          <td class="limits">Une <strong>brique de calcul</strong>, pas un produit : tout est à assembler en code, aucun livrable utilisateur final.</td>
+          <td class="diff">CHESS est un <strong>outil fini</strong> avec interface, parcours et livrables — ce qu'un client achète et utilise, pas ce qu'un ingénieur doit encore développer.</td>
+        </tr>
+      </tbody>
+    </table>
+    </div>
+  </section>
+
+  <!-- ══════════ CATÉGORIE 3 ══════════ -->
+  <section>
+    <div class="cat">
+      <span class="n">03</span>
+      <h2>Exercices réels</h2>
+      <span class="hint">la dépense que CHESS permet de cibler</span>
+    </div>
+    <div class="tablewrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Outil</th>
+          <th>Ce qu'il fait</th>
+          <th>Accès &amp; limites</th>
+          <th class="diff-h">La différence avec CHESS</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="tool"><a href="https://www.qinetiq.com/en/" target="_blank" rel="noopener">Banshee (QTS)</a><span class="org">QinetiQ Target Systems · UK/CA</span></td>
+          <td class="what">Cibles aériennes réelles pour tirs de défense sol-air : gamme Jet 40/80 et Banshee NG transsonique (250+ m/s, plafond 12 000 m, manœuvres 9G, SER réduite), charges utiles d'augmentation radar et de guerre électronique. Vendues ou opérées en <strong>service managé</strong> sur les champs de tir (ex. exercice germano-néerlandais à NAMFI, Crète).</td>
+          <td class="limits">Chaque passe coûte cher : logistique de champ de tir, créneaux rares, <strong>peu d'itérations possibles</strong> — on découvre les problèmes pendant l'exercice, pas avant.</td>
+          <td class="diff">C'est exactement la dépense que CHESS <strong>dérisque</strong> : répéter et filtrer les scénarios en numérique pour n'acheter que les passes réelles qui valident. Complément naturel plus que concurrent — et le modèle « service managé » de QTS valide celui d'Opus.</td>
+        </tr>
+      </tbody>
+    </table>
+    </div>
+  </section>
+
+  <!-- ══════════ CATÉGORIE 4 ══════════ -->
+  <section>
+    <div class="cat">
+      <span class="n">04</span>
+      <h2>Startups défense-tech</h2>
+      <span class="hint">la nouvelle vague — planification &amp; simulation dopées à l'IA</span>
+    </div>
+    <div class="tablewrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Startup</th>
+          <th>Ce qu'elle fait</th>
+          <th>Traction &amp; limites</th>
+          <th class="diff-h">La différence avec CHESS</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="tool"><a href="https://comand.ai/" target="_blank" rel="noopener">Comand AI</a><span class="org">Paris · France · ~43 M€ levés</span></td>
+          <td class="what">Plateforme <strong>Prevail</strong> : IA de planification d'opérations militaires qui intègre les doctrines (amies, alliées, adverses) pour planifier et faire du retour d'expérience en minutes. Déployée auprès d'unités en France, Allemagne et Ukraine ; série A de 32 M€ (juin 2026) avec <strong>Saab</strong> en investisseur-partenaire. Son fondateur cite Palantir comme concurrent direct.</td>
+          <td class="limits">Centrée sur la planification tactique terrestre (appuis feux, manœuvre) au niveau état-major — pas de physique capteur, pas de modèle radar, pas d'exercice sol-air jouable.</td>
+          <td class="diff"><strong>La plus proche en esprit</strong> (IA + doctrine + itération rapide, souveraine, française) mais sur un autre objet : Comand AI planifie la manœuvre, CHESS joue la physique de détection. C'est surtout la preuve que ce récit lève des fonds en Europe — et un partenaire potentiel plus qu'un concurrent frontal.</td>
+        </tr>
+        <tr>
+          <td class="tool"><a href="https://onebrief.com/" target="_blank" rel="noopener">Onebrief</a><span class="org">USA · valorisée ~2,15 Md$</span></td>
+          <td class="what">Plateforme collaborative de planification pour états-majors, utilisée par la plupart des commandements américains. Série D de 200 M$ (janv. 2026) et rachat de <strong>Battle Road Digital</strong> pour ajouter le wargaming temps réel à la plateforme.</td>
+          <td class="limits">Très US-centrée (combatant commands), orientée processus d'état-major ; le wargaming y est un module d'aide à la décision, pas un banc physique capteur/menace.</td>
+          <td class="diff">Montre où va le marché : <strong>la planification qui absorbe le wargaming</strong>. CHESS prend le problème par l'autre bout — la physique d'un engagement précis — inaccessible à une plateforme généraliste de staff.</td>
+        </tr>
+        <tr>
+          <td class="tool"><a href="https://skyral.com/" target="_blank" rel="noopener">Skyral</a><span class="org">UK (ex-Improbable Defence)</span></td>
+          <td class="what">Plateforme d'<strong>environnements synthétiques</strong> : construire rapidement des mondes simulés multi-domaines pour l'entraînement et la planification (contrat OpDST de la Royal Navy pour l'analyse de courses of action, travaux avec le UK MoD depuis 2018).</td>
+          <td class="limits">C'est une plateforme/infrastructure : le client (ou un intégrateur) construit son environnement dessus — pas de produit d'exercice fini, pas de spécialisation radar.</td>
+          <td class="diff">Skyral vend le <strong>terrain de jeu</strong>, CHESS vend <strong>le match</strong> : un exercice fini avec adversaire, physique et verdict. Modèles économiques différents (plateforme vs produit).</td>
+        </tr>
+        <tr>
+          <td class="tool"><a href="https://hadean.com/" target="_blank" rel="noopener">Hadean</a><span class="org">Londres · UK</span></td>
+          <td class="what">Infrastructure de <strong>simulation distribuée dans le cloud</strong> pour l'entraînement collectif : démonstrateur British Army (2022-2023) mêlant 2D, 3D et Live-Virtual-Constructive à grande échelle, bâti sur VBS4, déployé jusque sur des exercices réels au Kenya.</td>
+          <td class="limits">Couche technique (calcul distribué, mise à l'échelle) au service des outils des autres — pas de contenu d'exercice propre, pas de modèle capteur.</td>
+          <td class="diff">Hadean fait <strong>passer à l'échelle</strong> la simulation des autres ; CHESS est le contenu lui-même. Non concurrent — et une brique intéressante le jour où CHESS devra servir des exercices massifs multi-sites.</td>
+        </tr>
+        <tr>
+          <td class="tool"><a href="https://www.anduril.com/" target="_blank" rel="noopener">Anduril</a><span class="org">USA · valorisée ~61 Md$ (2026)</span></td>
+          <td class="what">L'ex-startup devenue prime : systèmes autonomes (drones, intercepteurs Anvil/Roadrunner, tours Sentry) pilotés par <strong>Lattice</strong>, son logiciel de commandement qui fusionne radars, capteurs et effecteurs en une interface unique — colonne vertébrale C2 retenue pour la lutte anti-drones (contrat au ministère de la Défense néerlandais, task orders US). ~2,2 Md$ de revenus en 2025.</td>
+          <td class="limits">Anduril vend de la <strong>défense opérationnelle réelle</strong> (matériel + C2), pas un outil de simulation d'exercice ; sa simulation reste interne à ses développements. Et c'est un écosystème américain.</td>
+          <td class="diff">Pas le même métier : Anduril <strong>défend pour de vrai</strong>, CHESS <strong>entraîne et éprouve</strong> les dispositifs avant l'engagement. Le recouvrement est ailleurs : plus les systèmes type Lattice se déploient, plus il faut des « sparring partners » numériques pour les éprouver — exactement le rôle de CHESS. Référence de marché, pas concurrent direct.</td>
+        </tr>
+      </tbody>
+    </table>
+    </div>
+  </section>
+
+  <div class="creneau">
+    <h2>Le créneau de CHESS</h2>
+    <p>Personne ne combine les trois familles : la <strong>physique vérifiable</strong> des outils d'ingénieur
+    (CARPET, STK), la <strong>jouabilité scénarisée</strong> des wargames (Command PE, SWORD), et un format
+    <strong>léger et mono-problème</strong> — radar contre salve de leurres — accessible sans cellule d'analystes.
+    Les gros outils sont chers, lourds à paramétrer, et souvent inaccessibles hors US/OTAN.
+    CHESS attaque par le bas : un exercice complet, souverain, jouable en minutes, avec une IA qui configure,
+    explique et s'oppose.</p>
+  </div>
+
+  <div class="foot">
+    <span>CHESS byOpus — paysage concurrentiel</span>
+    <span>Octobre 2026 · diffusion interne</span>
+  </div>
+
+</div>
+</body>
+</html>
